@@ -121,6 +121,14 @@ func (c *Cliente) bucle(ctx context.Context) {
 		if err == nil {
 			return // conectado: la reconexión la hace whatsmeow (EnableAutoReconnect)
 		}
+		if errors.Is(err, errQRVencido) { // nadie escaneó: QR nuevo enseguida, sin esperar más
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+			}
+			continue
+		}
 		c.nota(err.Error())
 		log.Printf("whatsapp: %v (reintento en %s)", err, espera)
 		select {
@@ -187,10 +195,13 @@ func (c *Cliente) conectar(ctx context.Context) error {
 		case wm.QRChannelEventError:
 			cli.Disconnect()
 			return fmt.Errorf("vinculación: %v", it.Error)
-		default: // timeout, err-client-outdated, …
+		case "timeout":
+			cli.Disconnect()
+			return errQRVencido
+		default: // err-client-outdated, …
 			cli.Disconnect()
 			c.borrarQR()
-			return fmt.Errorf("vinculación: %s (se genera un QR nuevo)", it.Event)
+			return fmt.Errorf("vinculación: %s", it.Event)
 		}
 	}
 	cli.Disconnect()
@@ -408,7 +419,10 @@ func EntradaDe(m *waE2E.Message) (bot.Entrada, bool) {
 
 // ---------- envío ----------
 
-var ErrNoConectado = errors.New("whatsapp vinculado: sin conexión")
+var (
+	ErrNoConectado = errors.New("whatsapp vinculado: sin conexión")
+	errQRVencido   = errors.New("vinculación: los QR vencieron sin escanear")
+)
 
 func (c *Cliente) destino(tel string) (*wm.Client, types.JID, error) {
 	cli := c.cliente()

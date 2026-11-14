@@ -65,7 +65,7 @@ ol{text-align:left;color:#d7e8dd;line-height:1.6} small{color:#86a593}
   {{if .Codigo}}<p>O con el número de teléfono, este código:</p><div class="cod">{{.Codigo}}</div>{{end}}
   <ol>
     <li>En el teléfono del número del bot: <b>WhatsApp → ⋮ / Configuración → Dispositivos vinculados → Vincular un dispositivo</b>.</li>
-    <li>Escaneá este QR (se renueva solo cada ~20 s) {{if .Codigo}}o tocá <b>Vincular con el número de teléfono</b> y escribí el código{{end}}.</li>
+    <li>Escaneá este QR (se renueva solo cada ~20 s){{if .Codigo}} o tocá <b>Vincular con el número de teléfono</b> y escribí el código{{end}}.</li>
     <li>Listo: esta página dice <b>Vinculado y conectado</b>.</li>
   </ol>
 {{end}}

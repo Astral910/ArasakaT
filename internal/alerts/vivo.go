@@ -180,7 +180,11 @@ func Panorama(c Ctx, p Persona, hayAvisos bool) string {
 	fmt.Fprintf(&b, pick(en, "Pronóstico de hoy (%d miembros ECMWF + GFS, Open-Meteo), próximos %d días:\n", "Today's forecast (%d ECMWF + GFS members, Open-Meteo), next %d days:\n"), len(tot), dias)
 	fmt.Fprintf(&b, pick(en, "🌧 Lluvia total: ~%.0f mm (rango %.0f–%.0f)\n", "🌧 Total rain: ~%.0f mm (range %.0f–%.0f)\n"), percentile(tot, 50), percentile(tot, 10), percentile(tot, 90))
 	fmt.Fprintf(&b, pick(en, "☔ Día más lluvioso: %s, ~%.0f mm\n", "☔ Wettest day: %s, ~%.0f mm\n"), Fecha(c.Date.AddDate(0, 0, moda), en), percentile(maxd, 50))
-	fmt.Fprintf(&b, pick(en, "🌵 Probabilidad de racha seca de 7+ días: %d %%\n", "🌵 Chance of a 7+ day dry spell: %d %%\n"), int(math.Round(pSeca*100)))
+	seca := ""
+	if !inSeason(c.estacion()) {
+		seca = pick(en, " (época seca: es lo normal, no es aviso)", " (dry season: that's normal, not an alert)")
+	}
+	fmt.Fprintf(&b, pick(en, "🌵 Probabilidad de racha seca de 7+ días: %d %%%s\n", "🌵 Chance of a 7+ day dry spell: %d %%%s\n"), int(math.Round(pSeca*100)), seca)
 	if len(tmin) > 0 {
 		fmt.Fprintf(&b, pick(en, "🌡 Noche más fría: ~%.0f °C\n", "🌡 Coldest night: ~%.0f °C\n"), percentile(tmin, 50))
 	}

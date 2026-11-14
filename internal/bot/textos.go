@@ -15,6 +15,7 @@ var textos = map[string][2]string{
 	"municipio_ok": {"%s, %s ✅", "%s, %s ✅"},
 	"lugar_ok":     {"📍 %s ✅", "📍 %s ✅"},
 	"tamano":       {"¿De qué tamaño es tu terreno? 📐 (o escribilo: *3 cuerdas*, *2 mz*, *1 ha*)", "How big is your plot? 📐 (or type it: *3 cuerdas*, *2 mz*, *1 ha*)"},
+	"tamano_ha":    {"¿De qué tamaño es tu terreno? 📐 (o escribilo: *1 ha*, *2.5 ha*)", "How big is your plot? 📐 (or type it: *1 ha*, *2.5 ha*)"},
 	"error_plan_punto": {
 		"Para este punto todavía no pude armar el plan de 25 temporadas 😕 Pero las alertas sí funcionan en cualquier lugar: uso el pronóstico de 16 días (ECMWF + GFS) para tu ubicación.",
 		"I couldn't build the 25-season plan for this spot yet 😕 But alerts work anywhere: I use the 16-day forecast (ECMWF + GFS) for your location.",

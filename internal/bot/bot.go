@@ -1,7 +1,7 @@
-// Package bot: conversación del agricultor, independiente del canal (WhatsApp Cloud, Twilio, simulador web).
-// Saludo → ubicación/municipio → cultivo → riego (nada/poco/medio/mucho) → ganado → prioridad → plan
-// (resumen + tarjeta + 1/2/3 + VIDEO 🎬) → suscripción a alertas (fecha de siembra).
-// Comandos MENU, CAMBIAR, EN/ES, AYUDA, BAJA, AVISAME, VIDEO.
+// Package bot: conversación del agricultor, independiente del canal (WhatsApp vinculado, Cloud, Twilio, simulador web).
+// Saludo → ubicación o nombre (cualquier lugar del mundo) → cultivo → tamaño → riego → plan (resumen + tarjeta +
+// 1/2/3 + video 🎬 + informe PDF 📄) → suscripción a alertas. Ganado y prioridad van con valores por defecto.
+// Comandos MENU, CAMBIAR, EN/ES, AYUDA, ALTO/BAJA/STOP, AVISAME, VIDEO, PRUEBA ALERTA.
 package bot
 
 import (
@@ -396,6 +396,9 @@ func (b *Bot) preguntar(se *Sesion, paso string) []Salida {
 			ops = append(ops, o.opcion)
 		}
 		tipo = "list"
+		if !se.enGuatemala() {
+			clave = "tamano_ha"
+		}
 	case PasoRiego:
 		ops, tipo = opcRiego, "list"
 	case PasoGanado:
