@@ -117,6 +117,7 @@ const rangoAnios = computed(() => {
   const a = est.value[i0.value]?.anios?.map((x) => x.anio) ?? []
   return a.length ? `${Math.min(...a)}–${Math.max(...a)}` : '2001–2025'
 })
+const escEfectivo = computed(() => datos.value?.sim[rec.value?.id as 'S1']?.escenario ?? '')
 const analogos = computed(() => confianza.value?.anios_analogos?.filter((a) => a > 1900) ?? [])
 
 // ---------- calendario ----------
@@ -255,6 +256,15 @@ const secciones = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 
             <p class="muted chico">{{ plan.suelo.fuente }}</p>
           </div>
         </div>
+        <div v-if="plan.sitio" class="sitio">
+          <p><b>{{ tx('bioma') }}:</b> {{ tx('bioma_' + plan.sitio.bioma) === 'bioma_' + plan.sitio.bioma ? plan.sitio.bioma : tx('bioma_' + plan.sitio.bioma) }} ·
+            <N src="plan:sitio.clima.lluvia_anual_mm" u="mm" /> {{ tx('lluviaAnual') }} · <N src="plan:sitio.clima.tmedia_c" :dec="1" u="°C" /> {{ tx('tmedia') }} ·
+            <N src="plan:sitio.clima.meses_secos" /> {{ tx('mesesSecos') }}</p>
+          <p v-if="plan.sitio.clima.resumen" class="chico">{{ lang === 'en' ? plan.sitio.clima.resumen_en || plan.sitio.clima.resumen : plan.sitio.clima.resumen }}</p>
+          <p v-if="plan.sitio.temporadas?.length" class="chico"><b>{{ tx('temporadas') }}:</b>
+            <template v-for="(t, j) in plan.sitio.temporadas" :key="j">{{ j ? ' · ' : ' ' }}{{ t.nombre }} {{ fecha(t.inicio) }}–{{ fecha(t.fin) }} (<N :src="`plan:sitio.temporadas.${j}.lluvia_mm`" u="mm" />)</template>
+          </p>
+        </div>
         <figure v-if="plan.clima_mensual?.length" class="fig">
           <GClima :meses="plan.clima_mensual" :bandas="(plan.periodos ?? [plan.canicula_tipica]).filter((p) => p.tipo !== 'vulnerable')" />
           <figcaption>{{ tx('climaFig') }} · NASA POWER</figcaption>
@@ -292,12 +302,19 @@ const secciones = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 
             <div><dt>{{ tx('probPerd') }}</dt><dd><N :src="`${C}.prob_perdida`" :x="100" u="%" /></dd></div>
             <div><dt>{{ tx('cosechaRango') }}</dt><dd><N :src="`${C}.cosecha_p10`" :dec="1" /> / <b><N :src="`${C}.cosecha_p50`" :dec="1" /></b> / <N :src="`${C}.cosecha_p90`" :dec="1" /> {{ tx('qqmz') }}</dd></div>
             <div><dt>{{ tx('habilidad') }}</dt><dd>{{ confianza?.habilidad || RAYA }}</dd></div>
+            <div v-if="confianza?.clase"><dt>{{ tx('claseTemp') }}</dt><dd>{{ tx('clase_' + confianza.clase) }}</dd></div>
+            <div v-if="confianza?.oni_pronostico != null"><dt>{{ tx('oniPron') }}</dt><dd><N :src="`${C}.oni_pronostico`" :dec="1" /><small v-if="confianza.oni_fuente" class="muted"> · {{ confianza.oni_fuente }}</small></dd></div>
+            <div v-if="confianza?.dias_pronostico"><dt>{{ tx('pron16') }}</dt><dd><N :src="`${C}.dias_pronostico`" /> {{ tx('dias') }}<template v-if="confianza.fecha_pronostico"> · {{ tx('corrida') }} {{ fechaISO(confianza.fecha_pronostico) }}</template></dd></div>
+            <div v-if="confianza?.prob_clases?.length === 3" class="ancho"><dt>{{ tx('probClases') }}</dt><dd class="clases">
+              <span v-for="(c, j) in ['perdida', 'regular', 'buena']" :key="c" class="clase" :class="c"><i :style="{ width: (confianza.prob_clases[j] * 100) + '%' }" /><em>{{ tx('clase_' + c) }}</em> <N :src="`${C}.prob_clases.${j}`" :x="100" u="%" /></span>
+            </dd></div>
+            <div v-if="confianza?.regla" class="ancho"><dt>{{ tx('regla') }}</dt><dd class="chico">{{ confianza.regla }}</dd></div>
             <div class="ancho"><dt>{{ tx('analogos') }}</dt><dd><span v-if="!analogos.length">{{ RAYA }}</span><span v-for="a in analogos" :key="a" class="anio">{{ a }}</span></dd></div>
           </dl>
         </div>
 
         <template v-if="enVivo && datos.escenario">
-          <p class="nota chico">{{ datos.escenario === 'pronostico' ? tx('escPron') : tx('escTipico') }}</p>
+          <p class="nota chico">{{ datos.escenario !== 'pronostico' ? tx('escTipico') : escEfectivo === 'remuestreo-enso' ? tx('escRemuestreo') : tx('escPron') }}</p>
           <table class="tabla">
             <caption>{{ tx('simTabla') }}</caption>
             <thead><tr><th></th><th>{{ tx('anioReal') }}</th><th>{{ tx('grano') }}</th><th>{{ tx('perdida') }}</th></tr></thead>
@@ -719,6 +736,12 @@ h3 { font-family: var(--font-display); }
 .val-y { font-size: .6rem; color: var(--c-ink3); }
 .ley { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem; }
 
+.sitio { margin: .6rem 0; padding: .6rem .8rem; background: #f8f3ea; border-radius: 8px; display: grid; gap: .25rem; }
+.clases { display: grid; gap: .25rem; }
+.clase { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .5rem; position: relative; font-size: .82rem; padding: .1rem .4rem; border-radius: 4px; overflow: hidden; }
+.clase i { position: absolute; inset: 0 auto 0 0; opacity: .22; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.clase.perdida i { background: #b5343c; } .clase.regular i { background: #e0a526; } .clase.buena i { background: #2a8a66; }
+.clase em { font-style: normal; position: relative; }
 .final .ext { font-family: var(--font-display); font-size: 1.25rem; line-height: 1.35; margin: 1.2rem 0 .4rem; padding: .9rem 1.1rem; background: #ecf6f1; border-radius: 10px; border-left: 5px solid #2a8a66; }
 
 @media screen and (max-width: 720px) {

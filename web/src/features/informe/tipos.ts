@@ -17,6 +17,25 @@ export interface Confianza {
   texto: string
   texto_en: string
   fuentes: string[]
+  // detalle opcional (motor3)
+  clase?: string // perdida | regular | buena
+  prob_clases?: [number, number, number] | null
+  oni_pronostico?: number | null
+  oni_fuente?: string
+  dias_pronostico?: number
+  fecha_pronostico?: string
+  regla?: string
+}
+
+export interface SitioInfo {
+  id: string; nombre: string; pais?: string; lat: number; lon: number; elev_m: number; pendiente_pct: number
+  precalculado: boolean; bimodal: boolean
+  temporadas: { nombre: string; inicio: string; fin: string; lluvia_mm: number }[]
+  canicula?: { tipo: string; nombre: string; inicio: string; fin: string } | null
+  riesgo_de_10: number
+  clima: { lluvia_anual_mm: number; tmedia_c: number; tmax_c: number; tmin_c: number; meses_secos: number; resumen: string; resumen_en: string }
+  bioma: string
+  fuentes: string[]
 }
 
 export interface MesClima { mes: number; lluvia_mm: Rango; et0_mm: number; tmin_c: number }
@@ -51,6 +70,7 @@ export interface PlanInf extends Omit<Plan, 'estrategias'> {
   resumen?: string[]
   motor?: string
   confianza?: Confianza | null
+  sitio?: SitioInfo | null
 }
 
 export interface SimAnio { anio: number; anio_real: number; grano_qq_mz: number; mo: number; erosion_t_ha: number; perdida: boolean; el_nino: boolean }
@@ -62,6 +82,7 @@ export interface SimInf {
   anual: SimAnio[]
   notas: string[]
   motor: string
+  escenario?: string
   confianza?: Confianza | null
 }
 

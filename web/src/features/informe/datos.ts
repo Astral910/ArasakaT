@@ -127,6 +127,13 @@ export function normalizarConfianza(x: unknown): Confianza | null {
     texto: g('texto', 'Texto') ?? '',
     texto_en: g('texto_en', 'TextoEN') ?? '',
     fuentes: g('fuentes', 'Fuentes') ?? [],
+    clase: g('clase', 'Clase'),
+    prob_clases: g('prob_clases', 'ProbClases'),
+    oni_pronostico: g('oni_pronostico', 'ONIPronostico'),
+    oni_fuente: g('oni_fuente', 'ONIFuente'),
+    dias_pronostico: g('dias_pronostico', 'DiasPronostico'),
+    fecha_pronostico: g('fecha_pronostico', 'FechaPronostico'),
+    regla: g('regla', 'Regla'),
   }
 }
 
@@ -140,7 +147,7 @@ function conConfianza<T extends { confianza?: Confianza | null }>(x: T): T {
 function recortarSim(tl: Record<string, unknown>): SimInf {
   const s: SimInf = {
     inicio: tl.inicio as string, dias: tl.dias as number, fuente: [...new Set((tl.fuente as string[]) ?? [])],
-    anual: (tl.anual as SimInf['anual']) ?? [], notas: (tl.notas as string[]) ?? [], motor: (tl.motor as string) ?? '',
+    anual: (tl.anual as SimInf['anual']) ?? [], notas: (tl.notas as string[]) ?? [], motor: (tl.motor as string) ?? '', escenario: tl.escenario as string | undefined,
   }
   s.confianza = normalizarConfianza(tl.confianza ?? tl.Confianza)
   return s
@@ -165,6 +172,12 @@ async function alertasDe(id: string): Promise<TimelineAlertas | null> {
   }
 }
 
+function distanciaKm(a: number, b: number, c: number, d: number) {
+  const r = Math.PI / 180
+  const x = Math.sin(((c - a) * r) / 2) ** 2 + Math.cos(a * r) * Math.cos(c * r) * Math.sin(((d - b) * r) / 2) ** 2
+  return 12742 * Math.asin(Math.sqrt(x))
+}
+
 /** Arma todo lo que el informe muestra. Nunca inventa: lo que no llega queda vacío y la página pone "—". */
 export async function cargarInforme(c: ConsultaInf): Promise<DatosInforme> {
   let plan: PlanInf
@@ -177,6 +190,10 @@ export async function cargarInforme(c: ConsultaInf): Promise<DatosInforme> {
     origen = r.origen
   }
   conConfianza(plan)
+  // sin motor, el respaldo es un plan precalculado de Guatemala: si el punto pedido está lejos, no se muestra otro lugar
+  if (origen !== 'api' && c.lat != null && c.lon != null && distanciaKm(c.lat, c.lon, plan.municipio.lat, plan.municipio.lon) > 60) {
+    throw new Error(c.idioma === 'en' ? 'The engine did not answer for this point and there is no precomputed plan nearby.' : 'El motor no respondió para este punto y no hay un plan precalculado cerca.')
+  }
   const enVivo = origen === 'api'
 
   const ids = plan.estrategias.map((e) => e.id as 'S0' | 'S1' | 'S2')
