@@ -185,7 +185,7 @@ func Calidad(c *data.Climate) string {
 	sort.Float64s(b)
 	ma, mb := a[len(a)/2], b[len(b)/2]
 	switch {
-	case ma > 150 && a[0] < 0.15*ma:
+	case ma > 400 && a[0] < 0.15*ma: // en desiertos (< 400 mm) un año casi seco puede ser real
 		return fmt.Sprintf("años casi sin lluvia (%.0f mm frente a una mediana de %.0f mm)", a[0], ma)
 	case ma > 150 && mb > 1.7*ma: // solo hacia arriba: las bajas pueden ser sequías reales (Magreb 2021–2024)
 		return fmt.Sprintf("salto en la lluvia anual desde 2021 (mediana %.0f → %.0f mm)", ma, mb)
