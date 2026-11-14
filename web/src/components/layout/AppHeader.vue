@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Moon, Sun, Menu, X, Languages } from 'lucide-vue-next'
 import { useI18n } from '@/i18n'
@@ -15,6 +15,8 @@ const onScroll = () => (scrolled.value = window.scrollY > 8)
 onMounted(() => { onScroll(); window.addEventListener('scroll', onScroll, { passive: true }) })
 onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
 watch(() => route.fullPath, () => (open.value = false))
+// En la portada el encabezado flota sobre el globo satelital (oscuro): letras claras hasta que se baja.
+const sobreMapa = computed(() => route.name === 'home' && !scrolled.value && !open.value)
 
 const links = [
   { to: '/plan', key: 'nav.plan' },
@@ -25,7 +27,7 @@ const links = [
 </script>
 
 <template>
-  <header class="hdr" :class="{ scrolled, open }">
+  <header class="hdr" :class="{ scrolled, open, sobre: sobreMapa }">
     <div class="container bar">
       <RouterLink to="/" class="brand" aria-label="Field Shift">
         <BrandMark />
@@ -68,6 +70,9 @@ const links = [
 .tool svg { width: 18px; height: 18px; }
 .tool:hover { border-color: var(--ink-3); }
 .burger { display: none; }
+.sobre .brand, .sobre .lnk { color: #fff; }
+.sobre .lnk:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.sobre .tool { background: rgba(14, 20, 30, 0.45); border-color: rgba(255, 255, 255, 0.3); color: #fff; backdrop-filter: blur(8px); }
 .mobile { display: none; }
 @media (max-width: 860px) {
   .links { display: none; }
