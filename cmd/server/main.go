@@ -147,4 +147,3 @@ func logging(next http.Handler) http.Handler {
 		}
 	})
 }
-

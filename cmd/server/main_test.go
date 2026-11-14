@@ -161,7 +161,8 @@ func TestMotorYBotReales(t *testing.T) {
 	cfg.DataDir = filepath.Join("..", "..", "data")
 	cfg.DBPath = filepath.Join(t.TempDir(), "fs.db")
 	h, a := newServer(cfg)
-	if a.comp.Motor != "real" || a.comp.Bot != "real" {
+	defer a.Close()
+	if a.comp.Motor != "real" || a.comp.Bot != "real" || a.comp.Alertas != "real" {
 		t.Fatalf("componentes %+v", a.comp)
 	}
 	rec := do(h, "POST", "/api/plan", `{"municipio_id":"jocotan-chiquimula","cultivo":"milpa","area_valor":8,"area_unidad":"cuerda","prioridad":"comida","horizonte":"2026","idioma":"es"}`, nil)
