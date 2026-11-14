@@ -14,7 +14,7 @@ import { Gauge, HuipilBand, StatusBadge } from '@/components/ui'
 import { usePlanStore } from '@/stores/plan'
 import { fixturePlan } from '@/api/client'
 import { t, lang } from '@/i18n'
-import { nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo, cambioSuelo } from '@/components/plan/util'
+import { descEstrategia, nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo, cambioSuelo } from '@/components/plan/util'
 
 const route = useRoute()
 const store = usePlanStore()
@@ -88,11 +88,11 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
       </header>
 
       <div class="phone-slot" :class="{ out: escena === 5, center: escena <= 1 && escena >= 0 }">
-        <PhoneSim ref="phone" :plan="plan" :autoplay="false" :interactive="false" :speed="0.55" :notif-delay="14200" :auto-open="3000" :scale="1.38" />
+        <PhoneSim ref="phone" :plan="plan" :autoplay="false" :interactive="false" :speed="0.55" :notif-delay="14200" :auto-open="3000" :scale="1.24" />
       </div>
 
       <!-- escena 2–3: mapa + anillo; escena 3: tarjetas -->
-      <div class="panel map-panel" :class="{ show: escena >= 2 && escena <= 3 }">
+      <div class="panel map-panel" :class="{ show: escena === 2 }">
         <TerrainMap ref="mapa" :fly="false" :interactive="false" :duration="5200" />
         <div class="ring-over" :class="{ show: escena === 2 && elapsed > 12 }">
           <CalendarRing v-if="escena === 2 && elapsed > 12" :plan="plan" :size="360" :labels="true" />
@@ -102,9 +102,10 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
       <div class="panel cards-panel" :class="{ show: escena === 3 }">
         <div v-if="escena === 3" class="d-cards">
           <article v-for="(e, i) in plan.estrategias" :key="e.id" class="d-card" :class="{ rec: e.recomendada }" :style="{ animationDelay: i * 450 + 'ms' }">
-            <CropIllustration :crop="cultivoEstrategia(e)" :health="saludDeRiesgo(e.perdidas_de_10.p50)" :size="120" />
+            <CropIllustration :crop="cultivoEstrategia(e)" :health="saludDeRiesgo(e.perdidas_de_10.p50)" :size="170" />
             <h3>{{ nombreEstrategia(e, lang, plan) }}</h3>
             <StatusBadge :level="nivelRiesgo(e.perdidas_de_10.p50)" :label="t('plan.level.' + nivelRiesgo(e.perdidas_de_10.p50))" />
+            <p class="d-desc">{{ descEstrategia(e, lang, plan) }}</p>
             <div class="d-g">
               <Gauge :value="e.perdidas_de_10.p50" :max="10" :p10="e.perdidas_de_10.p10" :p90="e.perdidas_de_10.p90" :level="nivelRiesgo(e.perdidas_de_10.p50)" :label="t('plan.risk')" :unit="t('plan.riskUnit')" :size="120" :delay="i * 450" />
               <Gauge :value="Math.abs(cambioSuelo(e))" :prefix="cambioSuelo(e) > 0 ? '+' : cambioSuelo(e) < 0 ? '−' : ''" :max="40" :level="cambioSuelo(e) > 2 ? 'ok' : cambioSuelo(e) >= -2 ? 'warn' : 'risk'" :label="t('plan.soil')" unit="% MO" :size="120" :delay="i * 450 + 150" />
@@ -168,7 +169,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 .top { position: absolute; left: 80px; top: 50px; display: flex; align-items: center; gap: 16px; font-family: var(--font-display); font-size: 40px; font-weight: 650; z-index: 4; }
 .tag { font-family: var(--font-ui); font-size: 20px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tierra); margin-left: 12px; }
 .e5 ~ .top, .stage:has(.bg.e5) .top { color: #f5efe4; }
-.phone-slot { position: absolute; left: 120px; top: 120px; z-index: 3; transition: transform 1s var(--ease), opacity 800ms; }
+.phone-slot { position: absolute; left: 130px; top: 140px; z-index: 3; transition: transform 1s var(--ease), opacity 800ms; }
 .phone-slot.center { transform: translateX(560px); }
 .phone-slot.out { transform: translateX(-700px); opacity: 0; }
 .panel { position: absolute; left: 720px; right: 80px; top: 150px; bottom: 170px; opacity: 0; transform: translateY(30px); transition: opacity 700ms var(--ease), transform 700ms var(--ease); pointer-events: none; z-index: 2; }
@@ -178,10 +179,12 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 .ring-over.show { opacity: 1; }
 .ring-over :deep(.legend) { display: none; }
 .d-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; height: 100%; }
-.d-card { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px; border-radius: 32px; background: var(--surface); box-shadow: var(--shadow-2); text-align: center; animation: up 700ms var(--ease) both; border: 2px solid var(--line); }
+.d-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 28px; border-radius: 32px; background: var(--surface); box-shadow: var(--shadow-2); text-align: center; animation: up 700ms var(--ease) both; border: 2px solid var(--line); }
 .d-card.rec { border-color: var(--jade); box-shadow: 0 0 0 6px color-mix(in srgb, var(--jade) 15%, transparent), var(--shadow-2); }
 .d-card h3 { font-size: 30px; }
-.d-g { display: flex; gap: 20px; margin-top: auto; }
+.d-g { display: flex; gap: 20px; margin-top: 12px; }
+.d-desc { font-size: 21px; color: var(--ink-2); line-height: 1.35; max-width: 420px; }
+.cards-panel { top: 190px; bottom: 200px; }
 .d-g :deep(.label) { font-size: 16px; }
 @keyframes up { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: none; } }
 .tm-panel { display: flex; flex-direction: column; gap: 20px; }

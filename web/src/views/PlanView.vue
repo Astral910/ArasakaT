@@ -264,7 +264,10 @@ async function descargar() {
 @media (max-width: 900px) {
   .head-in { grid-template-columns: 1fr; }
   .cal-grid { grid-template-columns: 1fr; justify-items: center; }
-  .cal-grid :deep(svg) { width: min(340px, 86vw); height: auto; }
+  .cal-grid { justify-items: stretch; }
+  .cal-grid :deep(.ring-wrap) { width: 100%; }
+  .cal-grid :deep(.ring-wrap > svg) { width: 100%; max-width: 360px; height: auto; }
+  .sun { width: 80px; height: 80px; right: 4%; top: 9%; opacity: 0.8; }
 }
 @media (max-width: 720px) { .cards, .trust, .sk-cards { grid-template-columns: 1fr; } .acts > * { flex: 1 1 auto; } }
 </style>
