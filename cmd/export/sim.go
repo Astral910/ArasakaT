@@ -42,6 +42,22 @@ func exportSim(e *plan.Engine, out string) error {
 		return err
 	}
 	write("contracts/fixtures/sim_jocotan_pronostico.json", tl, false)
+	// fixtures del motor global (necesitan red la primera vez; luego quedan en la caché de DATA_DIR)
+	for _, g := range []struct {
+		name     string
+		lat, lon float64
+	}{{"oaxaca", 17.06, -96.72}} {
+		la, lo := g.lat, g.lon
+		tl, err := e.Simulate(contract.SimRequest{Plan: contract.PlanRequest{Lat: &la, Lon: &lo, Cultivo: "milpa", Idioma: "es"}, Estrategia: "S2", Escenario: "pronostico"})
+		if err != nil {
+			log.Printf("fixture global %s: %v", g.name, err)
+			continue
+		}
+		write("contracts/fixtures/sim_"+g.name+"_pronostico.json", tl, false)
+		if si, err := e.Sitio(la, lo, "es"); err == nil {
+			write("contracts/fixtures/sitio_"+g.name+".json", si, true)
+		}
+	}
 	dir := filepath.Join(out, "sim")
 	os.MkdirAll(dir, 0o755)
 	var index []map[string]any

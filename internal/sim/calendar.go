@@ -210,7 +210,7 @@ func (s *Site) Climate() Climatology {
 	for _, y := range s.ClimYears() {
 		var sum [12]float64
 		for i := s.Idx(y, 1, 1); i <= s.Idx(y, 12, 31); i++ {
-			m := int(s.Date(i).Month()) - 1
+			m := int(s.RealDate(i).Month()) - 1
 			sum[m] += s.PR[i]
 			et0[m] += s.ET0[i]
 			tmin[m] += s.Tmin[i]

@@ -650,6 +650,6 @@
     }
   ],
   "formato": "sim/<municipio>_<S0|S1|S2>_<pronostico|tipico|nino|real-2026|secuencia-p50|2040-ssp245>_<riego mm/semana: 0|20>[_en].json (= POST /api/simulate; también .json.gz)",
-  "generado": "2026-11-14T21:55:17Z",
+  "generado": "2026-11-14T22:14:57Z",
   "supuestos": "milpa, 1 manzana, percentil p50, semilla 2026; secuencia = 5 años; textos de eventos en español (o _en)"
 }

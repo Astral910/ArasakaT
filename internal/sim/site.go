@@ -197,12 +197,12 @@ func (s *Site) WithDelta(md data.MonthlyDelta, scen string) *Site {
 	o.climCache = nil
 	o.Tmax, o.Tmin, o.PR, o.ET0 = make([]float64, s.N), make([]float64, s.N), make([]float64, s.N), make([]float64, s.N)
 	for i := 0; i < s.N; i++ {
-		m := int(s.Date(i).Month()) - 1
+		m := int(s.RealDate(i).Month()) - 1
 		o.Tmax[i] = s.Tmax[i] + md.TmaxAdd[m]
 		o.Tmin[i] = s.Tmin[i] + md.TminAdd[m]
 		o.PR[i] = s.PR[i] * md.PrRatio[m]
 		o.ET0[i] = fao56.ET0(fao56.Day{Tmax: o.Tmax[i], Tmin: o.Tmin[i], RH: s.rhCache[i], U2: s.wsCache[i], Rs: s.rsCache[i],
-			DOY: s.Date(i).YearDay()}, math.Max(s.ElevM, 0), s.Lat)
+			DOY: s.RealDate(i).YearDay()}, math.Max(s.ElevM, 0), s.Lat)
 	}
 	return &o
 }

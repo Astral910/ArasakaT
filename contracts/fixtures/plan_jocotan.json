@@ -1153,7 +1153,7 @@
       "uso": "cambios mensuales de lluvia y temperatura a 2040"
     }
   ],
-  "generado": "2026-11-14T21:55:13Z",
+  "generado": "2026-11-14T22:14:53Z",
   "siembra_aqui": "05-14",
   "periodos": [
     {
@@ -1376,5 +1376,60 @@
     "dias_pronostico": 16,
     "fecha_pronostico": "2026-11-14",
     "regla": "Puntos: probabilidad del escenario ≥ 60 % → 2 (≥ 40 % → 1); validación local con ≥ 60 % de sequías documentadas detectadas → 1; temporada armada con pronóstico (o clima observado) → 1; rango de cosecha estrecho ((P90−P10)/P50 ≤ 0.5) → 1. alta ≥ 4, media 2–3, baja ≤ 1. Clima observado = alta; escenarios CMIP6 a 2040 como máximo media."
+  },
+  "sitio": {
+    "id": "jocotan-chiquimula",
+    "nombre": "Jocotán, Chiquimula",
+    "pais": "GT",
+    "lat": 14.8121,
+    "lon": -89.3778,
+    "elev_m": 909,
+    "pendiente_pct": 29.8,
+    "precalculado": true,
+    "bimodal": true,
+    "temporadas": [
+      {
+        "nombre": "primera",
+        "inicio": "05-14",
+        "fin": "07-11",
+        "lluvia_mm": 346
+      },
+      {
+        "nombre": "postrera",
+        "inicio": "08-15",
+        "fin": "11-18",
+        "lluvia_mm": 525
+      }
+    ],
+    "canicula": {
+      "tipo": "canicula",
+      "nombre": "Canícula / veranillo",
+      "inicio": "07-12",
+      "fin": "08-01"
+    },
+    "riesgo_de_10": 3.6,
+    "clima": {
+      "lluvia_anual_mm": 1225,
+      "tmedia_c": 22.3,
+      "tmax_c": 30.9,
+      "tmin_c": 15.3,
+      "meses_secos": 2,
+      "resumen": "1225 mm de lluvia al año, dos temporadas de lluvia, 2 meses secos; 22 °C de media.",
+      "resumen_en": "1225 mm of rain a year, two rainy seasons, 2 dry months; 22 °C on average."
+    },
+    "bioma": "corredor-seco",
+    "suelo": {
+      "arena": 38.2,
+      "arcilla": 33.8,
+      "mo": 3.68,
+      "fuente": "ISRIC SoilGrids 2.0 (0–30 cm, media)"
+    },
+    "fuentes": [
+      "NASA POWER diario 2001–2025 (community AG): lluvia, temperatura, radiación, humedad, viento",
+      "Temporadas: días con lluvia ≥ ½ ET0 FAO-56 (período de crecimiento FAO-AEZ), climatología suavizada 31 días",
+      "Relieve: SRTM (AWS Terrain Tiles)",
+      "Suelo: ISRIC SoilGrids 2.0 (0–30 cm, media)"
+    ],
+    "motor": "fieldshift-motor 1.0 (FAO-56 + FAO-33 + Monte Carlo 2001–2025)"
   }
 }

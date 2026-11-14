@@ -120,11 +120,12 @@ type analogo struct {
 	Base      []int
 }
 
-// targetYear temporada que viene: la del año en curso si todavía no empezó la ventana de siembra; si no, la del siguiente.
+// targetYear temporada que viene: la del año en curso si todavía se puede sembrar (antes del fin de la ventana
+// de siembra de la temporada principal); si no, la del año siguiente.
 func targetYear(s *sim.Site, hoy time.Time) int {
 	t := hoy.AddDate(0, 0, s.Shift) // calendario interno
 	y := t.Year()
-	if !t.Before(time.Date(y, s.Cal.PrimFrom.M, s.Cal.PrimFrom.D, 0, 0, 0, 0, time.UTC)) {
+	if !t.Before(time.Date(y, s.Cal.PrimTo.M, s.Cal.PrimTo.D, 0, 0, 0, 0, time.UTC)) {
 		y++
 	}
 	return y
@@ -706,6 +707,9 @@ func simulatePron(env SimEnv, r contract.SimRequest, req contract.PlanRequest, s
 		return contract.SimTimeline{}, err
 	}
 	from := xs.Idx(hoy.AddDate(0, 0, s.Shift).Year(), hoy.AddDate(0, 0, s.Shift).Month(), hoy.AddDate(0, 0, s.Shift).Day())
+	if on := xs.YearCal(an.Y).PrimeraOnset; on >= 0 && on-7 < from { // la siembra ya empezó: mostrarla (días observados)
+		from = on - 7
+	}
 	if from <= 0 {
 		from = 1
 	}

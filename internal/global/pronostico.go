@@ -30,7 +30,7 @@ type Mes struct {
 // Forecast16 pronóstico diario de 16 días (caché por punto y día de corrida).
 func (c *Client) Forecast16(lat, lon float64, day string) ([]Dia, error) {
 	url := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,et0_fao_evapotranspiration,relative_humidity_2m_mean,wind_speed_10m_mean,shortwave_radiation_sum&forecast_days=16&timezone=auto",
-		c.Forecast, lat, lon)
+		c.ForecastURL, lat, lon)
 	b, err := c.Cached("pronostico", fmt.Sprintf("f16_%s_%s.json", CellKey(lat, lon), day), url, 2)
 	if err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func (c *Client) Forecast16(lat, lon float64, day string) ([]Dia, error) {
 
 // SeasonalMonthly anomalías mensuales de ECMWF SEAS5 en el punto (caché por día).
 func (c *Client) SeasonalMonthly(lat, lon float64, day string) ([]Mes, error) {
-	url := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f&monthly=precipitation_anomaly,temperature_2m_anomaly", c.Seasonal, lat, lon)
+	url := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f&monthly=precipitation_anomaly,temperature_2m_anomaly", c.SeasonalURL, lat, lon)
 	b, err := c.Cached("pronostico", fmt.Sprintf("seas5_%s_%s.json", CellKey(lat, lon), day), url, 2)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (c *Client) Nino34(day string) ([]Mes, error) {
 			lons = append(lons, fmt.Sprint(lo))
 		}
 	}
-	url := fmt.Sprintf("%s?latitude=%s&longitude=%s&monthly=sea_surface_temperature_anomaly", c.Seasonal, strings.Join(lats, ","), strings.Join(lons, ","))
+	url := fmt.Sprintf("%s?latitude=%s&longitude=%s&monthly=sea_surface_temperature_anomaly", c.SeasonalURL, strings.Join(lats, ","), strings.Join(lons, ","))
 	b, err := c.Cached("pronostico", "nino34_"+day+".json", url, 2)
 	if err != nil {
 		return nil, err

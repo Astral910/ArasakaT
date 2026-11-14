@@ -19,10 +19,11 @@ import (
 // Client baja datos con caché en disco (DATA_DIR/cache/global).
 type Client struct {
 	HTTP     *http.Client
+	Fast     *http.Client // pronóstico (Open-Meteo forecast/seasonal): si tarda, mejor caer a remuestreo-enso
 	CacheDir string
 	// URLs base (se pueden cambiar en los tests para simular "sin red").
-	Power, SoilGrids, Terrain, Forecast, Seasonal, ClimateAPI, Geocode string
-	UserAgent                                                          string
+	PowerURL, SoilURL, TerrainURL, ForecastURL, SeasonalURL, ClimateURL, GeocodeURL string
+	UserAgent                                                                       string
 
 	mu    sync.Mutex
 	locks map[string]*sync.Mutex
@@ -30,24 +31,24 @@ type Client struct {
 
 // New cliente con las URLs públicas.
 func New(cacheDir string) *Client {
-	return &Client{HTTP: &http.Client{Timeout: 25 * time.Second}, CacheDir: cacheDir,
-		Power:      "https://power.larc.nasa.gov/api/temporal/daily/point",
-		SoilGrids:  "https://rest.isric.org/soilgrids/v2.0/properties/query",
-		Terrain:    "https://s3.amazonaws.com/elevation-tiles-prod/terrarium",
-		Forecast:   "https://api.open-meteo.com/v1/forecast",
-		Seasonal:   "https://seasonal-api.open-meteo.com/v1/seasonal",
-		ClimateAPI: "https://climate-api.open-meteo.com/v1/climate",
-		Geocode:    "https://nominatim.openstreetmap.org/reverse",
-		UserAgent:  "FieldShift/1.0 (NASA Space Apps 2026, Guatemala)",
-		locks:      map[string]*sync.Mutex{}}
+	return &Client{HTTP: &http.Client{Timeout: 25 * time.Second}, Fast: &http.Client{Timeout: 8 * time.Second}, CacheDir: cacheDir,
+		PowerURL:    "https://power.larc.nasa.gov/api/temporal/daily/point",
+		SoilURL:     "https://rest.isric.org/soilgrids/v2.0/properties/query",
+		TerrainURL:  "https://s3.amazonaws.com/elevation-tiles-prod/terrarium",
+		ForecastURL: "https://api.open-meteo.com/v1/forecast",
+		SeasonalURL: "https://seasonal-api.open-meteo.com/v1/seasonal",
+		ClimateURL:  "https://climate-api.open-meteo.com/v1/climate",
+		GeocodeURL:  "https://nominatim.openstreetmap.org/reverse",
+		UserAgent:   "FieldShift/1.0 (NASA Space Apps 2026, Guatemala)",
+		locks:       map[string]*sync.Mutex{}}
 }
 
 // Offline cliente que nunca sale a la red (para pruebas y para el modo sin conexión).
 func Offline(cacheDir string) *Client {
 	c := New(cacheDir)
 	bad := "http://127.0.0.1:1"
-	c.Power, c.SoilGrids, c.Terrain, c.Forecast, c.Seasonal, c.ClimateAPI, c.Geocode = bad, bad, bad, bad, bad, bad, bad
-	c.HTTP.Timeout = 2 * time.Second
+	c.PowerURL, c.SoilURL, c.TerrainURL, c.ForecastURL, c.SeasonalURL, c.ClimateURL, c.GeocodeURL = bad, bad, bad, bad, bad, bad, bad
+	c.HTTP.Timeout, c.Fast.Timeout = 2*time.Second, 2*time.Second
 	return c
 }
 
@@ -103,7 +104,11 @@ func (c *Client) Get(url string, tries int) ([]byte, error) {
 		}
 		req, _ := http.NewRequest(http.MethodGet, url, nil)
 		req.Header.Set("User-Agent", c.UserAgent)
-		resp, err := c.HTTP.Do(req)
+		hc := c.HTTP
+		if c.Fast != nil && (strings.Contains(url, "seasonal") || strings.Contains(url, "/v1/forecast")) {
+			hc = c.Fast
+		}
+		resp, err := hc.Do(req)
 		if err != nil {
 			last = err
 			continue

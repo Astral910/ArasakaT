@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"fieldshift/internal/contract"
 	"fieldshift/internal/fao56"
 	"fieldshift/internal/geo"
+	"fieldshift/internal/global"
 	"fieldshift/internal/sim"
 )
 
@@ -132,10 +134,44 @@ func (e *Engine) build(req contract.PlanRequest, m *geo.Municipio) (contract.Pla
 		{Tipo: "postrera", Nombre: L.t("Postrera", "Postrera (second season)"), Inicio: sim.MMDD(cl.PostreraDOY[1]), Fin: sim.MMDD(math.Min(cl.PostreraDOY[1]+95, 365))},
 		{Tipo: "vulnerable", Nombre: L.t("Floración: etapa más sensible a la falta de agua", "Flowering: most water-sensitive stage"), Inicio: sim.MMDD(flowerA), Fin: sim.MMDD(flowerB)},
 	}
+	if m.Global {
+		T := sim.DetectSeasons(s)
+		p.VentanaPrimera.Nombre = L.t("Siembra de la temporada principal", "Main-season planting")
+		p.VentanaPostrera.Nombre = L.t("Siembra de la segunda temporada (o relevo)", "Second-season (relay) planting")
+		p.Periodos[0].Nombre = L.t("Temporada principal", "Main season")
+		p.Periodos[2].Nombre = L.t("Segunda temporada / relevo", "Second season / relay")
+		if !T.Bimodal { // canícula / veranillo solo con lluvia bimodal
+			p.CaniculaTipica = contract.Periodo{}
+			p.Periodos = append(p.Periodos[:1], p.Periodos[2:]...)
+		} else {
+			p.CaniculaTipica.Nombre = L.t("Canícula / veranillo", "Mid-season dry spell")
+			p.Periodos[1].Nombre = p.CaniculaTipica.Nombre
+		}
+	}
+	if s.Shift != 0 { // calendario interno → fechas reales
+		p.SiembraAqui = shiftMMDD(p.SiembraAqui, s.Shift)
+		for _, pp := range []*contract.Periodo{&p.VentanaPrimera, &p.VentanaPostrera, &p.CaniculaTipica} {
+			if pp.Inicio != "" {
+				pp.Inicio, pp.Fin = shiftMMDD(pp.Inicio, s.Shift), shiftMMDD(pp.Fin, s.Shift)
+			}
+		}
+		unshift(p.Periodos, s.Shift)
+	}
 	frost := frostYears(s)
 	p.HeladaDe10 = math.Round(frost*100) / 10
 	if frost > 0 {
-		p.Periodos = append(p.Periodos, contract.Periodo{Tipo: "helada", Nombre: L.t("Riesgo de helada", "Frost risk"), Inicio: "12-01", Fin: "02-15"})
+		hp := contract.Periodo{Tipo: "helada", Nombre: L.t("Riesgo de helada", "Frost risk"), Inicio: "12-01", Fin: "02-15"}
+		if m.Global { // los dos meses más fríos (fechas reales) ± 2 semanas
+			c := 0
+			for k := 1; k < 12; k++ {
+				if cl.MonthlyTmin[k] < cl.MonthlyTmin[c] {
+					c = k
+				}
+			}
+			hp.Inicio = time.Date(2001, time.Month(c+1), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -1, 15).Format("01-02")
+			hp.Fin = time.Date(2001, time.Month(c+1), 1, 0, 0, 0, 0, time.UTC).AddDate(0, 1, 14).Format("01-02")
+		}
+		p.Periodos = append(p.Periodos, hp)
 	}
 	for mo := 0; mo < 12; mo++ {
 		p.ClimaMensual = append(p.ClimaMensual, contract.MesClima{Mes: mo + 1, LluviaMM: rango(cl.MonthlyRain[mo], 1),
@@ -184,6 +220,7 @@ func (e *Engine) build(req contract.PlanRequest, m *geo.Municipio) (contract.Pla
 			"ingreso": clamp10(10 * r.IncomeQ[1] / 20000),
 		}
 		L.describe(&est, r, req, cfg, cl, s, main)
+		unshift(est.Calendario, s.Shift)
 		p.Estrategias = append(p.Estrategias, est)
 	}
 	rank(&p, req.Prioridad)
@@ -191,13 +228,18 @@ func (e *Engine) build(req contract.PlanRequest, m *geo.Municipio) (contract.Pla
 	L.warnings(&p, req, cfg)
 
 	// validación e IA vs estadística
-	v := Validation(e.siteHist(m, s))
-	p.Validacion.Detectadas, p.Validacion.Total = v.Hits, v.Total
-	for _, row := range v.Years {
-		p.Validacion.Detalle = append(p.Validacion.Detalle, contract.AnioValidado{Anio: row.Year, Documentada: row.Documented, Detectada: row.Detected})
+	if !m.Global {
+		v := Validation(e.siteHist(m, s))
+		p.Validacion.Detectadas, p.Validacion.Total = v.Hits, v.Total
+		for _, row := range v.Years {
+			p.Validacion.Detalle = append(p.Validacion.Detalle, contract.AnioValidado{Anio: row.Year, Documentada: row.Documented, Detectada: row.Detected})
+		}
+	} else {
+		p.IAvsEst.Nota = L.t("Fuera de Guatemala no hay registro de sequías documentadas ni modelo de IA entrenado: solo series NASA y el motor FAO-56.",
+			"Outside Guatemala there is no documented-drought record nor trained AI model: NASA series and the FAO-56 engine only.")
 	}
 	mlr := e.ML()
-	if mlr.Model != nil {
+	if mlr.Model != nil && !m.Global {
 		// IA: ONI actual como si siguiera al sembrar, acotado al rango de entrenamiento; demás variables en su normal
 		x := []float64{math.Min(oni, mlr.MaxONI), 0, 0, 0}
 		st := ensoState
@@ -213,8 +255,20 @@ func (e *Engine) build(req contract.PlanRequest, m *geo.Municipio) (contract.Pla
 		p.IAvsEst.Nota = L.mlNote(mlr, st)
 	}
 	p.Confianza = e.planConfianza(m, s, req, &p)
+	if si, err := e.SitioOf(m); err == nil {
+		p.Sitio = si
+	}
 	p.Incertidumbre = L.uncertainty(&p, s, req)
 	p.Fuentes = L.sources(e)
+	if m.Global {
+		p.Fuentes = append(p.Fuentes,
+			contract.Fuente{Dato: "NASA POWER bajo demanda", Origen: "power.larc.nasa.gov (una petición por celda de 0.5° × 0.625°, caché en disco)", Periodo: "2001 → ayer", Uso: L.t("clima del punto fuera de Guatemala", "climate of the point outside Guatemala")},
+			contract.Fuente{Dato: "Suelo", Origen: s.Soil.Source, Periodo: "-", Uso: L.t("agua disponible", "available water")},
+			contract.Fuente{Dato: "OpenStreetMap Nominatim", Origen: "nominatim.openstreetmap.org", Periodo: "-", Uso: L.t("nombre del lugar", "place name")})
+		if strings.HasPrefix(req.Horizonte, "2040") {
+			p.Fuentes = append(p.Fuentes, contract.Fuente{Dato: "Open-Meteo Climate API (CMIP6 HighResMIP)", Origen: global.SrcClimate, Periodo: "2001–2025 vs 2030–2050", Uso: L.t("cambios a 2040 (NEX-GDDP no está para el punto)", "2040 changes (NEX-GDDP not available for the point)")})
+		}
+	}
 	p.Resumen = L.summary(&p, m)
 	return p, nil
 }

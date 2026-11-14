@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"fieldshift/internal/contract"
@@ -74,8 +75,13 @@ func TestLocateAndLanguage(t *testing.T) {
 		t.Fatalf("got %s %q", p.Municipio.ID, p.Estrategias[0].Nombre)
 	}
 	far, farLon := 40.0, -3.0
-	if _, err := e.Plan(contract.PlanRequest{Lat: &far, Lon: &farLon}); err == nil {
-		t.Fatal("fuera de Guatemala debe fallar")
+	// motor global (ronda 3): fuera de Guatemala funciona con NASA POWER bajo demanda; sin red, error claro
+	if pf, err := e.Plan(contract.PlanRequest{Lat: &far, Lon: &farLon}); err == nil {
+		if !strings.HasPrefix(pf.Municipio.ID, "g_") || pf.Sitio == nil || pf.Sitio.Precalculado || pf.Validacion.Total != 0 {
+			t.Fatalf("punto global: %s %+v", pf.Municipio.ID, pf.Sitio)
+		}
+	} else if !strings.Contains(err.Error(), "NASA POWER") {
+		t.Fatalf("fuera de Guatemala sin red: %v", err)
 	}
 }
 
