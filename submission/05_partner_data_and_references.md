@@ -1,13 +1,13 @@
 # Space Agency Partner Data & Other References
 
 ## Space agency partner data
-- **Copernicus Sentinel-2** (ESA), 10 m imagery of the selected municipality in the map fly-to. Contains modified Copernicus Sentinel data ⟦TBD: year⟧. https://dataspace.copernicus.eu/ ⟦TBD: confirm the layer was used; otherwise remove⟧
+- **Copernicus Sentinel-2** (ESA) through *Sentinel-2 cloudless 2020 by EOX IT Services GmbH* (contains modified Copernicus Sentinel data 2020), CC BY-NC-SA 4.0, base imagery of the map. https://s2maps.eu/
 
 ## Other data
 - **Open-Meteo**: 16-day forecast, ensemble forecast (ECMWF IFS ENS, NOAA GFS ENS) and Historical Forecast API (archived forecasts for the 2026 backtest). https://open-meteo.com/ (CC BY 4.0). Forecast models: ECMWF, NOAA NCEP GFS.
 - **NOAA CPC Oceanic Niño Index (ONI)**: ENSO state per season, used to condition the Monte Carlo and the seasonal outlook. https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_v5.php
-- **geoBoundaries** Guatemala ADM2 (340 municipalities), CC BY 4.0. Runfola et al. (2020), *geoBoundaries: A global database of political administrative boundaries*, PLOS ONE 15(4): e0231866. https://www.geoboundaries.org/
-- **ISRIC SoilGrids** 250 m (texture, organic carbon), CC BY 4.0, https://soilgrids.org/. Where the service returned no data, typical values for the soil class were used and cited. ⟦TBD: confirm with the engine⟧
+- **geoBoundaries** Guatemala ADM2 (342 municipalities; source CONRED/OCHA), CC BY 3.0 IGO. Runfola et al. (2020), *geoBoundaries: A global database of political administrative boundaries*, PLOS ONE 15(4): e0231866. https://www.geoboundaries.org/
+- **ISRIC SoilGrids** 250 m (texture, organic carbon), CC BY 4.0, https://soilgrids.org/. Where the service returned no data, typical values from the Guatemalan soil classification (Simmons et al. 1959; MAGA 2000) were used and flagged for local soil analysis.
 - **FAO GAEZ** (reference for crop suitability context). https://gaez.fao.org/
 
 ## Methods
@@ -15,8 +15,11 @@
 - Doorenbos, J., Kassam, A.H. (1979). *Yield response to water*. FAO Irrigation and Drainage Paper 33.
 - Saxton, K.E., Rawls, W.J. (2006). Soil water characteristic estimates by texture and organic matter for hydrologic solutions. *Soil Sci. Soc. Am. J.* 70: 1569–1578.
 - Renard, K.G. et al. (1997). *Predicting soil erosion by water: a guide to conservation planning with RUSLE*. USDA Agriculture Handbook 703.
+- Renard, K.G., Freimund, J.R. (1994). Using monthly precipitation data to estimate the R-factor in the revised USLE. *Journal of Hydrology* 157: 287–306.
 - Thrasher, B. et al. (2022). NASA Global Daily Downscaled Projections, CMIP6. *Scientific Data* 9: 262.
-- ⟦TBD: reference yields source (ICTA / MAGA)⟧ and ⟦TBD: rainfall-onset rule source⟧.
+- Sivakumar, M.V.K. (1988). Predicting rainy season potential from the onset of rains in Southern Sahelian and Sudanian climatic zones of West Africa. *Agricultural and Forest Meteorology* 42: 295–305.
+- Simmons, C.S., Tárano, J.M., Pinto, J.H. (1959). *Clasificación de reconocimiento de los suelos de la República de Guatemala*; MAGA (2000) soil maps.
+- Reference yields and producer prices: MAGA / ICTA (approximate; rain-fed landrace maize ≈30 qq/mz, black beans ≈12 qq/mz); MAGA producer prices 2025.
 
 ## Drought and food-security sources (validation and context)
 - FEWS NET Guatemala food security outlooks. https://fews.net/latin-america-and-caribbean/guatemala
