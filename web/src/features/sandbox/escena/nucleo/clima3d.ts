@@ -171,7 +171,7 @@ export function crearLluvia(max: number) {
         vA = smoothstep(0.0, 0.08, p.y) * (1.0 - smoothstep(0.92, 1.0, p.y)); vV = position.y;
         gl_Position = projectionMatrix * viewMatrix * vec4(q, 1.0); }`,
     fragmentShader: `uniform vec3 uCol; uniform float uAlfa, uFlash; varying float vA; varying float vV;
-      void main(){ float a = uAlfa * vA * (0.35 + 0.65*vV); gl_FragColor = vec4(uCol*(1.0+uFlash*3.0), a); }`,
+      void main(){ float a = uAlfa * vA * (0.35 + 0.65*vV); gl_FragColor = vec4(uCol*(1.0+uFlash*0.8), a); }`,
   })
   const mesh = new THREE.Mesh(geo, m)
   mesh.frustumCulled = false

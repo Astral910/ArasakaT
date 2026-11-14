@@ -72,10 +72,11 @@ export class Post {
             }
           }
           c *= uExp;
-          c = aces(c*1.05);
+          c = aces(c*1.18);
           // grading: sombras frías, luces cálidas
           float l = dot(c, vec3(0.2126,0.7152,0.0722));
-          vec3 tinte = mix(vec3(0.95,0.98,1.05), vec3(1.06,1.0,0.9), smoothstep(0.15, 0.85, l));
+          vec3 tinte = mix(vec3(0.94,0.98,1.06), vec3(1.08,1.0,0.86), smoothstep(0.15, 0.85, l));
+          c = mix(c, c*c*(3.0 - 2.0*c), 0.12);
           tinte = mix(tinte, vec3(0.95,1.0,1.08), uFrio);
           c *= tinte;
           c = mix(vec3(l), c, uSat);

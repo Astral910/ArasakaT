@@ -110,6 +110,17 @@ export function geoArbol(semilla = 1, alto = 9) {
   return mergeGeometries(partes)!
 }
 
+export function geoArbusto() {
+  const partes: THREE.BufferGeometry[] = []
+  const cols = ['#33491f', '#3f5224', '#4c5528']
+  for (let k = 0; k < 3; k++) {
+    const g = new THREE.IcosahedronGeometry(0.55 + k * 0.12, 0)
+    g.translate((k - 1) * 0.45, 0.45 + (k % 2) * 0.15, (k % 2) * 0.3)
+    partes.push(pintar(limpia(g), C(cols[k])))
+  }
+  return mergeGeometries(partes)!
+}
+
 export function geoTanque() {
   const partes: THREE.BufferGeometry[] = []
   const base = new THREE.CylinderGeometry(1.1, 1.1, 0.35, 10); base.translate(0, 0.17, 0)
@@ -192,6 +203,36 @@ export function construirProps(
   const lineas = new THREE.LineSegments(ga2, new THREE.LineBasicMaterial({ color: 0x5c5650, transparent: true, opacity: 0.7 }))
   grupo.add(lineas)
   geos.push(ga2)
+  // monte bajo (arbustos) a lo largo del cerco y cerca de la casa
+  {
+    const nA = calidad === 'baja' ? 120 : 420
+    const ga3 = geoArbusto()
+    const im = new THREE.InstancedMesh(ga3, matH, nA)
+    const q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3()
+    let s2 = 777
+    const r2 = () => { s2 = (s2 * 16807) % 2147483647; return (s2 - 1) / 2147483646 }
+    let k = 0
+    for (let t = 0; t < nA * 4 && k < nA; t++) {
+      // anillo alrededor de la parcela, más denso junto al cerco
+      const lado = Math.floor(r2() * 4), u = r2() * 2 - 1, fuera = 2.0 + Math.pow(r2(), 3) * 14
+      let x = cx, z = cz
+      if (lado === 0) { x = cx + u * (hx + fuera); z = cz - hz - fuera }
+      else if (lado === 1) { x = cx + u * (hx + fuera); z = cz + hz + fuera }
+      else if (lado === 2) { x = cx - hx - fuera; z = cz + u * (hz + fuera) }
+      else { x = cx + hx + fuera; z = cz + u * (hz + fuera) }
+      if (Math.abs(x) > L * 0.48 || Math.abs(z) > L * 0.48) continue
+      if (Math.abs(x - hxC) < 6 && Math.abs(z - hzC) < 5) continue
+      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), r2() * 6.28)
+      sc.set(0.5 + r2() * 0.7, 0.4 + r2() * 0.5, 0.5 + r2() * 0.7)
+      p.set(x, alturaEn(x, z) - 0.15, z)
+      im.setMatrixAt(k++, m4.compose(p, q, sc))
+    }
+    im.count = k
+    im.castShadow = calidad !== 'baja'
+    im.receiveShadow = true
+    grupo.add(im)
+    geos.push(ga3)
+  }
   // árboles dispersos según la imagen satelital (píxeles verde oscuro)
   const ctx = sat.getContext('2d', { willReadFrequently: true })
   const W = sat.width

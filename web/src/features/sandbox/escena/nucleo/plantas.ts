@@ -106,14 +106,14 @@ const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
 /** Maíz criollo (~2.4 m maduro). */
 export function geoMaiz(): GeoPlanta {
   const b = new Constructor(), r = rnd(11), H = 2.4
-  const verde = C('#3d7326'), tallo = C('#5c7f34')
-  b.tallo(V(0, 0, 0), H * 0.93, 0.028, 0.014, 5, tallo, 0, H)
-  const nH = 9
+  const verde = C('#4a832c'), tallo = C('#557633')
+  b.tallo(V(0, 0, 0), H * 0.93, 0.03, 0.015, 5, tallo, 0, H)
+  const nH = 11
   for (let i = 0; i < nH; i++) {
-    const t = 0.08 + (i / nH) * 0.78
+    const t = 0.06 + (i / nH) * 0.8
     const ang = i * Math.PI * 0.98 + (r() - 0.5) * 0.6
-    const largo = 0.7 + Math.sin(Math.PI * (0.25 + t * 0.8)) * 0.55
-    b.hojaCinta(V(0, H * t, 0), ang, largo, 0.062, 0.7 - t * 0.25, 1.0 + r() * 0.35, verde.clone().offsetHSL((r() - 0.5) * 0.02, 0, (r() - 0.5) * 0.05), H)
+    const largo = 0.85 + Math.sin(Math.PI * (0.2 + t * 0.8)) * 0.65
+    b.hojaCinta(V(0, H * t, 0), ang, largo, 0.07, 0.62 - t * 0.2, 0.85 + r() * 0.35, verde.clone().offsetHSL((r() - 0.5) * 0.02, 0, (r() - 0.5) * 0.05), H)
   }
   // espiga
   const top = V(0, H * 0.93, 0)
@@ -172,10 +172,10 @@ export function geoFrijol(): GeoPlanta {
 export function geoMucuna(): GeoPlanta {
   const b = new Constructor(), r = rnd(31), H = 0.5
   const verde = C('#3f7f2c')
-  for (let i = 0; i < 16; i++) {
-    const a = r() * Math.PI * 2, d = 0.15 + r() * 0.65
-    const base = V(Math.cos(a) * d, 0.08 + r() * 0.3 * (1 - d * 0.6), Math.sin(a) * d)
-    for (let f = -1; f <= 1; f++) b.hojaOval(base, a + f * 1.0 + r() * 0.3, 0.2, 0.15, 0.15 + r() * 0.25, verde.clone().offsetHSL(0, 0, (r() - 0.5) * 0.08), H)
+  for (let i = 0; i < 30; i++) {
+    const a = r() * Math.PI * 2, d = 0.08 + Math.sqrt(r()) * 0.75
+    const base = V(Math.cos(a) * d, 0.06 + r() * 0.26 * (1 - d * 0.6), Math.sin(a) * d)
+    for (let f = -1; f <= 1; f++) b.hojaOval(base, a + f * 1.0 + r() * 0.3, 0.27, 0.2, 0.08 + r() * 0.2, verde.clone().offsetHSL(0, 0, (r() - 0.5) * 0.08), H)
     if (i % 4 === 0) {
       for (let k = 0; k < 4; k++) b.huso(base.clone().add(V((r() - 0.5) * 0.05, 0.05 + k * 0.025, (r() - 0.5) * 0.05)), V(0, 1, 0), 0.04, 0.018, 4, C('#4b1f5c'), 5, H, base)
     }

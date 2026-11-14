@@ -6,7 +6,7 @@ import type {
 } from '../api'
 import type { SimTimeline } from '../tipos'
 import { crearUniformsGlobales } from './glsl'
-import { cargarRelieve } from './relieve'
+import { cargarRelieve, cargarSatelite } from './relieve'
 import { construirMaqueta, crearUniformsSuelo, type Maqueta, type Parcela } from './maqueta'
 import { crearCapa, estadoCapa, liberarCapa, type Capa3D, ESCALA_PLANTA } from './cultivos'
 import { construirProps, type Props } from './props'
@@ -15,13 +15,13 @@ import {
   actualizarUniformsClima, crearCielo, crearLluvia, crearNubes, crearPolvo, crearSalpicaduras, luzDelClima, Rayos, type LuzClima,
 } from './clima3d'
 import { Post } from './post'
-import { orientarYRecortar } from './recorte'
+import { orientarYRecortar, recortarImagen } from './recorte'
 
 type Calidad = Exclude<Quality, 'auto'>
 const CFG: Record<Calidad, { pr: number; msaa: number; sombra: number; tope: number; lluvia: number; tilt: boolean; N: number; sat: number; polvo: number; grano: number }> = {
   alta: { pr: 2, msaa: 4, sombra: 4096, tope: 6500, lluvia: 22000, tilt: true, N: 224, sat: 2048, polvo: 2500, grano: 0.03 },
-  media: { pr: 1.5, msaa: 4, sombra: 2048, tope: 3200, lluvia: 12000, tilt: true, N: 176, sat: 1536, polvo: 1500, grano: 0.03 },
-  baja: { pr: 1, msaa: 0, sombra: 1024, tope: 1100, lluvia: 4000, tilt: false, N: 112, sat: 1024, polvo: 600, grano: 0 },
+  media: { pr: 1.25, msaa: 2, sombra: 2048, tope: 1900, lluvia: 9000, tilt: true, N: 160, sat: 1536, polvo: 1200, grano: 0.03 },
+  baja: { pr: 1, msaa: 0, sombra: 1024, tope: 900, lluvia: 3500, tilt: false, N: 112, sat: 1024, polvo: 500, grano: 0 },
 }
 
 const M2: Record<string, number> = { cuerda: 436.7, manzana: 6987, ha: 10000 }
@@ -179,7 +179,7 @@ class SandboxImpl implements Sandbox {
     try {
       const grande = await cargarRelieve({
         lat: p.lat, lon: p.lon, L: B, offX: 0, offZ: 0, N: Math.round((cfg.N * B) / L), satPx: Math.min(3072, Math.round((cfg.sat * B) / L)),
-        sinRed: p.sinRed, signal: ab.signal, progreso: (fase, v) => this.emitir('progress', { fase, p: v }),
+        zSat: 17, sinRed: p.sinRed, signal: ab.signal, progreso: (fase, v) => this.emitir('progress', { fase, p: v }),
       })
       rec = orientarYRecortar(grande, L, cfg.N, cfg.sat, cz, lado / 2)
     } catch (e) {
@@ -207,6 +207,17 @@ class SandboxImpl implements Sandbox {
     this.cuadro(0, false)
     this.emitir('progress', { fase: 'listo', p: 1 })
     this.emitir('ready', { ms: Math.round(performance.now() - t0), relieveReal: datos.relieveReal, satelite: datos.sateliteReal, rumboCamara: Math.round(this.rumbo) })
+    // carga progresiva: la imagen nítida (z18) llega después sin frenar el arranque
+    if (datos.sateliteReal && !p.sinRed && this.calidad !== 'baja') {
+      const mq = this.maqueta
+      cargarSatelite(p.lat, p.lon, B, Math.min(4096, Math.round((cfg.sat * 1.6 * B) / L)), 18, ab.signal)
+        .then((c) => {
+          if (ab.signal.aborted || this.desechado || this.maqueta !== mq) return
+          mq.actualizarSatelite(recortarImagen(c, B, L, Math.round(cfg.sat * 1.33), rec.phi, rec.Cx, rec.Cz))
+          this.emitir('progress', { fase: 'satelite-hd', p: 1 })
+        })
+        .catch(() => { /* se queda con z17 */ })
+    }
   }
 
   setTimeline(tl: SimTimeline) {
@@ -292,6 +303,8 @@ class SandboxImpl implements Sandbox {
     this.sol.shadow.map?.dispose()
     this.renderer.renderLists.dispose()
     this.renderer.dispose()
+    // libera el contexto WebGL ya (los navegadores limitan cuántos hay vivos)
+    this.renderer.forceContextLoss()
     this.oyentes.clear()
   }
 
@@ -439,7 +452,9 @@ class SandboxImpl implements Sandbox {
     const t = this.tiempo
     const az = this.vista.az + this.usuario.az + Math.sin(t * 0.07) * 0.025
     const el = Math.min(1.5, Math.max(0.03, this.vista.el + this.usuario.el + Math.sin(t * 0.05) * 0.008))
-    const dist = this.vista.dist * this.usuario.zoom
+    // pantallas verticales (celular): alejar para que la parcela entre a lo ancho
+    const asp = this.camara.aspect
+    const dist = this.vista.dist * this.usuario.zoom * (asp < 1.3 ? Math.pow(1.3 / asp, 0.8) : 1)
     const c = this.camara
     c.position.set(
       this.vista.target.x + dist * Math.cos(el) * Math.sin(az),
@@ -562,7 +577,8 @@ class SandboxImpl implements Sandbox {
       c3.u.uStage.value = e.etapa
       // salud del motor; si se fuerza un clima seco (demo), se ve el estrés
       c3.u.uHealth.value = this.override?.sequia ? e.salud * (1 - this.override.sequia * 0.65) : e.salud
-      c3.u.uAltura.value = Math.max(0.02, e.altura)
+      // plántula mínima visible (ilustrativa) desde la emergencia
+      c3.u.uAltura.value = Math.max(e.etapa > 0.03 ? Math.min(0.16, c3.H0 * 0.3) : 0.02, e.altura)
       c3.u.uWidth.value = c3.cultivo === 'mucuna' ? 0.35 + e.cobertura * 1.05 : 1
       if (c3.mesh.visible) cover = Math.max(cover, e.cobertura)
     }
@@ -576,8 +592,9 @@ class SandboxImpl implements Sandbox {
     // sol estable por día (sin parpadeo); a velocidad baja, un leve vaivén
     const lento = Math.max(0, 1 - this.velDias / 0.8)
     const fr = this.x - Math.floor(this.x)
-    const az = 0.95 + Math.sin(fr * Math.PI * 2) * 0.12 * lento
-    const el = 0.78 + c.calor * 0.25 - c.helada * 0.25
+    // luz lateral desde la izquierda-frente: sombras largas entre surcos, relieve marcado
+    const az = -1.0 + Math.sin(fr * Math.PI * 2) * 0.12 * lento
+    const el = 0.6 + c.calor * 0.35 - c.helada * 0.22
     const dir = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el))
     const tgt = this.vista.target
     const mq = this.maqueta
@@ -594,7 +611,7 @@ class SandboxImpl implements Sandbox {
     // destello de rayo
     const flash = this.rayos.actualizar(dtE)
     this.U.uFlash.value = flash
-    this.hemi.intensity = L.hemiI + flash * 1.1
+    this.hemi.intensity = L.hemiI + flash * 0.7
     const cu = this.cielo.u
     cu.uTop.value.copy(L.top); cu.uHor.value.copy(L.hor); cu.uSunDir.value.copy(dir)
     cu.uSunCol.value.copy(L.solCol).multiplyScalar(0.5 + L.solI * 0.15)

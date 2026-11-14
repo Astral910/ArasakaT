@@ -61,6 +61,11 @@ async function mosaico(plantilla: string, z: number, cx: number, cy: number, r: 
   return out
 }
 
+/** Solo la imagen satelital (Esri) de la región de lado L centrada en el punto, al zoom pedido. */
+export async function cargarSatelite(lat: number, lon: number, L: number, satPx: number, z: number, signal?: AbortSignal) {
+  return mosaico(ESRI, z, lonToPx(lon, z), latToPx(lat, z), L / 2 / mpp(lat, z), satPx, 8000, signal)
+}
+
 export interface PedidoRelieve {
   lat: number
   lon: number
@@ -70,6 +75,8 @@ export interface PedidoRelieve {
   offZ: number
   N: number
   satPx: number
+  /** Zoom de la imagen satelital (17 rápido; 18 nítido). */
+  zSat?: number
   sinRed?: boolean
   signal?: AbortSignal
   progreso?: (fase: string, p: number) => void
@@ -81,7 +88,7 @@ export async function cargarRelieve(p: PedidoRelieve): Promise<DatosRelieve> {
   let sat: HTMLCanvasElement | null = null
   let satReal = false
   if (!p.sinRed) {
-    const zD = 15, zS = L > 600 ? 17 : 18
+    const zD = 15, zS = p.zSat ?? (L > 600 ? 17 : 18)
     const cxD = lonToPx(lon, zD) + p.offX / mpp(lat, zD), cyD = latToPx(lat, zD) + p.offZ / mpp(lat, zD)
     const rD = L / 2 / mpp(lat, zD)
     const cxS = lonToPx(lon, zS) + p.offX / mpp(lat, zS), cyS = latToPx(lat, zS) + p.offZ / mpp(lat, zS)
