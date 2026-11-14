@@ -1,6 +1,6 @@
 // Graba /demo en 1080p, headless y con la GPU, y codifica con NVENC (h264_nvenc). Sin audio.
 // Uso: node record-demo.mjs [url] [segundos]
-//   url por defecto http://127.0.0.1:8200/demo?rec=1 · segundos por defecto 30
+//   url por defecto http://127.0.0.1:8200/demo?autostart=1 · segundos por defecto 30 · --sub quema subtitles_en.srt
 // Salida: ../submission/video/fieldshift-demo-30s.mp4 (+ -subtitled.mp4 con los subtítulos en inglés quemados)
 import { chromium } from '@playwright/test'
 import { spawn } from 'node:child_process'
@@ -10,8 +10,10 @@ import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = path.resolve(here, '..', 'submission', 'video')
-const url = process.argv[2] || 'http://127.0.0.1:8200/demo?rec=1'
-const seconds = Number(process.argv[3] || 30)
+const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
+const burnSubs = process.argv.includes('--sub') // /demo ya trae sus propios subtítulos: por defecto no se queman otros
+const url = args[0] || 'http://127.0.0.1:8200/demo?autostart=1'
+const seconds = Number(args[1] || 30)
 const FPS = 30
 const W = 1920, H = 1080
 fs.mkdirSync(outDir, { recursive: true })
@@ -79,7 +81,7 @@ await done
 console.log(`video: ${out}`)
 
 // Versión con subtítulos quemados (si ffmpeg trae libass).
-if (fs.existsSync(srt)) {
+if (burnSubs && fs.existsSync(srt)) {
   const rel = path.relative(process.cwd(), srt).replace(/\\/g, '/').replace(/:/g, '\\:')
   const style = "FontName=Arial,FontSize=13,PrimaryColour=&H00FFFFFF,OutlineColour=&H80000000,BorderStyle=3,Outline=2,Shadow=0,MarginV=22"
   try {
