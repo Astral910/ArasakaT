@@ -16,10 +16,13 @@ interface TL extends TimelineVideo {
 }
 
 const q = new URLSearchParams(location.search)
-const municipio = q.get('m') ?? 'jocotan-chiquimula'
-const estrategia = q.get('e') ?? 'S2'
-const escenario = q.get('esc') ?? 'tipico'
-const riego = q.get('riego') ?? '0'
+// mismos parámetros que /sandbox?rec=1 (internal/simvideo.Consulta) o alias cortos
+const municipio = q.get('municipio_id') ?? q.get('m') ?? 'jocotan-chiquimula'
+const estrategia = q.get('estrategia') ?? q.get('e') ?? 'S2'
+const esc0 = q.get('escenario') ?? q.get('esc') ?? 'tipico'
+const escenario = esc0 === 'secuencia' ? `secuencia-${q.get('percentil') ?? 'p50'}` : esc0
+const riegoMM = Number(q.get('riego_mm_semana') ?? q.get('riego') ?? '0')
+const riego = riegoMM >= 15 ? '20' : '0' // el estático del motor trae 0 y 20 mm/semana
 const L = q.get('idioma') === 'en' ? 'en' : 'es'
 const NOMBRES: Record<string, [string, string]> = { 'jocotan-chiquimula': ['Jocotán', 'Chiquimula'], 'camotan-chiquimula': ['Camotán', 'Chiquimula'] }
 const EST: Record<string, [string, string]> = { S0: ['Como siempre', 'As usual'], S1: ['Ajuste de fechas', 'Shifted dates'], S2: ['Milpa con cobertura', 'Milpa with cover crop'] }
