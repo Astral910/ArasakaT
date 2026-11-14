@@ -183,7 +183,8 @@ const datos = [
 
 @media (max-width: 980px) {
   .hero-grid { grid-template-columns: 1fr; gap: 2.5rem; }
-  .relief { width: 220vw; right: -70%; bottom: 0; opacity: 0.7; }
+  .relief { width: 230vw; right: -75%; top: auto; bottom: 4%; opacity: 0.55; }
+  .marker { display: none; }
   .prev-grid { grid-template-columns: 1fr; }
   .data-grid { grid-template-columns: repeat(2, 1fr); }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
