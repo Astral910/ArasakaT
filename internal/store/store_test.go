@@ -86,3 +86,39 @@ func TestAlertaIdempotenteYVentana(t *testing.T) {
 		t.Fatal("sesion", string(b))
 	}
 }
+
+func TestNormTelCanales(t *testing.T) {
+	for in, want := range map[string]string{
+		"+502 5555-1234":        "50255551234",
+		"whatsapp:+50255551234": "50255551234",
+		"web:abc":               "web:abc",
+		" web:Sesion-9 ":        "web:Sesion-9",
+		"WEB:x1":                "web:x1",
+	} {
+		if got := NormTel(in); got != want {
+			t.Errorf("NormTel(%q) = %q, quiero %q", in, got, want)
+		}
+	}
+	if Mask("web:abcdef") != "web:****cdef" || Mask("+502 5555 1234") != "****1234" {
+		t.Fatal("mask", Mask("web:abcdef"))
+	}
+	if !TelValido("web:abc") || TelValido("web:") || TelValido("123") {
+		t.Fatal("TelValido")
+	}
+	s, _ := Open(":memory:")
+	defer s.Close()
+	a, err := s.Suscribir(contract.Suscriptor{Telefono: "web:abc", MunicipioID: "m"})
+	if err != nil || a.Telefono != "web:abc" {
+		t.Fatalf("suscribir web: %+v %v", a, err)
+	}
+	if _, ok, _ := s.PorTelefono("web:abc"); !ok {
+		t.Fatal("buscar web:abc")
+	}
+	if !s.VentanaAbierta("web:abc", time.Now()) {
+		t.Fatal("el simulador siempre tiene la ventana abierta")
+	}
+	b, _ := s.Suscribir(contract.Suscriptor{Telefono: "web:abd", MunicipioID: "m"})
+	if b.ID == a.ID {
+		t.Fatal("dos sesiones web distintas no se pisan")
+	}
+}
