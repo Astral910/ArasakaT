@@ -30,6 +30,7 @@ func main() {
 	idiomas := flag.String("idiomas", "es", "")
 	bitrate := flag.Int("bitrate", 2_000_000, "bps (precalculados livianos para el repo)")
 	forzar := flag.Bool("forzar", false, "re-renderizar aunque exista")
+	urlPub := flag.String("url", os.Getenv("WEB_URL"), "link de la tarjeta final (vacío = sin link)")
 	flag.Parse()
 
 	if err := os.MkdirAll(*out, 0o755); err != nil {
@@ -39,7 +40,7 @@ func main() {
 	if err := r.Disponible(); err != nil {
 		log.Fatal(err)
 	}
-	s := simvideo.Nuevo(simvideo.Config{BaseURL: *base, Ruta: *ruta})
+	s := simvideo.Nuevo(simvideo.Config{BaseURL: *base, Ruta: *ruta, URLPublica: *urlPub})
 	fallos := 0
 	for _, m := range strings.Split(*muns, ",") {
 		for _, e := range strings.Split(*ests, ",") {

@@ -127,6 +127,10 @@ func TestCacheYUnSoloRender(t *testing.T) {
 		t.Fatalf("%+v %v", res, err)
 	}
 	u := r.urls[0]
+	s.Cfg.URLPublica = "https://fs.example"
+	if g := s.URLGrabacion(c); !strings.Contains(g, "url_publica=https%3A%2F%2Ffs.example") {
+		t.Fatal(g)
+	}
 	if !strings.HasPrefix(u, "http://127.0.0.1:9/sandbox?") || !strings.Contains(u, "rec=1") || !strings.Contains(u, "municipio_id=camotan-chiquimula") || !strings.Contains(u, "estrategia=S0") {
 		t.Fatal(u)
 	}

@@ -51,6 +51,11 @@ export function urlCorta(u: string): string {
   }
 }
 
+/** localhost / 127.0.0.1 no van en un video que se comparte. */
+export function esLocal(u: string): boolean {
+  return /^(localhost|127\.|0\.0\.0\.0|\[::1\]|192\.168\.)/.test(u)
+}
+
 function caja(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   g.beginPath()
   if (g.roundRect) g.roundRect(x, y, w, h, r)
@@ -78,7 +83,8 @@ export class Compositor {
   private g: CanvasRenderingContext2D
   private ultimo: EstadoCuadro = {}
 
-  constructor(private sb: SandboxGrabable, readonly plan: PlanCuadros) {
+  /** urlPublica: reemplaza meta.url en la tarjeta final (el servidor la pasa con ?url_publica=). */
+  constructor(private sb: SandboxGrabable, readonly plan: PlanCuadros, private urlPublica?: string) {
     this.lienzo = document.createElement('canvas')
     this.lienzo.width = plan.ancho
     this.lienzo.height = plan.alto
@@ -388,12 +394,13 @@ export class Compositor {
     g.fillText(x.ilustrativo, px, y, W - 2 * px)
     g.restore()
 
-    if (m.url) {
+    const url = urlCorta(this.urlPublica || m.url || '')
+    if (url && !esLocal(url)) {
       g.save()
       g.globalAlpha = a(1.1)
       g.fillStyle = C.hueso
       g.font = `700 ${18 * s}px ${UI}`
-      g.fillText(urlCorta(m.url), px, H - 50 * s, W - 2 * px)
+      g.fillText(url, px, H - 50 * s, W - 2 * px)
       g.restore()
     }
   }

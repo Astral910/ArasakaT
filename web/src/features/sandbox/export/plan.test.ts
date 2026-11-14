@@ -78,3 +78,12 @@ describe('tarjeta final', () => {
     expect(urlCorta('fieldshift.onrender.com')).toBe('fieldshift.onrender.com')
   })
 })
+
+describe('link local', () => {
+  it('localhost no sale en el video', async () => {
+    const { esLocal } = await import('./marca')
+    expect(esLocal('127.0.0.1:8204/sandbox')).toBe(true)
+    expect(esLocal('localhost:5173')).toBe(true)
+    expect(esLocal('fieldshift.onrender.com/sandbox')).toBe(false)
+  })
+})
