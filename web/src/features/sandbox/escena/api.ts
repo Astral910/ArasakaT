@@ -58,6 +58,8 @@ export interface SandboxOptions {
   transparente?: boolean
   /** Arrastrar para girar y rueda para acercar (default true). */
   interactivo?: boolean
+  /** Fracción de alto reservada abajo para la línea de tiempo (default 0.12): la toma se centra más arriba. */
+  margenInferior?: number
   idioma?: 'es' | 'en'
 }
 

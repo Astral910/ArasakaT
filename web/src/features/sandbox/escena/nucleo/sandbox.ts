@@ -50,7 +50,7 @@ class SandboxImpl implements Sandbox {
   private sol = new THREE.DirectionalLight(0xffffff, 3)
   private hemi = new THREE.HemisphereLight(0xbfd6f0, 0x6b5a40, 1)
   private cielo = crearCielo()
-  private niebla = new THREE.FogExp2(0xd8e6ec, 0.0012)
+  private niebla = new THREE.Fog(0xd8e6ec, 400, 4000)
   private mundo = new THREE.Group()
   private maqueta: Maqueta | null = null
   private props: Props | null = null
@@ -94,6 +94,7 @@ class SandboxImpl implements Sandbox {
   private desechado = false
   private plantasTotal = 0
   private rumbo = 0
+  private tmpV2 = new THREE.Vector2()
 
   constructor(canvas: HTMLCanvasElement, opts: SandboxOptions) {
     this.canvas = canvas
@@ -473,6 +474,12 @@ class SandboxImpl implements Sandbox {
     if (Math.abs(c.fov - this.vista.fov) > 0.01) { c.fov = this.vista.fov; c.updateProjectionMatrix() }
     c.near = Math.max(0.2, dist * 0.01)
     c.far = 9000
+    // margen inferior (línea de tiempo del vuelo): la toma se corre hacia arriba
+    const m = Math.min(0.3, Math.max(0, this.opts.margenInferior ?? 0.12))
+    if (m > 0) {
+      const sz = this.renderer.getSize(this.tmpV2)
+      c.setViewOffset(sz.x, sz.y, 0, sz.y * m * 0.5, sz.x, sz.y)
+    } else c.clearViewOffset()
     c.updateProjectionMatrix()
     // foco del tilt-shift = donde está el objetivo en pantalla
     const p = this.vista.target.clone().project(c)
@@ -611,7 +618,7 @@ class SandboxImpl implements Sandbox {
     // destello de rayo
     const flash = this.rayos.actualizar(dtE)
     this.U.uFlash.value = flash
-    this.hemi.intensity = L.hemiI + flash * 0.7
+    this.hemi.intensity = L.hemiI + flash * 0.45
     const cu = this.cielo.u
     cu.uTop.value.copy(L.top); cu.uHor.value.copy(L.hor); cu.uSunDir.value.copy(dir)
     cu.uSunCol.value.copy(L.solCol).multiplyScalar(0.5 + L.solI * 0.15)
@@ -619,7 +626,10 @@ class SandboxImpl implements Sandbox {
     this.cielo.mesh.position.copy(this.camara.position)
     this.niebla.color.copy(L.nieblaCol)
     const dist = this.camara.position.distanceTo(tgt)
-    this.niebla.density = L.niebla * Math.min(1.6, Math.max(0.3, 240 / dist))
+    // niebla lineal que empieza DETRÁS de la parcela: la parcela siempre nítida, solo se vela lo lejano
+    const radioP = Math.hypot(this.parcela.hx, this.parcela.hz) * 1.3 + 20
+    this.niebla.near = dist + radioP
+    this.niebla.far = this.niebla.near + 2.4 / Math.max(0.0003, L.niebla)
     this.US.uSkyCol.value.copy(L.hor)
     // post
     const pu = this.post.u
@@ -629,7 +639,7 @@ class SandboxImpl implements Sandbox {
     pu.uFrio.value = Math.min(1, c.helada * 0.6 + c.tormenta * 0.35)
     pu.uSat.value = 1.1 - c.tormenta * 0.28 - c.nubes * 0.1 + c.calor * 0.04
     pu.uTime.value = this.tiempo
-    pu.uBloom.value = CFG[this.calidad].tilt ? 0.22 + flash * 0.6 : 0
+    pu.uBloom.value = CFG[this.calidad].tilt ? 0.18 + flash * 0.15 : 0
     pu.uLluvia.value = Math.pow(c.lluvia, 0.9)
     pu.uIncl.value = 0.08 + c.viento * 0.35
     // nubes
