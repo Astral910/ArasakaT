@@ -164,6 +164,14 @@ func (e *Engine) build(req contract.PlanRequest, m *geo.Municipio) (contract.Pla
 			est.Anios = append(est.Anios, contract.AnioEstrategia{Anio: yo.Year, GranoQQMZ: math.Round(yo.FoodQQ*10) / 10,
 				DeficitMM: math.Round(yo.Deficit), Perdida: yo.FoodQQ < sim.LossThreshold*pot, ElNino: isNino(yo.Year)})
 		}
+		// temporada 2026 observada (hasta octubre), fuera del Monte Carlo
+		if ys := s.Years(); len(ys) > 0 && ys[len(ys)-1] == 2026 && s.Scenario == "historical" {
+			yo := s.RunYear(r.Def, 2026, 0, 1, cfg)
+			if !math.IsNaN(yo.MainRatio) {
+				est.Anios = append(est.Anios, contract.AnioEstrategia{Anio: 2026, GranoQQMZ: math.Round(yo.FoodQQ*10) / 10,
+					DeficitMM: math.Round(yo.Deficit), Perdida: yo.FoodQQ < sim.LossThreshold*pot, ElNino: func() bool { _, st := e.ONI.ENSOYear(2026); return st == "nino" }()})
+			}
+		}
 		dOM := r.OM[5] - r.OM[0]
 		est.Puntajes = map[string]float64{
 			"comida":  clamp10(10 * (0.6*(1-2*r.LossRate) + 0.4*r.FoodQQ[0]/(1.2*pot))),

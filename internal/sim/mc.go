@@ -129,9 +129,7 @@ func (s *Site) RunMC(cfg Config, p MCParams) []StratResult {
 				resid += yo.ResidueT
 				nRun++
 				A := yo.ErosionBase * yo.CFactor
-				// raíces ≈ 30 % del rastrojo del cultivo principal
-				roots := 0.3 * yo.MainQQ * 45.36 / 1000 / 0.7 * 1.2
-				soc = SoilStep(soc, yo.ResidueT, roots, A, tmean)
+				soc = SoilStep(soc, yo.ResidueT, yo.RootsT, A, tmean)
 				if t < 5 {
 					om[t+1] = append(om[t+1], OMFromSOC(soc))
 					ero[t] = append(ero[t], A)

@@ -42,6 +42,8 @@ func main() {
 			err = stepForecast()
 		case "soil":
 			err = stepSoil()
+		case "ndvigibs":
+			err = stepNDVIGIBS()
 		case "ndvi":
 			err = stepNDVI()
 		default:

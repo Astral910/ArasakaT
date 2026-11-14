@@ -86,6 +86,7 @@ type YearOut struct {
 	PrimeraSow  int
 	PostSow     int
 	ETa         float64
+	RootsT      float64 // raíces que quedan en el suelo (t MS/ha)
 }
 
 // RunYear simula un año: siembra de Primera = inicio de lluvias + offset días.
@@ -154,11 +155,14 @@ func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) 
 		if cfg.Livestock {
 			cfgRes = 0.7
 		}
-		residue += CoverBiomass[d.Cover.ID] * (0.3 + 0.7*r) * cfgRes
+		cb := CoverBiomass[d.Cover.ID] * (0.3 + 0.7*r)
+		residue += cb * cfgRes
+		out.RootsT += 0.4 * cb // raíces de la cobertura ≈ 40 % de la biomasa aérea
 		if e := sow + CoverSowDay + d.Cover.Season(); e > harvest {
 			harvest = e
 		}
 	}
+	out.RootsT += 0.3 * stover // raíces ≈ 30 % del rastrojo
 	out.FoodQQ = food
 	out.IncomeQ = income
 	out.ResidueT = residue
