@@ -377,12 +377,12 @@ func (s *Store) CorridaHecha(fecha string) bool {
 
 // ResumenMunicipio conteos por municipio.
 type ResumenMunicipio struct {
-	MunicipioID   string         `json:"municipio_id"`
-	Suscriptores  int            `json:"suscriptores"`
-	Activos       int            `json:"activos"`
-	Cultivos      map[string]int `json:"cultivos"`
-	AlertasActivas int           `json:"alertas_activas"`
-	Respuestas    map[string]int `json:"respuestas"`
+	MunicipioID    string         `json:"municipio_id"`
+	Suscriptores   int            `json:"suscriptores"`
+	Activos        int            `json:"activos"`
+	Cultivos       map[string]int `json:"cultivos"`
+	AlertasActivas int            `json:"alertas_activas"`
+	Respuestas     map[string]int `json:"respuestas"`
 }
 
 // Resumen agrega por municipio. activasDesde: alertas emitidas desde esa fecha (YYYY-MM-DD) cuentan como activas.

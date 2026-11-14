@@ -1,5 +1,5 @@
 // archivar baja las corridas archivadas de Open-Meteo (Single Runs API) que la máquina del tiempo necesita
-// y no trae data/forecast: Camotán (temporada 2026) y Todos Santos Cuchumatán (heladas dic 2025 – feb 2026).
+// y no trae data/forecast: Camotán (temporada 2026) y Todos Santos Cuchumatán (heladas desde octubre 2026; la Single Runs API no tiene corridas antes de ~abril 2026).
 //
 //	go run ./internal/forecast/cmd/archivar -cache .cache/forecast
 package main
@@ -29,7 +29,7 @@ func main() {
 		from, to       time.Time
 	}{
 		{"camotan-chiquimula", 14.8544, -89.2829, 816, forecast.DefaultModels, d("2026-05-01"), yesterday},
-		{"todos-santos-cuchumatan-huehuetenango", 15.5726, -91.5851, 3009, []string{"ecmwf_ifs025", "ecmwf_aifs025_single", "icon_global", "jma_gsm"}, d("2025-12-01"), d("2026-02-28")},
+		{"todos-santos-cuchumatan-huehuetenango", 15.5726, -91.5851, 3009, []string{"ecmwf_ifs025", "ecmwf_aifs025_single", "icon_global", "jma_gsm"}, d("2026-10-01"), yesterday},
 	}
 	for _, s := range sites {
 		a := c.BuildArchive(s.id, s.lat, s.lon, s.elev, s.models, s.from, s.to, *workers)

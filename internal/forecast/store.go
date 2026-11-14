@@ -188,3 +188,10 @@ func (p *Provider) Members(site string, lat, lon, elev float64, date time.Time) 
 	}
 	return ms, SourceLive, nil
 }
+
+// Put agrega o reemplaza un archivo (tests y cargas manuales).
+func (as *Archives) Put(a *Archive) {
+	as.mu.Lock()
+	defer as.mu.Unlock()
+	as.by[a.Site] = a
+}

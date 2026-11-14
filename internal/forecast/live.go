@@ -149,6 +149,7 @@ func parseEnsembleDaily(b []byte) ([]Run, error) {
 	var out []Run
 	for _, k := range sortedKeys(members) {
 		if m := members[k]; len(m.PR) > 0 {
+			m.Model = ModelOf(k)
 			out = append(out, *m)
 		}
 	}
@@ -156,6 +157,17 @@ func parseEnsembleDaily(b []byte) ([]Run, error) {
 		return nil, fmt.Errorf("ensamble vacío")
 	}
 	return out, nil
+}
+
+// ModelOf nombre del modelo a partir del sufijo de la columna del ensamble (…_member01_ecmwf_ifs025_ensemble, …_ncep_gefs025).
+func ModelOf(suffix string) string {
+	switch {
+	case strings.Contains(suffix, "ecmwf"):
+		return "ecmwf_ifs025"
+	case strings.Contains(suffix, "gefs"), strings.Contains(suffix, "gfs"):
+		return "gfs025"
+	}
+	return strings.TrimPrefix(suffix, "_")
 }
 
 // SingleRun corrida determinista archivada (00 UTC del día init) de un modelo, agregada a días locales GT.

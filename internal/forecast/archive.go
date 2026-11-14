@@ -6,6 +6,8 @@ type Run struct {
 	PR   []float64 `json:"pr"`
 	Tmin []float64 `json:"tmin"`
 	Tmax []float64 `json:"tmax"`
+	// Model modelo de origen (lo llena Members / Ensemble; no se guarda en el archivo).
+	Model string `json:"-"`
 }
 
 // Archive: corridas archivadas por modelo y fecha de inicio (YYYY-MM-DD).
@@ -22,6 +24,7 @@ func (a *Archive) Members(date string) []Run {
 	var out []Run
 	for _, m := range sortedKeys(a.Runs) {
 		if r, ok := a.Runs[m][date]; ok {
+			r.Model = m
 			out = append(out, r)
 		}
 	}
