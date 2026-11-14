@@ -10,6 +10,9 @@ primary_region = "mia"
   DB_PATH = "/var/data/fieldshift.db"
   CORS_ORIGINS = "*"
   SCHEDULER = "on"
+  SCHEDULER_HORA = "06:00"
+  TZ = "America/Guatemala"
+  # Secretos (nunca aquí): fly secrets set PUBLIC_URL=... WEB_URL=... ADMIN_TOKEN=... WHATSAPP_TOKEN=... (ver docs/deploy.md)
 
 [mounts]
   source = "fieldshift_data"
@@ -27,3 +30,8 @@ primary_region = "mia"
     method = "GET"
     path = "/healthz"
     timeout = "5s"
+
+# Chromium (video del sandbox, informe PDF) necesita ~1 GB.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"
