@@ -8,7 +8,7 @@ import { ICONO, TONO, TONO_ESTACION } from './iconos'
 import { t } from './textos'
 import { fechaCorta, numero } from '../../mapa/comun/idioma'
 
-const props = defineProps<{ tl: SimTimeline; bandas: Banda[]; dia: number; jugando: boolean; velocidad: Velocidad; compacto?: boolean }>()
+const props = defineProps<{ tl: SimTimeline; bandas: Banda[]; dia: number; jugando: boolean; velocidad: Velocidad; compacto?: boolean; textosMotor?: boolean }>()
 const emit = defineEmits<{ ir: [dia: number]; evento: [e: SimEvento]; play: []; velocidad: [v: Velocidad] }>()
 
 const pista = ref<HTMLDivElement | null>(null)
@@ -58,6 +58,8 @@ const visibles = computed(() => props.tl.eventos.filter((e) => e.tipo !== 'riego
 const grupos = computed(() => agrupar(visibles.value, ancho.value / N.value, props.compacto ? 18 : 22))
 
 function etiqueta(e: SimEvento) {
+  // el motor ya manda el texto del evento en el idioma pedido
+  if (props.textosMotor && e.texto) return e.texto
   return t(`ev.${e.tipo}`, { v: numero(e.valor, e.tipo === 'tormenta' || e.tipo === 'racha_seca' ? 0 : 1), c: t(`c.${e.texto || 'otro'}`) })
 }
 function prioridad(g: SimEvento[]) {

@@ -28,12 +28,17 @@ export interface OpcionesSandbox {
   transparente?: boolean
   calidad?: 'baja' | 'media' | 'alta'
   reducido?: boolean
+  /** false = sin requestAnimationFrame propio; el video llama renderFrame(dt) por cuadro */
+  autoRender?: boolean
+  idioma?: 'es' | 'en'
 }
 
 export interface ParamsPlantilla {
   timeline: SimTimeline
   cultivo: string
   area_m2: number
+  area_valor: number
+  area_unidad: 'cuerda' | 'manzana' | 'ha'
   estrategia: string
   lon: number
   lat: number
@@ -51,6 +56,14 @@ export interface Sandbox {
   levantar?(t: number): void
   /** opcional: avisa cuando el relieve y la textura ya cargaron */
   listo?: Promise<void>
+  /** true = la maqueta arranca alineada con la cámara del mapa (stub); false = transición por fundido (escena real) */
+  alineable?: boolean
+  /** hacia dónde mira la cámara general de la escena (grados desde el norte), para que el mapa termine igual */
+  rumbo?: () => number | undefined
+  /** velocidad de los efectos (1 normal, 0.3 cámara lenta) */
+  setTimeScale?(s: number): void
+  /** dibuja un cuadro (autoRender:false, video) */
+  renderFrame?(dt: number): void
 }
 
 type Fabrica = (canvas: HTMLCanvasElement, o: OpcionesSandbox) => Sandbox | Promise<Sandbox>
@@ -64,10 +77,9 @@ async function fabrica(): Promise<Fabrica> {
   if (cargar) {
     try {
       const mod: any = await cargar()
-      const f = mod.createSandbox ?? mod.default?.createSandbox
-      if (typeof f === 'function') {
+      if (typeof mod.createSandbox === 'function') {
         usaStub = false
-        return (c, o) => envolver(f(c, o), mod)
+        return (c, o) => adaptarReal(mod.createSandbox, c, o)
       }
     } catch (e) {
       console.warn('[vuelo] escena/api.ts falló, uso el stub', e)
@@ -78,17 +90,50 @@ async function fabrica(): Promise<Fabrica> {
   return createSandbox
 }
 
-/** Tolera las dos formas posibles de la API real: métodos en el objeto o funciones del módulo. */
-async function envolver(x: any, mod: any): Promise<Sandbox> {
-  const sb = await x
-  const m = (k: string) => (sb && typeof sb[k] === 'function' ? sb[k].bind(sb) : typeof mod[k] === 'function' ? (...a: any[]) => mod[k](sb, ...a) : undefined)
+/** Presets del vuelo → presets de ESCENA3D (general | ras | corte | lenta | maqueta | cenital). */
+export const PRESET_REAL: Record<string, string> = {
+  llegada: 'maqueta', iso: 'maqueta', cerca: 'general', suelo: 'ras', cielo: 'lenta', cenital: 'cenital', corte: 'corte',
+}
+
+/** API real de escena/api.ts (COORDINACION 14-nov 13:30): setTemplate({lat,lon,areaValor,…}) + setTimeline(tl). */
+function adaptarReal(crear: any, canvas: HTMLCanvasElement, o: OpcionesSandbox): Sandbox {
+  const sb = crear(canvas, {
+    quality: o.calidad ?? 'auto', transparente: false, preserveDrawingBuffer: true,
+    autoRender: o.autoRender ?? true, idioma: o.idioma,
+  })
+  let rumbo: number | undefined
+  let clave = ''
+  let tlActual: unknown = null
+  let pend: Promise<void> = Promise.resolve()
+  const listo = new Promise<void>((res) => {
+    sb.on('ready', (d: any) => { rumbo = d?.rumboCamara; res() })
+    sb.on('error', () => res())
+  })
   return {
-    setTemplate: m('setTemplate') ?? (() => {}),
-    setDay: m('setDay') ?? (() => {}),
-    setCamera: m('setCamera') ?? (() => {}),
-    dispose: m('dispose') ?? (() => {}),
-    levantar: m('levantar') ?? m('setRise'),
-    listo: sb?.listo ?? sb?.ready,
+    alineable: false,
+    listo,
+    rumbo: () => rumbo,
+    setTemplate(p) {
+      const k = [p.lat, p.lon, p.area_valor, p.area_unidad, p.cultivo, p.estrategia].join('|')
+      if (k !== clave) {
+        clave = k
+        pend = Promise.resolve(sb.setTemplate({
+          lat: p.lat, lon: p.lon, areaValor: p.area_valor, areaUnidad: p.area_unidad, cultivo: p.cultivo,
+          estrategia: p.estrategia, pendientePct: p.pendiente_pct,
+        })).catch(() => {})
+      }
+      if (p.timeline !== tlActual) {
+        tlActual = p.timeline
+        sb.setTimeline(p.timeline)
+      }
+      return pend
+    },
+    setDay: (i, f) => sb.setDay(i, f),
+    // la escena real mide la duración en segundos; el vuelo, en ms
+    setCamera: (preset, op) => sb.setCamera(PRESET_REAL[preset] ?? preset, { duracion: op?.duracion == null ? undefined : op.duracion / 1000 }),
+    setTimeScale: (s) => sb.setTimeScale?.(s),
+    renderFrame: (dt) => sb.renderFrame?.(dt),
+    dispose: () => sb.dispose(),
   }
 }
 

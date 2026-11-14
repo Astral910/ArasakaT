@@ -1,13 +1,23 @@
-// Línea de tiempo del sandbox: POST /api/simulate → JSON estático del motor → WASM (si existe) → ejemplo local.
-// El ejemplo local es sintético (clima plausible del Corredor Seco anclado a los números del plan real);
-// la UI lo marca siempre como "datos de ejemplo", nunca como dato NASA.
+// Línea de tiempo del sandbox: POST /api/simulate → motor en WebAssembly (sin servidor) → JSON estático del motor
+// → ejemplo local. El ejemplo local es sintético (clima plausible del Corredor Seco anclado a los números del plan
+// real); la UI lo marca siempre como "datos de ejemplo", nunca como dato NASA.
 import { api, pub } from '@/api/client'
 import type { Plan } from '@/api/types'
 import type { SimRequest, SimTimeline, SimEvento, SimAnio, SimCapa, OrigenSim } from './tipos'
 
+/** Estático del motor: static/sim/<municipio>_<S>_<tipico|nino|real-2026|secuencia-p50|2040-ssp245>_<0|20>[_en].json.
+ *  Devuelve null si esa combinación no se precalculó (no se inventa una parecida). */
 export function rutaEstatica(r: SimRequest) {
-  const esc = r.escenario === 'secuencia' ? `secuencia-${r.percentil}-${r.anios}` : r.escenario
-  return `static/sim/${r.plan.municipio_id}_${r.estrategia}_${esc}_${Math.round(r.riego_mm_semana)}.json`
+  const riego = Math.round(r.riego_mm_semana)
+  if (riego !== 0 && riego !== 20) return null
+  let esc: string = r.escenario
+  if (r.escenario === 'secuencia') {
+    if (r.percentil !== 'p50' || (r.anios && r.anios !== 5)) return null
+    esc = 'secuencia-p50'
+  } else if (r.escenario === 'tipico' && r.percentil !== 'p50') return null
+  else if (r.escenario === '2040-ssp585') return null
+  const en = r.plan.idioma === 'en' ? '_en' : ''
+  return `static/sim/${r.plan.municipio_id}_${r.estrategia}_${esc}_${riego}${en}.json`
 }
 
 export function valida(t: unknown): t is SimTimeline {
@@ -15,25 +25,48 @@ export function valida(t: unknown): t is SimTimeline {
   return !!x && typeof x.dias === 'number' && x.dias > 0 && Array.isArray(x.agua_suelo) && x.agua_suelo.length >= x.dias && Array.isArray(x.capas)
 }
 
-/** Si el motor publica wasm/sim.wasm (Go), expone globalThis.fsSimulate(json) → json. */
-async function porWasm(r: SimRequest): Promise<SimTimeline | null> {
-  const g = globalThis as any
-  if (!g.fsSimulate) {
-    const ok = await fetch(pub('wasm/sim.wasm'), { method: 'HEAD' }).then((x) => x.ok && !(x.headers.get('content-type') || '').includes('html')).catch(() => false)
-    if (!ok) return null
-    await new Promise<void>((res, rej) => {
-      const s = document.createElement('script')
-      s.src = pub('wasm/wasm_exec.js')
-      s.onload = () => res()
-      s.onerror = () => rej(new Error('wasm_exec'))
-      document.head.appendChild(s)
-    })
-    const go = new g.Go()
-    const { instance } = await WebAssembly.instantiateStreaming(fetch(pub('wasm/sim.wasm')), go.importObject)
-    go.run(instance)
-    if (!g.fsSimulate) return null
+async function jsonSiExiste(url: string): Promise<string | null> {
+  try {
+    const r = await fetch(url)
+    if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return null
+    return await r.text()
+  } catch {
+    return null
   }
-  const out = JSON.parse(g.fsSimulate(JSON.stringify(r)))
+}
+
+let wasmListo: Promise<boolean> | null = null
+/** Motor compilado a WebAssembly (agente motor): wasm/fieldshift.wasm expone simulate(siteJSON, reqJSON). */
+function cargarWasm(): Promise<boolean> {
+  wasmListo ??= (async () => {
+    const g = globalThis as any
+    if (typeof g.simulate === 'function') return true
+    if (!g.Go) {
+      await new Promise<void>((res, rej) => {
+        const s = document.createElement('script')
+        s.src = pub('wasm/wasm_exec.js')
+        s.onload = () => res()
+        s.onerror = () => rej(new Error('wasm_exec'))
+        document.head.appendChild(s)
+      })
+    }
+    const go = new g.Go()
+    const resp = await fetch(pub('wasm/fieldshift.wasm'))
+    if (!resp.ok) return false
+    const { instance } = await WebAssembly.instantiate(await resp.arrayBuffer(), go.importObject)
+    go.run(instance) // el programa Go queda vivo con simulate() registrado
+    return typeof g.simulate === 'function'
+  })().catch(() => false)
+  return wasmListo
+}
+
+const sitios = new Map<string, Promise<string | null>>()
+async function porWasm(r: SimRequest): Promise<SimTimeline | null> {
+  const id = r.plan.municipio_id
+  if (!sitios.has(id)) sitios.set(id, jsonSiExiste(pub(`wasm/sites/${id}.json`)))
+  const sitio = await sitios.get(id)!
+  if (!sitio || !(await cargarWasm())) return null
+  const out = JSON.parse((globalThis as any).simulate(sitio, JSON.stringify(r)))
   return valida(out) ? out : null
 }
 
@@ -50,18 +83,17 @@ export async function cargarSim(r: SimRequest, plan?: Plan | null): Promise<{ tl
   } catch { /* sigue */ }
   if (!res) {
     try {
-      const r2 = await fetch(pub(rutaEstatica(r)))
-      if (r2.ok && (r2.headers.get('content-type') || '').includes('json')) {
-        const tl = await r2.json()
-        if (valida(tl)) res = { tl, origen: 'static' }
-      }
-    } catch { /* sigue */ }
-  }
-  if (!res) {
-    try {
       const tl = await porWasm(r)
       if (tl) res = { tl, origen: 'wasm' }
     } catch { /* sigue */ }
+  }
+  const ruta = res ? null : rutaEstatica(r)
+  if (ruta) {
+    const txt = await jsonSiExiste(pub(ruta))
+    if (txt) {
+      const tl = JSON.parse(txt)
+      if (valida(tl)) res = { tl, origen: 'static' }
+    }
   }
   res ??= { tl: sintetico(r, plan), origen: 'ejemplo' }
   cache.set(clave, res)

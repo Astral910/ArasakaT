@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // /sandbox · una sola toma: Guatemala en 3D → zoom al terreno → la maqueta se levanta → sandbox con el motor.
-import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, SkipForward, Info, Keyboard } from 'lucide-vue-next'
 import Vuelo from './vuelo/Vuelo.vue'
@@ -10,6 +10,7 @@ import Linea from './ui/Linea.vue'
 import Controles from './ui/Controles.vue'
 import { ladoMaqueta } from './vuelo/trayecto'
 import type { CamaraMapa } from './vuelo/escena'
+import { crearGrabable, type Grabable } from './vuelo/grabable'
 import { cargarSim } from './ui/datos'
 import { estaciones, estadoDia, estacionDe, fuenteDia, isoDia, presetEvento, avanzar, VELOCIDADES, LENTO, type Velocidad } from './ui/tiempo'
 import { RIEGO, type Ajustes, type OrigenSim, type SimEvento, type SimRequest, type SimTimeline, type Estrategia } from './ui/tipos'
@@ -19,6 +20,7 @@ import { lang, setLang } from '@/i18n'
 import type { PlanRequest } from '@/api/types'
 
 const route = useRoute()
+const num = (s?: string) => (s != null && s !== '' && isFinite(Number(s)) ? Number(s) : undefined)
 const router = useRouter()
 const store = usePlanStore()
 
@@ -28,8 +30,17 @@ const movil = computed(() => ancho.value < 760)
 const onResize = () => (ancho.value = window.innerWidth)
 
 // ---------- lugar ----------
-const q = route.query as Record<string, string | undefined>
-const num = (s?: string) => (s != null && s !== '' && isFinite(Number(s)) ? Number(s) : undefined)
+const q = { ...route.query } as Record<string, string | undefined>
+// modo grabación del video (agente VIDEO): /sandbox?rec=1&municipio_id=&estrategia=&riego_mm_semana=&escenario=…
+const rec = q.rec === '1'
+if (q.idioma === 'es' || q.idioma === 'en') setLang(q.idioma)
+const riegoDeMM = (mm?: number) => (mm == null ? undefined : (Object.entries(RIEGO).reduce((m, [k, v]) => (Math.abs(v - mm) < Math.abs(RIEGO[m as keyof typeof RIEGO] - mm) ? k : m), 'nada')))
+// el video y el bot mandan municipio_id / estrategia / riego_mm_semana; la web, m / s / riego
+q.m ??= q.municipio_id
+q.s ??= q.estrategia
+q.riego ??= riegoDeMM(num(q.riego_mm_semana))
+q.esc ??= q.escenario
+q.p ??= q.percentil
 const lugar = reactive({ id: q.m ?? store.request.municipio_id, nombre: '', depto: '', lon: num(q.lon) ?? NaN, lat: num(q.lat) ?? NaN })
 const hayLugar = computed(() => isFinite(lugar.lon) && isFinite(lugar.lat))
 const lado = ladoMaqueta(typeof window !== 'undefined' ? window.innerWidth : 1280)
@@ -52,7 +63,7 @@ const area_m2 = computed(() => ajustes.value.area_valor * M2[ajustes.value.area_
 
 // ---------- fases de la toma ----------
 type Fase = 'vuelo' | 'transicion' | 'sandbox'
-const saltarIntro = reducido || q.intro === '0'
+const saltarIntro = !rec && (reducido || q.intro === '0')
 const fase = ref<Fase>(saltarIntro ? 'sandbox' : 'vuelo')
 const progreso = ref(0)
 const mapaVivo = ref(!saltarIntro)
@@ -65,7 +76,17 @@ const subida = ref(saltarIntro ? 1 : 0)
 const escenaVisible = ref(saltarIntro)
 const mapaFx = ref(0) // 0 = nítido; 1 = desenfocado detrás de la maqueta
 const escenaLista = ref(false)
+const alineable = ref(true) // stub: maqueta alineada al mapa; escena real: fundido con zoom
+const rumbo = ref<number | null>(null)
+const escala = computed(() => (lento.value ? 0.3 : 1))
+function alListo(info: { alineable: boolean; rumbo?: number }) {
+  alineable.value = info.alineable
+  if (info.rumbo != null) rumbo.value = info.rumbo
+  escenaLista.value = true
+}
 const vuelo = ref<InstanceType<typeof Vuelo> | null>(null)
+const escena1 = ref<InstanceType<typeof Escena> | null>(null)
+const vueloListo = ref(false)
 const duracion = movil.value ? 5200 : 9000
 
 const captura = computed(() => {
@@ -245,6 +266,56 @@ const cielo = computed(() => {
 
 const estrNombre = (s: string) => `${s} · ${t(s)}`
 
+// ---------- video: exportar desde la web y modo grabación del servidor ----------
+const modsExport = import.meta.glob('./export/index.ts')
+const botones = import.meta.glob('./export/BotonExportar.vue')
+const BotonExportar = botones['./export/BotonExportar.vue'] ? defineAsyncComponent(botones['./export/BotonExportar.vue'] as any) : null
+
+function metaVideo() {
+  const a = ajustes.value
+  const url = new URL(location.href)
+  for (const k of ['rec', 'calidad', 'vertical', 'fps', 'dur', 'desde', 'hasta']) url.searchParams.delete(k)
+  return {
+    municipio: lugar.nombre || lugar.id, departamento: lugar.depto, cultivo: a.cultivo, estrategia: a.estrategia,
+    estrategiaNombre: t(a.estrategia), escenario: a.escenario, riegoMMSemana: RIEGO[a.riego], idioma: lang.value, url: url.toString(),
+  }
+}
+function grabable(conVuelo: boolean): Grabable | null {
+  if (!tl.value) return null
+  return crearGrabable({
+    conVuelo,
+    vuelo: () => (conVuelo ? (vuelo.value as any) : null),
+    sandbox: () => (escena1.value as any)?.sandbox?.() ?? null,
+    lienzo: () => (escena1.value as any)?.lienzo ?? null,
+    tl: tl.value, alineable: () => alineable.value, cielo: () => cielo.value,
+    fase, dia, meta: metaVideo(),
+  })
+}
+/** Para el botón "Exportar video": timelapse de la temporada desde la escena (sin repetir el vuelo). */
+const grabableUI = computed(() => (BotonExportar && escenaLista.value && tl.value && !ajustes.value.comparar ? grabable(false) : null))
+
+function esperar(cond: () => boolean, tope: number) {
+  return new Promise<void>((res, rej) => {
+    const t0 = performance.now()
+    const mirar = () => (cond() ? res() : performance.now() - t0 > tope ? rej(new Error('tiempo agotado esperando la escena')) : setTimeout(mirar, 100))
+    mirar()
+  })
+}
+async function prepararGrabacion() {
+  const cargar = modsExport['./export/index.ts']
+  if (!cargar) return
+  const mod: any = await cargar()
+  try {
+    await esperar(() => escenaLista.value && !!tl.value && (vueloListo.value || !mapaVivo.value), 30000)
+    escenaVisible.value = true
+    const g = grabable(mapaVivo.value && vueloListo.value)
+    if (!g) throw new Error('sin línea de tiempo')
+    await mod.activarModoGrabacion(g)
+  } catch (e) {
+    mod.fallarGrabacion(String((e as Error)?.message ?? e))
+  }
+}
+
 // ---------- arranque ----------
 onMounted(async () => {
   window.addEventListener('keydown', tecla)
@@ -264,6 +335,7 @@ onMounted(async () => {
   }
   if (!hayLugar.value) { lugar.lon = -89.3778; lugar.lat = 14.8121; lugar.nombre ||= 'Jocotán'; lugar.depto ||= 'Chiquimula' }
   await recalcular()
+  if (rec) prepararGrabacion()
 })
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
@@ -280,25 +352,27 @@ const mostrarAyuda = ref(false)
 </script>
 
 <template>
-  <div class="sandbox" :class="['f-' + fase, { movil, comparar: ajustes.comparar, tormenta: cielo.tormenta, calor: cielo.calor }]" :style="{ '--cielo-a': cielo.a, '--cielo-b': cielo.b }">
+  <div class="sandbox" :class="['f-' + fase, { rec, movil, comparar: ajustes.comparar, tormenta: cielo.tormenta, calor: cielo.calor, real: !alineable }]" :style="{ '--cielo-a': cielo.a, '--cielo-b': cielo.b }">
     <h1 class="sr-only">{{ t('titulo') }} · {{ lugar.nombre }}</h1>
     <div class="cielo" :style="{ opacity: mapaVivo ? mapaFx : 1 }" aria-hidden="true"><i class="sol" /></div>
 
     <!-- 1 · el mapa (plano alto → zoom al terreno) -->
     <Vuelo
       v-if="mapaVivo && hayLugar" ref="vuelo" class="capa-mapa"
-      :style="{ filter: `blur(${mapaFx * 7}px) saturate(${1 - mapaFx * 0.45}) brightness(${1 - mapaFx * 0.35})`, opacity: 1 - mapaFx * 0.15 }"
-      :lon="lugar.lon" :lat="lugar.lat" :municipio-id="lugar.id" :lado="lado" :duracion="duracion"
+      :style="{ filter: `blur(${mapaFx * 7}px) saturate(${1 - mapaFx * 0.45}) brightness(${1 - mapaFx * 0.35})`, opacity: 1 - mapaFx * 0.15, transform: alineable ? 'none' : `scale(${1 + mapaFx * 0.35})` }"
+      :lon="lugar.lon" :lat="lugar.lat" :municipio-id="lugar.id" :lado="lado" :duracion="duracion" :rumbo="rumbo"
+      :manual="rec" @preparado="vueloListo = true"
       @progreso="progreso = $event" @final="alFinal" @error="sinWebgl = true; mapaVivo = false; fase = 'sandbox'; subida = 1; escenaVisible = true; preset = 'iso'; presetSeq++"
     />
 
     <!-- 2 · la maqueta (montada desde el inicio para que cargue su relieve durante el vuelo) -->
-    <div v-if="hayLugar" class="escenas" :class="{ visible: escenaVisible }">
+    <div v-if="hayLugar" class="escenas" :class="{ visible: escenaVisible, fundido: !alineable }">
       <div class="panel-escena">
         <Escena
-          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tl" :cultivo="ajustes.cultivo" :area_m2="area_m2" :estrategia="ajustes.comparar ? 'S0' : ajustes.estrategia"
+          ref="escena1" :auto-render="!rec"
+          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tl" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" :estrategia="ajustes.comparar ? 'S0' : ajustes.estrategia"
           :dia="diaEntero" :fraccion="fraccion" :preset="preset" :seq="presetSeq" :duracion="durCam" :mapa="camMapa" :subida="subida" :calidad="calidad"
-          @listo="escenaLista = true"
+          @listo="alListo"
         />
         <div v-if="ajustes.comparar && fase === 'sandbox' && estado" class="vidrio hud-mitad">
           <Hud :estado="estado" :fecha="fecha" :fuente="fuente" :estacion="estacion" :origen="origen" :titulo="estrNombre('S0')" compacto />
@@ -306,7 +380,7 @@ const mostrarAyuda = ref(false)
       </div>
       <div v-if="ajustes.comparar && tlB" class="panel-escena">
         <Escena
-          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tlB" :cultivo="ajustes.cultivo" :area_m2="area_m2" estrategia="S2"
+          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tlB" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" estrategia="S2"
           :dia="diaEntero" :fraccion="fraccion" :preset="preset === 'llegada' ? 'iso' : preset" :seq="presetSeq" :duracion="0" :subida="1" :calidad="'baja'"
         />
         <div v-if="fase === 'sandbox' && estadoB" class="vidrio hud-mitad b">
@@ -334,6 +408,7 @@ const mostrarAyuda = ref(false)
       <p class="lugar"><b>{{ lugar.nombre }}</b><span v-if="lugar.depto">, {{ lugar.depto }}</span></p>
       <div class="der">
         <button class="chip idioma" type="button" :aria-label="lang === 'es' ? 'English' : 'Español'" @click="setLang(lang === 'es' ? 'en' : 'es')">{{ lang === 'es' ? 'EN' : 'ES' }}</button>
+        <BotonExportar v-if="BotonExportar && fase === 'sandbox' && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" />
         <button v-if="fase === 'vuelo'" class="chip saltar" type="button" @click="saltar"><SkipForward :size="16" />{{ t('saltar') }}</button>
       </div>
     </header>
@@ -359,7 +434,7 @@ const mostrarAyuda = ref(false)
     </Transition>
     <Transition name="sube">
       <footer v-if="fase === 'sandbox' && tl" class="vidrio abajo-ui">
-        <Linea :tl="tl" :bandas="bandas" :dia="dia" :jugando="jugando" :velocidad="velocidad" :compacto="movil" @ir="ir" @evento="alEvento" @play="toggle" @velocidad="velocidad = $event" />
+        <Linea :tl="tl" :textos-motor="origen !== 'ejemplo'" :bandas="bandas" :dia="dia" :jugando="jugando" :velocidad="velocidad" :compacto="movil" @ir="ir" @evento="alEvento" @play="toggle" @velocidad="velocidad = $event" />
         <p class="pie">
           <button class="mini" type="button" :aria-expanded="mostrarAyuda" @click="mostrarAyuda = !mostrarAyuda"><Keyboard :size="13" /></button>
           <span v-if="mostrarAyuda || !movil" class="kbd">{{ t('teclado') }}</span>
@@ -380,6 +455,10 @@ const mostrarAyuda = ref(false)
 .capa-mapa { position: absolute; inset: 0; transition: filter .2s linear; }
 .escenas { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr; opacity: 0; transition: opacity .7s ease; pointer-events: none; }
 .escenas.visible { opacity: 1; pointer-events: auto; }
+/* escena real (no alineable al mapa): entra con un fundido que sigue el empuje de la cámara */
+.escenas.fundido { transform: scale(1.12); filter: blur(8px); transition: opacity 1.1s ease, transform 2.2s var(--ease), filter 1.4s ease; }
+.escenas.fundido.visible { transform: none; filter: none; }
+.real .tiltshift, .real .flash, .real .cielo .sol { display: none; }
 .comparar .escenas { grid-template-columns: 1fr 1fr; }
 .panel-escena { position: relative; min-width: 0; }
 .comparar .panel-escena + .panel-escena { border-left: 2px solid rgba(255,231,168,.6); box-shadow: -8px 0 30px rgba(0,0,0,.25); }
@@ -395,6 +474,7 @@ const mostrarAyuda = ref(false)
 .tormenta.f-sandbox .flash { animation: rayo 5.5s infinite; }
 @keyframes rayo { 0%, 61%, 66%, 100% { opacity: 0 } 62% { opacity: .55 } 63% { opacity: .1 } 64% { opacity: .4 } }
 .calor .velo { background: radial-gradient(ellipse at 50% 45%, rgba(255,240,200,.08) 40%, rgba(120,60,20,.35) 100%); }
+.rec .top, .rec .lado, .rec .lado-der, .rec .abajo-ui, .rec .captura, .rec .progreso, .rec .cine, .rec .hud-mitad, .rec .cargando { display: none !important; }
 .cine { position: absolute; left: 0; right: 0; height: 9vh; background: #000; z-index: 6; transition: transform 1.1s var(--ease); pointer-events: none; }
 .cine.arriba { top: 0; }
 .cine.abajo { bottom: 0; }

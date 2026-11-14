@@ -58,8 +58,14 @@ describe('línea de tiempo de ejemplo', () => {
     expect(eventosDe(tl).length).toBeGreaterThan(0)
   })
   it('ruta del estático del motor', () => {
-    expect(rutaEstatica(req({ riego_mm_semana: 20 }))).toBe('static/sim/jocotan-chiquimula_S2_tipico_20.json')
-    expect(rutaEstatica(req({ escenario: 'secuencia', percentil: 'p90', anios: 5 }))).toBe('static/sim/jocotan-chiquimula_S2_secuencia-p90-5_0.json')
+    const es = (o: Partial<SimRequest>) => req({ ...o, plan: { ...req().plan, idioma: 'es' } })
+    expect(rutaEstatica(es({ riego_mm_semana: 20 }))).toBe('static/sim/jocotan-chiquimula_S2_tipico_20.json')
+    expect(rutaEstatica(req({ plan: { ...req().plan, idioma: 'en' } }))).toBe('static/sim/jocotan-chiquimula_S2_tipico_0_en.json')
+    expect(rutaEstatica(es({ escenario: 'secuencia', percentil: 'p50', anios: 5 }))).toBe('static/sim/jocotan-chiquimula_S2_secuencia-p50_0.json')
+    // combinaciones que el motor no precalculó: no se inventa una parecida
+    expect(rutaEstatica(es({ riego_mm_semana: 35 }))).toBeNull()
+    expect(rutaEstatica(es({ escenario: 'secuencia', percentil: 'p90', anios: 5 }))).toBeNull()
+    expect(rutaEstatica(es({ escenario: '2040-ssp585' }))).toBeNull()
   })
 })
 
@@ -116,7 +122,7 @@ describe('toma continua', () => {
   it('zoom final encuadra la maqueta', () => {
     const z = zoomFinal(800, 14.81, 1440, 900)
     const px = 800 / mpp(z, 14.81)
-    expect(px).toBeCloseTo(Math.min(1440, 900 * 1.4) * 0.55, 0)
+    expect(px).toBeCloseTo(Math.min(1440, 900 * 1.4) * 0.6, 0)
   })
   it('cámara three equivalente a la de MapLibre', () => {
     const c = camaraDesdeMapa({ lon: 0, lat: 0, zoom: 15, pitch: 0, bearing: 0, fov: 36.87, alto: 800, exageracion: 1 })

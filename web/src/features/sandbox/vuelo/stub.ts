@@ -444,11 +444,17 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
 
   let destello = 0
   let fx = { lluvia: 0, nubes: 0, viento: 0, tormenta: false }
-  let raf = 0, tPrev = performance.now()
+  // reloj propio (ms): en tiempo real con requestAnimationFrame, o virtual con renderFrame(dt) para el video
+  const auto = o.autoRender !== false
+  let raf = 0, tPrev = performance.now(), reloj = 0
   function cuadro(now: number) {
-    raf = requestAnimationFrame(cuadro)
-    const dt = Math.min(0.05, (now - tPrev) / 1000)
+    if (auto) raf = requestAnimationFrame(cuadro)
+    pintar(Math.min(0.05, (now - tPrev) / 1000))
     tPrev = now
+  }
+  function pintar(dt: number) {
+    reloj += dt * 1000
+    const now = reloj
     tiempo.value += dt
     if (Math.abs(alzaObj - alza) > 1e-4) { alza += (alzaObj - alza) * Math.min(1, dt * 2.5); encuadre() }
     if (tween) {
@@ -482,7 +488,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
     cielo.intensity = 1.1 - fx.nubes * 0.45 + destello * 2.5
     renderer.render(escena, camara)
   }
-  raf = requestAnimationFrame(cuadro)
+  if (auto) raf = requestAnimationFrame(cuadro)
 
   function luz(fraccion: number) {
     // a velocidad baja se ve el arco del sol; en timelapse la luz se promedia (fraccion ≈ 0.5)
@@ -496,6 +502,10 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
   luz(0.5)
 
   return {
+    alineable: true,
+    rumbo: () => undefined,
+    setTimeScale() { /* el stub no tiene efectos con escala de tiempo */ },
+    renderFrame(dt) { pintar(dt) },
     listo,
     setTemplate(p) { construirParcela(p) },
     setDay(i, f) {
@@ -522,7 +532,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
       const dur = op?.duracion ?? 1600
       if (dur <= 0) {
         camara.position.copy(p1); mira.copy(m1); camara.lookAt(m1); controles.target.copy(m1); tween = null
-      } else tween = { p0: camara.position.clone(), p1, m0: mira.clone(), m1, t0: performance.now(), dur }
+      } else tween = { p0: camara.position.clone(), p1, m0: mira.clone(), m1, t0: reloj, dur }
       controles.enabled = preset !== 'llegada'
       alzaObj = preset === 'llegada' || canvas.clientHeight < 500 ? 0 : 0.07
     },

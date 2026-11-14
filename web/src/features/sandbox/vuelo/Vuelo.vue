@@ -8,8 +8,8 @@ import { ESCALA_RIESGO, colorDe } from '../../mapa/riesgo'
 import { toma, zoomFinal, type Toma } from './trayecto'
 import type { CamaraMapa } from './escena'
 
-const props = defineProps<{ lon: number; lat: number; municipioId: string; lado: number; duracion: number }>()
-const emit = defineEmits<{ progreso: [u: number]; final: [c: CamaraMapa]; error: [] }>()
+const props = defineProps<{ lon: number; lat: number; municipioId: string; lado: number; duracion: number; rumbo?: number | null; manual?: boolean }>()
+const emit = defineEmits<{ progreso: [u: number]; final: [c: CamaraMapa]; error: []; preparado: [] }>()
 
 const caja = ref<HTMLDivElement | null>(null)
 let mapa: any = null
@@ -17,6 +17,7 @@ let raf = 0
 let t0 = 0
 let terminado = false
 let saltarYa = false
+let inicio: Toma | null = null
 const EXAG = 1.35
 
 function cuadrado(lon: number, lat: number, lado: number) {
@@ -28,9 +29,18 @@ function cuadrado(lon: number, lat: number, lado: number) {
   }
 }
 
+/** El mapa termina mirando hacia donde mira la cámara de la escena (rumbo que avisa ESCENA3D al estar lista). */
+function rumboFinal() {
+  if (props.rumbo == null || !isFinite(props.rumbo)) return 24
+  let r = props.rumbo
+  while (r > 180) r -= 360
+  while (r < -180) r += 360
+  return r
+}
+
 function destino(): Toma {
   const el = caja.value!
-  return { lon: props.lon, lat: props.lat, zoom: zoomFinal(props.lado, props.lat, el.clientWidth, el.clientHeight), pitch: 47, bearing: 24 }
+  return { lon: props.lon, lat: props.lat, zoom: zoomFinal(props.lado, props.lat, el.clientWidth, el.clientHeight), pitch: 47, bearing: rumboFinal() }
 }
 
 function camaraFinal(): CamaraMapa {
@@ -52,20 +62,38 @@ function terminar() {
 }
 
 function volar(a: Toma) {
-  const b = destino()
   t0 = performance.now()
   const paso = (now: number) => {
     const u = saltarYa ? 1 : Math.min(1, (now - t0) / props.duracion)
     if (u >= 1) return terminar()
-    mapa.jumpTo(toma(a, b, u))
+    mapa.jumpTo(toma(a, destino(), u)) // destino por cuadro: si llega el rumbo de la escena, la curva lo absorbe
     emit('progreso', u)
     raf = requestAnimationFrame(paso)
   }
   raf = requestAnimationFrame(paso)
 }
 
+/** Espera a que el mapa pinte (y cargue teselas, con tope) — para grabar cuadro a cuadro. */
+function pintado(tope = 900): Promise<void> {
+  return new Promise((res) => {
+    let hecho = false
+    const fin = () => { if (!hecho) { hecho = true; res() } }
+    mapa.once('idle', fin)
+    setTimeout(fin, tope)
+    mapa.triggerRepaint()
+  })
+}
+
 defineExpose({
   saltar() { saltarYa = true },
+  /** modo grabación: pone la cámara en el instante u ∈ [0,1] de la toma y espera el cuadro */
+  async pose(u: number) {
+    if (!mapa || !inicio) return
+    mapa.jumpTo(toma(inicio, destino(), u))
+    await pintado()
+  },
+  lienzo: (): HTMLCanvasElement | null => mapa?.getCanvas?.() ?? null,
+  camaraFinal: () => (mapa ? camaraFinal() : null),
   /** desenfoque y brillo del mapa detrás de la maqueta durante la transición */
   contenedor: caja,
 })
@@ -84,7 +112,7 @@ onMounted(async () => {
   const enc = tmp.cameraForBounds(GT, { padding: Math.min(el.clientWidth, el.clientHeight) * 0.06 })
   tmp.remove()
   const ancho = el.clientWidth < 600
-  const a: Toma = { lon: enc?.center?.lng ?? -90.3, lat: (enc?.center?.lat ?? 15.7) - (ancho ? 0 : 0.35), zoom: (enc?.zoom ?? 6.8) + (ancho ? 0.15 : 0.25), pitch: 38, bearing: -14 }
+  const a: Toma = inicio = { lon: enc?.center?.lng ?? -90.3, lat: (enc?.center?.lat ?? 15.7) - (ancho ? 0 : 0.35), zoom: (enc?.zoom ?? 6.8) + (ancho ? 0.15 : 0.25), pitch: 38, bearing: -14 }
   mapa = new ml.Map({
     container: el,
     style: {
@@ -136,7 +164,12 @@ onMounted(async () => {
     mapa.addLayer({ id: 'punto', type: 'circle', source: 'punto', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 7, 4, 12, 6, 15, 0], 'circle-color': '#fffaf0', 'circle-stroke-color': '#b5343c', 'circle-stroke-width': 2.5, 'circle-pitch-alignment': 'map' } })
     // espera breve a que carguen las teselas del plano alto (máx. 2.5 s) y arranca la toma
     let empezo = false
-    const empezar = () => { if (empezo) return; empezo = true; saltarYa ? terminar() : volar(a) }
+    const empezar = () => {
+      if (empezo) return
+      empezo = true
+      if (props.manual) emit('preparado')
+      else saltarYa ? terminar() : volar(a)
+    }
     mapa.once('idle', empezar)
     setTimeout(empezar, 2500)
   })
