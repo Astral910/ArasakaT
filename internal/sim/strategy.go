@@ -239,7 +239,9 @@ func (s *Site) erosionYear(d StratDef, y, sow, postSow, harvest int, mulch float
 		} else {
 			m = mulch
 		}
-		c := (1 - 0.6*can) * math.Exp(-0.035*m*100)
+		// RUSLE (Renard et al. 1997, AH-703): dosel CC = 1 − Fc·e^(−0.34·H) con H ≈ 1 m (maíz) → 0.72;
+		// cobertura superficial SC = e^(−0.035·%); consolidación del suelo sin labranza (milpa con espeque).
+		c := (1 - 0.72*can) * math.Exp(-0.035*m*100) * SoilConsolidation
 		if can < 0.2 && m < 0.3 {
 			bare++
 		}
@@ -257,8 +259,14 @@ func (s *Site) erosionYear(d StratDef, y, sow, postSow, harvest int, mulch float
 	return
 }
 
-// erosivity R anual (MJ mm ha-1 h-1 año-1) a partir de la lluvia anual (Renard & Freimund 1994,
-// J. Hydrology 157: R = 0.0483·P^1.61). Se usa la fórmula anual porque es más conservadora con NASA POWER.
+// SoilConsolidation subfactor RUSLE de suelo consolidado: la milpa de ladera se siembra con espeque, sin arar;
+// un suelo sin labranza por más de 7 años erosiona ~45 % de uno recién arado (Renard et al. 1997, AH-703, cap. 5).
+// El "suelo desnudo" de referencia (ErosionBase, C = 1) es la parcela unitaria arada y sin cobertura.
+const SoilConsolidation = 0.45
+
+// erosivity R anual (MJ mm ha-1 h-1 año-1) a partir de la lluvia anual con la relación tropical de
+// Lo et al. (1985, Hawaii; usada en Centroamérica): R = 38.46 + 3.48·P. La de Renard & Freimund (1994,
+// R = 0.0483·P^1.61) vale para P < 850 mm en EE. UU. y sobrestima con los 1 500 mm de las celdas de POWER.
 func (s *Site) erosivity(y int) float64 {
 	P := 0.0
 	for i := s.Idx(y, 1, 1); i <= s.Idx(y, 12, 31) && i < s.N; i++ {
@@ -267,7 +275,7 @@ func (s *Site) erosivity(y int) float64 {
 	if P <= 0 {
 		return 0
 	}
-	return 0.0483 * math.Pow(P, 1.61)
+	return 38.46 + 3.48*P
 }
 
 // CoverSowDay la cobertura se siembra en relevo ~50 días después del maíz (Buckles et al. 1998).

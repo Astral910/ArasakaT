@@ -25,8 +25,8 @@
     "id": "montecarlo"
   },
   {
-    "en": "Soil (approximate): RUSLE erosion with Renard & Freimund (1994) erosivity, texture-based K (EPIC), SRTM slope bounded to 3–20% and daily cover; organic matter with a one-pool model (ICBM) with residue, roots and cover crop.",
-    "es": "Suelo (aproximado): erosión RUSLE con erosividad de Renard & Freimund (1994), K de la textura (EPIC), pendiente SRTM acotada a 3–20 % y cobertura diaria; materia orgánica con un modelo de un compartimento (ICBM) con rastrojo, raíces y cobertura.",
+    "en": "Soil (approximate): RUSLE erosion with tropical erosivity (Lo et al. 1985), texture-based K (EPIC), SRTM slope bounded to 3–20% (15 m slope length), daily canopy and residue cover and no-till consolidation; reference ranges for Central American hillsides: tens of t/ha/yr for traditional maize, a few with permanent cover; organic matter with a one-pool model (ICBM) with residue, roots and cover crop.",
+    "es": "Suelo (aproximado): erosión RUSLE con erosividad tropical (Lo et al. 1985), K de la textura (EPIC), pendiente SRTM acotada a 3–20 % (ladera de 15 m), cobertura diaria de dosel y rastrojo y suelo sin arar; rangos de referencia en laderas de Centroamérica: decenas de t/ha/año con maíz tradicional, pocas con cobertura permanente; materia orgánica con un modelo de un compartimento (ICBM) con rastrojo, raíces y cobertura.",
     "id": "suelo"
   },
   {

@@ -15,7 +15,7 @@
 - Doorenbos, J., Kassam, A.H. (1979). *Yield response to water*. FAO Irrigation and Drainage Paper 33.
 - Saxton, K.E., Rawls, W.J. (2006). Soil water characteristic estimates by texture and organic matter for hydrologic solutions. *Soil Sci. Soc. Am. J.* 70: 1569–1578.
 - Renard, K.G. et al. (1997). *Predicting soil erosion by water: a guide to conservation planning with RUSLE*. USDA Agriculture Handbook 703.
-- Renard, K.G., Freimund, J.R. (1994). Using monthly precipitation data to estimate the R-factor in the revised USLE. *Journal of Hydrology* 157: 287–306.
+- Lo, A., El-Swaify, S.A., Dangler, E.W., Shinshiro, L. (1985). Effectiveness of EI30 as an erosivity index in Hawaii. In: *Soil Erosion and Conservation*, Soil Conservation Society of America, 384–392 (tropical annual R-factor relation used by the engine).
 - Thrasher, B. et al. (2022). NASA Global Daily Downscaled Projections, CMIP6. *Scientific Data* 9: 262.
 - Sivakumar, M.V.K. (1988). Predicting rainy season potential from the onset of rains in Southern Sahelian and Sudanian climatic zones of West Africa. *Agricultural and Forest Meteorology* 42: 295–305.
 - Simmons, C.S., Tárano, J.M., Pinto, J.H. (1959). *Clasificación de reconocimiento de los suelos de la República de Guatemala*; MAGA (2000) soil maps.

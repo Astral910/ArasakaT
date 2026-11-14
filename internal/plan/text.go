@@ -162,8 +162,8 @@ func (l lang) fichas(p *contract.Plan, res []sim.StratResult, req contract.PlanR
 				l.t("Es lo que hacés hoy: sirve de punto de comparación para las otras opciones.", "It is what you do today: the baseline to compare the other options."),
 				l.f("Con tu clima, perdés en promedio %.1f de cada 10 temporadas (grano < 70 %% de lo normal).", "With your weather, on average you lose %.1f of every 10 seasons (grain < 70%% of normal).", r.LossRate*10),
 			}
-			f.Evidencia = append(common, l.f("Pérdida potencial de suelo ≈ %.0f t/ha/año con el suelo quemado o desnudo (RUSLE, aproximado).",
-				"Potential soil loss ≈ %.0f t/ha/yr with burned or bare soil (RUSLE, approximate).", r.ErosionT[1]))
+			f.Evidencia = append(common, l.f("Pérdida de suelo ≈ %.0f t/ha/año con el rastrojo quemado y el suelo desnudo parte del año (RUSLE, aproximado).",
+				"Soil loss ≈ %.0f t/ha/yr with burned residue and bare soil part of the year (RUSLE, approximate).", r.ErosionT[1]))
 			f.Beneficios = []string{l.t("Ya la conocés: no necesita semilla, dinero ni trabajo extra.", "You already know it: no extra seed, money or labor."),
 				l.f("Cosecha típica: %.0f qq/mz de grano (rango %.0f–%.0f).", "Typical harvest: %.0f qq/mz of grain (range %.0f–%.0f).", r.FoodQQ[1], r.FoodQQ[0], r.FoodQQ[2])}
 			f.InfoFaltante = []string{l.t("Tu fecha real de siembra y la variedad de maíz.", "Your actual planting date and maize variety."),
@@ -292,7 +292,7 @@ func (l lang) sources(e *Engine) []contract.Fuente {
 		{Dato: "NOAA CPC ONI", Origen: "cpc.ncep.noaa.gov", Periodo: "2001–2026", Uso: l.t("años El Niño para condicionar el Monte Carlo", "El Niño years to condition the Monte Carlo")},
 		{Dato: "geoBoundaries GTM ADM2", Origen: "geoboundaries.org (CONRED/OCHA, CC BY 3.0 IGO)", Periodo: "2021", Uso: l.t("342 municipios; punto en polígono", "342 municipalities; point in polygon")},
 		{Dato: "FAO-56 / FAO-33", Origen: "Allen et al. 1998; Doorenbos & Kassam 1979", Periodo: "-", Uso: l.t("Kc, Ky, agua del suelo", "Kc, Ky, soil water")},
-		{Dato: "Saxton & Rawls 2006; RUSLE (Renard et al. 1997); Renard & Freimund 1994", Origen: "Soil Sci. Soc. Am. J.; USDA AH-703; J. Hydrology", Periodo: "-", Uso: l.t("agua disponible y erosión (aproximado)", "available water and erosion (approximate)")},
+		{Dato: "Saxton & Rawls 2006; RUSLE (Renard et al. 1997); Lo et al. 1985", Origen: "Soil Sci. Soc. Am. J.; USDA AH-703; Soil Sci. Soc. Am. J.", Periodo: "-", Uso: l.t("agua disponible y erosión (aproximado)", "available water and erosion (approximate)")},
 	}
 	if e.CMIP != nil {
 		f = append(f, contract.Fuente{Dato: "NASA NEX-GDDP-CMIP6 (ACCESS-CM2, MRI-ESM2-0, MPI-ESM1-2-HR)", Origen: "NCCS THREDDS", Periodo: "2010–2014 vs 2038–2042, SSP2-4.5 y SSP5-8.5",
