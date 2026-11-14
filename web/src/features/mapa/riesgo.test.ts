@@ -22,6 +22,14 @@ describe('riesgo', () => {
     expect(r.filas[0].nombre).toBe('Jocotán')
   })
 
+  it('acepta el arreglo de RiskRow que sirve hoy el motor (riesgo_de_10)', () => {
+    const r = normalizar([{ id: 'jocotan-chiquimula', nombre: 'Jocotán', departamento: 'Chiquimula', riesgo_de_10: 6.2, riesgo_s2_de_10: 4.1, deficit_mm: 180, canicula_dias: 21 }] as any, '2026', d.filas)
+    expect(r.calidad).toBe('motor')
+    expect(r.filas[0].riesgo).toBe(6.2)
+    expect(r.filas[0].riesgoS2).toBe(4.1)
+    expect(r.filas[0].lluvia2026Pct).toBeDefined() // completa con la base
+  })
+
   it('el 2040 sin motor se marca como ejemplo y no pasa de 10', () => {
     const e = ejemplo2040(d, '2040-ssp585')
     expect(e.calidad).toBe('ejemplo')

@@ -2,24 +2,28 @@
 // "How do we know?": datos NASA y su uso, validación, IA vs estadística, incertidumbre, límites y siguientes pasos.
 import { ref, computed, onMounted } from 'vue'
 import { api } from '@/api/client'
+import { lang } from '@/i18n'
 import { Satellite, CloudRain, Leaf, Mountain, Thermometer, Layers, CalendarClock, Waves, ShieldCheck, Sprout, MessageSquareText, Languages, Gamepad2, ScanSearch, ArrowRight, FlaskConical } from 'lucide-vue-next'
 import { t } from './textos'
 import { numero } from '../mapa/comun/idioma'
 import EtiquetaDato from '../mapa/comun/EtiquetaDato.vue'
-import { VALIDACION, resultado, bandasHumedad, posicion, FUENTES, IA_EJEMPLO, type IAvsEst } from './how'
+import { VALIDACION, validacionDesdePlan, resultado, bandasHumedad, posicion, FUENTES, IA_EJEMPLO, type IAvsEst } from './how'
 
 const ICONOS: Record<string, any> = { power: Thermometer, imerg: CloudRain, modis: Leaf, srtm: Mountain, cmip6: CalendarClock, gibs: Layers, openmeteo: Satellite, oni: Waves }
 const bandas = bandasHumedad()
 const ia = ref<IAvsEst>(IA_EJEMPLO)
 const iaEjemplo = ref(true)
+const val = ref(VALIDACION)
 
 onMounted(async () => {
   try {
-    const p = await api.post<{ ia_vs_estadistica?: IAvsEst }>('/api/plan', {
+    const p = await api.post<{ ia_vs_estadistica?: IAvsEst; validacion?: { detectadas: number; total: number; detalle: { anio: number; documentada: boolean; detectada: boolean }[] } }>('/api/plan', {
       municipio_id: 'jocotan-chiquimula', cultivo: 'milpa', area_valor: 8, area_unidad: 'cuerda', riego: false, ganado: false,
       mano_obra: 'normal', semilla_cobertura: true, prioridad: 'comida', horizonte: '2026', idioma: 'es',
     })
     if (p?.ia_vs_estadistica && !/ejemplo/i.test(p.ia_vs_estadistica.nota || '')) { ia.value = p.ia_vs_estadistica; iaEjemplo.value = false }
+    const v = validacionDesdePlan(p?.validacion)
+    if (v) val.value = v
   } catch { /* ejemplo */ }
 })
 
@@ -27,7 +31,7 @@ onMounted(async () => {
 const MIN = 0.45
 const MAX = 0.95
 const pos = (v: number) => ((v - MIN) / (MAX - MIN)) * 100
-const anios = computed(() => VALIDACION.detalle)
+const anios = computed(() => val.value.detalle)
 const secciones = ['datos', 'validacion', 'ia', 'incertidumbre', 'limites', 'siguientes']
 const SIGUIENTES = [
   { k: 's.1', i: Sprout }, { k: 's.2', i: MessageSquareText }, { k: 's.3', i: Languages }, { k: 's.4', i: Gamepad2 }, { k: 's.5', i: ScanSearch },
@@ -63,14 +67,14 @@ const SIGUIENTES = [
       <h2>{{ t('validacion') }}</h2>
       <p class="sub">{{ t('validacion.sub') }}</p>
       <div class="marcador">
-        <div class="grande num" data-testid="validacion-total">{{ VALIDACION.detectadas }}<small>/{{ VALIDACION.total }}</small></div>
+        <div class="grande num" data-testid="validacion-total">{{ val.detectadas }}<small>/{{ val.total }}</small></div>
         <div>
-          <strong>{{ t('detecto', { a: VALIDACION.detectadas, b: VALIDACION.total }) }}</strong>
-          <p>{{ t('falsas', { n: VALIDACION.falsas }) }}</p>
+          <strong>{{ t('detecto', { a: val.detectadas, b: val.total }) }}</strong>
+          <p>{{ t('falsas', { n: val.falsas }) }}</p>
         </div>
       </div>
       <div class="anios" data-testid="tabla-validacion">
-        <div v-for="a in anios" :key="a.anio" class="anio" :class="resultado(a)" :title="`${a.anio}: ${a.lluvia_mm} mm · z ${a.z} · ${a.racha_dias} d`">
+        <div v-for="a in anios" :key="a.anio" class="anio" :class="resultado(a)" :title="a.lluvia_mm != null ? `${a.anio}: ${a.lluvia_mm} mm · z ${a.z} · ${a.racha_dias} d` : String(a.anio)">
           <span class="num">{{ String(a.anio).slice(2) }}</span>
           <i v-if="resultado(a) === 'acierto'">✓</i><i v-else-if="resultado(a) === 'fallo'">✗</i><i v-else-if="resultado(a) === 'falsa'">!</i>
         </div>
@@ -78,8 +82,8 @@ const SIGUIENTES = [
       <div class="ley">
         <span v-for="r in ['acierto', 'fallo', 'falsa', 'normal']" :key="r"><b class="sw" :class="r" />{{ t('r.' + r) }}</span>
       </div>
-      <p class="nota"><strong>{{ t('regla') }}:</strong> {{ VALIDACION.regla }}. {{ t('validacion.nota') }}</p>
-      <EtiquetaDato :texto="VALIDACION.fuente" />
+      <p class="nota"><strong>{{ t('regla') }}:</strong> {{ val.regla }}. {{ t('validacion.nota') }}</p>
+      <EtiquetaDato :texto="val.fuente" />
       <RouterLink class="enlace" to="/alerts">{{ t('alertasVal') }} <ArrowRight :size="16" /></RouterLink>
     </section>
 
@@ -93,7 +97,7 @@ const SIGUIENTES = [
           <p>{{ t('ia.est.d') }}</p>
           <div class="cifra num">{{ Math.round(ia.prob_estadistica * 100) }}<small>%</small></div>
           <span class="lbl">{{ t('prob') }}</span>
-          <div class="err"><span class="b"><i :style="{ width: ia.error_estadistica * 200 + '%' }" /></span><span class="num">±{{ numero(ia.error_estadistica, 2) }}</span></div>
+          <div class="err"><span class="b"><i :style="{ width: ia.error_estadistica * 200 + '%' }" /></span><span class="num">{{ numero(ia.error_estadistica, 3) }}</span></div>
           <span class="lbl">{{ t('error') }}</span>
         </article>
         <div class="vs">vs</div>
@@ -102,11 +106,12 @@ const SIGUIENTES = [
           <p>{{ t('ia.ia.d') }}</p>
           <div class="cifra num">{{ Math.round(ia.prob_ia * 100) }}<small>%</small></div>
           <span class="lbl">{{ t('prob') }}</span>
-          <div class="err"><span class="b"><i :style="{ width: ia.error_ia * 200 + '%' }" /></span><span class="num">±{{ numero(ia.error_ia, 2) }}</span></div>
+          <div class="err"><span class="b"><i :style="{ width: ia.error_ia * 200 + '%' }" /></span><span class="num">{{ numero(ia.error_ia, 3) }}</span></div>
           <span class="lbl">{{ t('error') }}</span>
         </article>
       </div>
       <p class="conclusion"><ShieldCheck :size="18" /> {{ t('ia.conclusion') }}</p>
+      <p v-if="!iaEjemplo && ia.nota && lang === 'es'" class="nota">{{ ia.nota }}</p>
     </section>
 
     <section id="incertidumbre" class="bloque tarjeta">

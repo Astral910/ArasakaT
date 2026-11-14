@@ -23,3 +23,13 @@ describe('how do we know', () => {
     expect(IA_EJEMPLO.nota).toBe('Ejemplo')
   })
 })
+
+describe('validación del motor', () => {
+  it('usa la validación del plan cuando viene de la API', async () => {
+    const { validacionDesdePlan } = await import('./how')
+    const v = validacionDesdePlan({ detectadas: 4, total: 8, detalle: [{ anio: 2001, documentada: true, detectada: true }, { anio: 2003, documentada: false, detectada: true }] })!
+    expect(v.detectadas).toBe(4)
+    expect(v.falsas).toBe(1)
+    expect(validacionDesdePlan(undefined)).toBeNull()
+  })
+})

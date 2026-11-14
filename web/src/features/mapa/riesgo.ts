@@ -25,6 +25,11 @@ export interface FilaRiesgo {
   lluvia2026?: number
   lluvia2026Pct?: number
   racha2026?: number
+  /** del motor (simulación FAO-56): riesgo con S2, riesgo en años El Niño, déficit de agua, canícula típica */
+  riesgoS2?: number
+  riesgoNino?: number
+  deficitMM?: number
+  caniculaDias?: number
 }
 
 export interface DatosRiesgo {
@@ -48,7 +53,7 @@ export function normalizar(crudo: Crudo, horizonte: Horizonte, base?: FilaRiesgo
       const id = m.id ?? m.municipio_id
       const b = porId.get(id)
       const rango: Rango | undefined = m.perdidas_de_10
-      const riesgo = rango ? rango.p50 : m.dificiles_de_10
+      const riesgo = rango ? rango.p50 : m.riesgo_de_10 ?? m.dificiles_de_10
       if (id == null || typeof riesgo !== 'number') return null
       return {
         ...(b ?? {}),
@@ -68,13 +73,17 @@ export function normalizar(crudo: Crudo, horizonte: Horizonte, base?: FilaRiesgo
         lluvia2026: m.lluvia_2026_mm ?? b?.lluvia2026,
         lluvia2026Pct: m.lluvia_2026_pct ?? b?.lluvia2026Pct,
         racha2026: m.racha_2026_dias ?? b?.racha2026,
+        riesgoS2: m.riesgo_s2_de_10,
+        riesgoNino: m.riesgo_nino_de_10,
+        deficitMM: m.deficit_mm,
+        caniculaDias: m.canicula_dias,
       }
     })
     .filter((f): f is FilaRiesgo => !!f)
   return {
     horizonte,
-    fuente: crudo.fuente ?? 'Field Shift engine',
-    periodo: crudo.periodo ?? '',
+    fuente: crudo.fuente ?? 'Field Shift engine · FAO-56 with NASA POWER',
+    periodo: crudo.periodo ?? (horizonte === '2026' ? '2001–2025' : '2031–2050 · NEX-GDDP-CMIP6'),
     metodo: crudo.metodo,
     calidad: crudo.ejemplo ? 'ejemplo' : crudo.preliminar ? 'preliminar' : 'motor',
     filas,

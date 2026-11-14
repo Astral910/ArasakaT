@@ -205,7 +205,8 @@ const resumen = (t) => {
     anticipacion_media_dias: ant.length ? r1(ant.reduce((x, y) => x + y, 0) / ant.length) : null,
   }
 }
-escribir('web/src/features/alertas/datos/maquina_jocotan.json', {
+// El respaldo de alertas es ahora la salida real de ALERTAS (static/alertas/timeline_*); este cálculo solo con --maquina.
+if (process.argv.includes('--maquina')) escribir('web/src/features/alertas/datos/maquina_jocotan_preliminar.json', {
   municipio: { id: joco.id, nombre: joco.name, depto: joco.dept },
   anio: 2026,
   fuente_lluvia: 'NASA POWER daily (PRECTOTCORR), cell ' + joco.cell,

@@ -10,7 +10,7 @@ import EtiquetaDato from '../mapa/comun/EtiquetaDato.vue'
 import MaquinaTiempo from './MaquinaTiempo.vue'
 import BurbujaWA from './BurbujaWA.vue'
 import PanelExtensionista from './PanelExtensionista.vue'
-import { maquinaRespaldo, panelRespaldo, titular, redactar, type Maquina, type PanelResumen } from './maquina'
+import { maquinaRespaldo, panelRespaldo, titular, redactar, textoDe, verificacion, type Maquina, type PanelResumen } from './maquina'
 
 const BASE = (import.meta.env.BASE_URL as string | undefined) ?? '/'
 const MUNI = 'jocotan-chiquimula'
@@ -25,7 +25,9 @@ onMounted(async () => {
   } catch { /* respaldo */ }
   try {
     const r = await api.get<PanelResumen>('/api/admin/resumen', `${BASE}static/alertas/resumen.json`)
-    if (r?.suscriptores) panel.value = r
+    // Sin suscriptores reales todavía: conteos de ejemplo + las alertas activas reales del motor.
+    if (r?.suscriptores?.length) panel.value = r
+    else if (r?.alertas_activas?.length) panel.value = { ...panelRespaldo, alertas_activas: r.alertas_activas, ejemplo: true }
   } catch { /* respaldo */ }
 })
 
@@ -34,19 +36,27 @@ const alertaSel = computed(() => (elegida.value != null ? m.value.alertas[elegid
 const textoSel = computed(() => {
   const a = alertaSel.value
   if (!a) return ''
-  return redactar({ ...a, dias: a.tipo === 'canicula' ? 7 : 1 }, m.value.municipio.nombre, lang.value as Idioma)
+  const l = lang.value as Idioma
+  return redactar({ ...a, texto: textoDe(a, l), dias: a.dias ?? (a.tipo === 'canicula' ? 7 : 1) }, m.value.municipio.nombre, l)
 })
-const filas = computed(() => Object.entries(m.value.resumen).map(([tipo, r]) => ({ tipo, ...r })))
+const filas = computed(() =>
+  Object.entries(m.value.resumen).filter(([, r]) => r.alertas > 0 || r.eventos > 0).map(([tipo, r]) => ({ tipo, ...r })),
+)
+const textoTitular = computed(() => {
+  const l = lang.value as Idioma
+  const propio = l === 'en' ? m.value.titular_en : m.value.titular
+  if (propio) return propio
+  const x = tit.value
+  return x ? t('titular', { m: m.value.municipio.nombre, f: fechaCorta(x.alerta.fecha_emision, l, true), d: x.diasAntes, e: fechaCorta(x.evento.inicio, l) }) : t('titular.sin')
+})
+const estadoSel = computed(() => (alertaSel.value ? verificacion(alertaSel.value) : 'pendiente'))
 </script>
 
 <template>
   <main class="fs-alertas" data-testid="alertas">
     <section class="hero">
       <p class="eyebrow">{{ t('eyebrow') }} · {{ m.municipio.nombre }}, {{ m.municipio.depto }}</p>
-      <h1 v-if="tit" data-testid="titular">
-        {{ t('titular', { m: m.municipio.nombre, f: fechaCorta(tit.alerta.fecha_emision, lang as Idioma, true), d: tit.diasAntes, e: fechaCorta(tit.evento.inicio, lang as Idioma) }) }}
-      </h1>
-      <h1 v-else>{{ t('titular.sin') }}</h1>
+      <h1 data-testid="titular">{{ textoTitular }}</h1>
       <p class="bajada">{{ t('bajada') }}</p>
     </section>
 
@@ -71,15 +81,18 @@ const filas = computed(() => Object.entries(m.value.resumen).map(([tipo, r]) => 
                 <th>{{ t('tipo.' + f.tipo) }}</th>
                 <td class="num">{{ f.eventos }}</td>
                 <td class="num"><span class="pill ok">{{ f.avisados }} / {{ f.eventos }}</span></td>
-                <td class="num"><span class="pill" :class="{ malo: f.falsas_alarmas > 0 }">{{ f.falsas_alarmas }} / {{ f.alertas }}</span></td>
+                <td class="num"><span class="pill" :class="{ malo: f.falsas_alarmas > 0 }">{{ f.falsas_alarmas }} / {{ f.alertas }}</span><small v-if="f.sin_verificar" class="sinv">{{ t('sinVerificar', { n: f.sin_verificar }) }}</small></td>
                 <td class="num">{{ f.anticipacion_media_dias != null ? t('dias', { d: numero(f.anticipacion_media_dias, 1) }) : '—' }}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <ul class="reglas">
-          <li>{{ t('regla.canicula') }}</li>
-          <li>{{ t('regla.lluvia', { u: m.umbral_lluvia_fuerte_mm ?? 50 }) }}</li>
+          <template v-if="lang === 'es' && m.notas?.length"><li v-for="(n, i) in m.notas" :key="i">{{ n }}</li></template>
+          <template v-else>
+            <li>{{ t('regla.canicula', { r: m.umbrales?.racha_dias ?? 7, s: m.umbrales?.seco_observado_mm ?? 1 }) }}</li>
+            <li>{{ t('regla.lluvia', { u: m.umbral_lluvia_fuerte_mm ?? 50 }) }}</li>
+          </template>
         </ul>
         <p class="honesto"><ShieldCheck :size="18" /> <span>{{ t('honesto') }}</span></p>
       </article>
@@ -88,8 +101,8 @@ const filas = computed(() => Object.entries(m.value.resumen).map(([tipo, r]) => 
         <h2>{{ t('mensaje') }}</h2>
         <p class="sub">{{ t('mensaje.sub') }}</p>
         <BurbujaWA v-if="textoSel" :texto="textoSel" :hora="'06:00 · ' + fechaCorta(alertaSel!.fecha_emision)" />
-        <span v-if="alertaSel" class="estado" :class="alertaSel.acierto ? 'ok' : 'falsa'">
-          {{ alertaSel.acierto ? t('acierto') : t('falsa') }}<template v-if="alertaSel.acierto && alertaSel.anticipacion_dias != null && alertaSel.anticipacion_dias > 0"> · {{ t('diasAntes', { d: alertaSel.anticipacion_dias }) }}</template>
+        <span v-if="alertaSel" class="estado" :class="estadoSel === 'acierto' ? 'ok' : 'falsa'">
+          {{ t(estadoSel === 'acierto' ? 'acierto' : estadoSel === 'falsa' ? 'falsa' : 'pendiente') }}<template v-if="alertaSel.acierto && alertaSel.anticipacion_dias != null && alertaSel.anticipacion_dias > 0"> · {{ t('diasAntes', { d: alertaSel.anticipacion_dias }) }}</template>
         </span>
       </article>
     </section>
@@ -131,6 +144,7 @@ tbody th { font-weight: 700; white-space: nowrap; }
 .estado { font-weight: 800; font-size: 0.86rem; padding: 5px 12px; border-radius: 999px; }
 .estado.ok { color: #0b6b3a; background: #dcf8c6; }
 .estado.falsa { color: var(--ink-2); background: var(--bg-2); }
+.sinv { display: block; font-size: 0.72rem; color: var(--ink-3); margin-top: 3px; }
 .num { font-variant-numeric: tabular-nums; }
 @media (min-width: 900px) {
   .dos { grid-template-columns: 1.35fr 1fr; }

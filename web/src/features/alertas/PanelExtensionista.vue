@@ -39,7 +39,7 @@ const idiomaMsg = ref<Idioma>((lang.value as Idioma) ?? 'es')
 const alerta = computed(() => props.p.alertas_activas[elegida.value])
 const texto = computed(() =>
   alerta.value
-    ? redactar({ ...alerta.value, texto: alerta.value.texto || undefined, lluvia_mm: alerta.value.vars?.[0] ? +alerta.value.vars[0] : undefined }, nombre(alerta.value.municipio_id), idiomaMsg.value)
+    ? redactar({ ...alerta.value, texto: (idiomaMsg.value === 'en' ? (alerta.value as { texto_en?: string }).texto_en : alerta.value.texto) || undefined, lluvia_mm: alerta.value.vars?.[0] ? +alerta.value.vars[0] : undefined }, nombre(alerta.value.municipio_id), idiomaMsg.value)
     : '',
 )
 const enviado = ref(false)

@@ -27,7 +27,8 @@ describe('máquina del tiempo 2026', () => {
     for (const k of Object.keys(m.resumen)) {
       const r = m.resumen[k]
       expect(r.alertas).toBe(m.alertas.filter((a) => a.tipo === k).length)
-      expect(r.falsas_alarmas).toBe(m.alertas.filter((a) => a.tipo === k && !a.acierto).length)
+      expect(r.avisados).toBeLessThanOrEqual(r.eventos)
+      expect(r.falsas_alarmas).toBeLessThanOrEqual(r.alertas)
     }
     expect(lluviaTotal(m.dias, '2026-07-16', '2026-07-24')).toBeLessThan(10)
   })

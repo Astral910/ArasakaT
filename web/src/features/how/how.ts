@@ -2,8 +2,23 @@
 import validacion from './datos/validacion.json'
 import riesgo from '../mapa/datos/riesgo.json'
 
-export interface AnioVal { anio: number; documentada: boolean; detectada: boolean; z: number; lluvia_mm: number; balance_mm: number; racha_dias: number }
+export interface AnioVal { anio: number; documentada: boolean; detectada: boolean; z?: number; lluvia_mm?: number; balance_mm?: number; racha_dias?: number }
 export const VALIDACION = validacion as { municipio: string; fuente: string; regla: string; preliminar: boolean; detectadas: number; total: number; falsas: number; detalle: AnioVal[] }
+
+/** La validación del motor (Plan.validacion) manda cuando hay API; la de la web queda de respaldo. */
+export function validacionDesdePlan(v?: { detectadas: number; total: number; detalle: AnioVal[] }): typeof VALIDACION | null {
+  if (!v?.detalle?.length || !v.total) return null
+  return {
+    municipio: 'jocotan-chiquimula',
+    fuente: 'Field Shift engine · FAO-56 with NASA POWER 2001–2026 · FEWS NET, MAGA, SESAN',
+    regla: 'engine water-balance simulation (S0) flags the season as lost',
+    preliminar: false,
+    detectadas: v.detectadas,
+    total: v.total,
+    falsas: v.detalle.filter((d) => d.detectada && !d.documentada).length,
+    detalle: v.detalle,
+  }
+}
 
 export type Resultado = 'acierto' | 'fallo' | 'falsa' | 'normal'
 export function resultado(a: AnioVal): Resultado {

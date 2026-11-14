@@ -5,7 +5,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Play, Pause } from 'lucide-vue-next'
 import { t } from './textos'
 import { fechaCorta, mesCorto } from '../mapa/comun/idioma'
-import { escala, meses, titular, emoji, type Maquina } from './maquina'
+import { escala, meses, titular, emoji, verificacion, type Maquina } from './maquina'
 
 const props = defineProps<{ m: Maquina; elegida: number | null }>()
 const emit = defineEmits<{ elegir: [i: number] }>()
@@ -96,9 +96,10 @@ const etiquetaMes = (f: string) => mesCorto(+f.slice(5, 7) - 1)
       </button>
       <span class="fecha num">{{ fechaCorta(cursor) }} 2026</span>
       <span class="ley"><i class="sw lluvia" />{{ t('lluviaReal') }}</span>
-      <span class="ley"><i class="sw canic" />{{ t('caniculaReal', { d: canic[0]?.dias ?? 7 }).split('·')[0] }}</span>
+      <span class="ley"><i class="sw canic" />{{ t('caniculaReal', { d: '' }).split('·')[0] }}</span>
       <span class="ley"><i class="sw ok" />{{ t('acierto') }}</span>
       <span class="ley"><i class="sw falsa" />{{ t('falsa') }}</span>
+      <span class="ley"><i class="sw pend" />{{ t('pendiente') }}</span>
     </div>
     <div class="scroll">
       <svg :viewBox="`0 0 ${W} 372`" role="img" :aria-label="t('eyebrow')">
@@ -117,7 +118,7 @@ const etiquetaMes = (f: string) => mesCorto(+f.slice(5, 7) - 1)
         <!-- canícula real -->
         <g v-for="(e, k) in canic" :key="'c' + k">
           <rect :x="x(e.inicio)" :y="Y0 - ALTO - 12" :width="(pw / m.dias.length) * e.dias" :height="ALTO + 12" fill="url(#rayado)" rx="6" />
-          <text :x="x(e.inicio) + (pw / m.dias.length) * e.dias / 2" :y="Y0 - ALTO + 22 + (k % 2) * 18" class="t-canic" text-anchor="middle">{{ t('caniculaReal', { d: e.dias }) }}</text>
+          <text :x="x(e.inicio) + (pw / m.dias.length) * e.dias / 2" :y="Y0 - ALTO + 22 + (k % 3) * 18" class="t-canic" text-anchor="middle">{{ t('caniculaReal', { d: e.dias }) }}</text>
         </g>
 
         <!-- guías -->
@@ -155,7 +156,7 @@ const etiquetaMes = (f: string) => mesCorto(+f.slice(5, 7) - 1)
 
         <!-- burbujas de WhatsApp -->
         <g
-          v-for="b in burbujas" :key="'b' + b.i" class="burbuja" :class="{ vis: visto(b.a.fecha_emision), ok: b.a.acierto, falsa: !b.a.acierto, sel: elegida === b.i }"
+          v-for="b in burbujas" :key="'b' + b.i" class="burbuja" :class="[verificacion(b.a), { vis: visto(b.a.fecha_emision), sel: elegida === b.i }]"
           role="button" tabindex="0" :aria-label="`${t('aviso')} ${fechaCorta(b.a.fecha_emision)}`" :data-testid="'burbuja-' + b.a.tipo"
           @click="emit('elegir', b.i)" @keydown.enter="emit('elegir', b.i)"
         >
@@ -192,6 +193,7 @@ const etiquetaMes = (f: string) => mesCorto(+f.slice(5, 7) - 1)
 .sw.canic { background: repeating-linear-gradient(45deg, rgba(181, 52, 60, 0.35) 0 3px, rgba(181, 52, 60, 0.1) 3px 6px); }
 .sw.ok { background: #25d366; border-radius: 50%; width: 10px; }
 .sw.falsa { background: #b9ad9c; border-radius: 50%; width: 10px; }
+.sw.pend { background: var(--maiz, #e0a526); border-radius: 50%; width: 10px; }
 .scroll { overflow-x: auto; margin: 0 -4px; padding: 0 4px; -webkit-overflow-scrolling: touch; }
 .scroll svg { width: 100%; min-width: 720px; height: auto; display: block; font-family: var(--font-ui, system-ui, sans-serif); }
 .guias line { stroke: var(--line, rgba(42, 33, 24, 0.12)); stroke-dasharray: 2 4; }
@@ -206,6 +208,8 @@ const etiquetaMes = (f: string) => mesCorto(+f.slice(5, 7) - 1)
 .globo { fill: #dcf8c6; stroke: #25d366; stroke-width: 1.5; }
 .burbuja.falsa .globo { fill: #f1ece4; stroke: #b9ad9c; stroke-dasharray: 3 2; }
 .burbuja.falsa { --punto: #b9ad9c; }
+.burbuja.pendiente .globo { fill: #fff6dc; stroke: var(--maiz, #e0a526); }
+.burbuja.pendiente { --punto: var(--maiz, #e0a526); }
 .punto { fill: var(--punto, #25d366); stroke: #fff; stroke-width: 1.5; }
 .burbuja.sel .globo, .burbuja:focus-visible .globo { stroke-width: 3; stroke: var(--ink, #2a2118); }
 .emoji { font-size: 16px; }
