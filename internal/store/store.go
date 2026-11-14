@@ -120,8 +120,36 @@ func newID(prefix string) string {
 	return prefix + hex.EncodeToString(b)
 }
 
-// NormTel deja solo dígitos (y el + inicial se quita) para comparar teléfonos.
+// NormTel normaliza un teléfono para guardarlo y compararlo.
+//   - número real ("+502 5555-1234", "whatsapp:+50255551234" de Twilio) → solo dígitos ("50255551234");
+//   - id de canal con prefijo ("web:<sesion>" del simulador, o cualquier "<letras>:<id>") → se deja tal cual
+//     (sin espacios alrededor): el mensajero del bot enruta por ese prefijo.
 func NormTel(t string) string {
+	t = strings.TrimSpace(t)
+	if p, rest, ok := canalID(t); ok {
+		if p == "whatsapp" {
+			return digits(rest)
+		}
+		return p + ":" + rest
+	}
+	return digits(t)
+}
+
+// canalID separa "<prefijo>:<resto>" cuando el prefijo son solo letras.
+func canalID(t string) (prefijo, resto string, ok bool) {
+	i := strings.IndexByte(t, ':')
+	if i <= 0 {
+		return "", "", false
+	}
+	for _, r := range t[:i] {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z') {
+			return "", "", false
+		}
+	}
+	return strings.ToLower(t[:i]), strings.TrimSpace(t[i+1:]), true
+}
+
+func digits(t string) string {
 	var b strings.Builder
 	for _, r := range t {
 		if r >= '0' && r <= '9' {
@@ -131,13 +159,32 @@ func NormTel(t string) string {
 	return b.String()
 }
 
-// Mask enmascara un teléfono para logs: +502 ****1234.
+// EsCanal true si el id es de un canal no telefónico (p. ej. "web:<sesion>").
+func EsCanal(t string) bool {
+	n := NormTel(t)
+	return strings.Contains(n, ":")
+}
+
+// TelValido número con al menos 8 dígitos, o id de canal con algo después del prefijo.
+func TelValido(t string) bool {
+	n := NormTel(t)
+	if i := strings.IndexByte(n, ':'); i >= 0 {
+		return len(n) > i+1
+	}
+	return len(n) >= 8
+}
+
+// Mask enmascara un teléfono para logs: ****1234 (o web:****abcd para ids de canal).
 func Mask(t string) string {
 	n := NormTel(t)
-	if len(n) <= 4 {
-		return "****"
+	pre := ""
+	if i := strings.IndexByte(n, ':'); i >= 0 {
+		pre, n = n[:i+1], n[i+1:]
 	}
-	return "****" + n[len(n)-4:]
+	if len(n) <= 4 {
+		return pre + "****"
+	}
+	return pre + "****" + n[len(n)-4:]
 }
 
 // ErrNoTel teléfono vacío.
@@ -243,6 +290,9 @@ ON CONFLICT(telefono) DO UPDATE SET actualizado=excluded.actualizado`, tel, ts)
 
 // VentanaAbierta true si el teléfono escribió en las últimas 24 h antes de t.
 func (s *Store) VentanaAbierta(tel string, t time.Time) bool {
+	if EsCanal(tel) {
+		return true // el simulador web no tiene ventana de 24 h ni plantillas: siempre mensaje normal
+	}
 	var ts sql.NullString
 	_ = s.db.QueryRow(`SELECT ultimo_entrante FROM suscriptores WHERE telefono=?`, NormTel(tel)).Scan(&ts)
 	if !ts.Valid {

@@ -215,3 +215,66 @@ func TestBacktestJocotan2026(t *testing.T) {
 		t.Fatalf("titular: %q", j.Titular)
 	}
 }
+
+// Bug del integrador (14-nov 11:20): el aviso a un suscriptor del simulador "web:<sesion>" tiene que llegar al
+// mensajero con ese mismo id (antes NormTel lo dejaba en dígitos y el bot no lo enrutaba al simulador).
+// Además la corrida del 14-jul-2026 en Jocotán tiene que dar el mismo aviso que la máquina del tiempo.
+func TestAvisoLlegaAlSimuladorYCoincideConBacktest(t *testing.T) {
+	msg := &fakeMsg{}
+	as := forecast.LoadArchives(dataDir)
+	if as.Get("jocotan-chiquimula") == nil {
+		t.Skip("sin archivo de Jocotán")
+	}
+	s := newTestService(t, msg, as)
+	defer s.Store.Close()
+	mux := http.NewServeMux()
+	Routes(mux, s)
+	req := httptest.NewRequest("POST", "/api/alerts/subscribe", bytes.NewBufferString(`{"telefono":"web:abc","municipio_id":"jocotan-chiquimula","cultivo":"milpa","acepto":true}`))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatalf("alta web: %d %s", w.Code, w.Body)
+	}
+	req = httptest.NewRequest("POST", "/api/admin/run-alerts?date=2026-07-14", nil)
+	req.Header.Set("Authorization", "Bearer secreto")
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	var rr RunResult
+	_ = json.Unmarshal(w.Body.Bytes(), &rr)
+	if w.Code != 200 || rr.Enviadas == 0 {
+		t.Fatalf("run-alerts: %d %s", w.Code, w.Body)
+	}
+	llego := false
+	for _, l := range msg.log {
+		if strings.HasPrefix(l, "texto|web:abc|") && strings.Contains(l, "canícula") {
+			llego = true
+		}
+		if strings.HasPrefix(l, "plantilla|") {
+			t.Fatalf("al simulador no se manda plantilla: %s", l)
+		}
+	}
+	if !llego {
+		t.Fatalf("el aviso no llegó a web:abc:\n%s", strings.Join(msg.log, "\n"))
+	}
+	tls, _ := s.Timelines()
+	for _, tl := range tls {
+		if tl.MunicipioID != "jocotan-chiquimula" {
+			continue
+		}
+		var bt []string
+		for _, a := range tl.Alertas {
+			if a.Fecha == "2026-07-14" {
+				bt = append(bt, a.Tipo)
+			}
+		}
+		var run []string
+		for _, a := range rr.Alertas {
+			if a.Tipo != TSeguimiento {
+				run = append(run, a.Tipo)
+			}
+		}
+		if strings.Join(bt, ",") != strings.Join(run, ",") {
+			t.Fatalf("corrida %v ≠ máquina del tiempo %v", run, bt)
+		}
+	}
+}
