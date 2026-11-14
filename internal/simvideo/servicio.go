@@ -25,6 +25,7 @@ type Config struct {
 	Render     bool          // false = solo caché y precalculados (SIMVIDEO_RENDER=off)
 	Timeout    time.Duration // tope por video (por defecto 4 min)
 	MaxCache   int           // archivos en caché antes de podar (por defecto 300)
+	URLPublica string        // link que sale en la tarjeta final del video (WEB_URL o PUBLIC_URL)
 }
 
 // ConfigDesdeEnv: SIMVIDEO_BASE_URL, SIMVIDEO_RUTA, SIMVIDEO_CACHE, SIMVIDEO_PRECALC, SIMVIDEO_RENDER=off,
@@ -37,6 +38,10 @@ func ConfigDesdeEnv() Config {
 		CacheDir:   os.Getenv("SIMVIDEO_CACHE"),
 		PrecalcDir: os.Getenv("SIMVIDEO_PRECALC"),
 		Render:     !strings.EqualFold(os.Getenv("SIMVIDEO_RENDER"), "off"),
+		URLPublica: os.Getenv("WEB_URL"),
+	}
+	if c.URLPublica == "" {
+		c.URLPublica = os.Getenv("PUBLIC_URL")
 	}
 	if c.BaseURL == "" {
 		addr := os.Getenv("ADDR")
@@ -119,6 +124,9 @@ func Nuevo(cfg Config) *Servicio {
 func (s *Servicio) URLGrabacion(c Consulta) string {
 	q := c.Query()
 	q.Set("rec", "1")
+	if s.Cfg.URLPublica != "" {
+		q.Set("url_publica", s.Cfg.URLPublica)
+	}
 	sep := "?"
 	if strings.Contains(s.Cfg.Ruta, "?") {
 		sep = "&"

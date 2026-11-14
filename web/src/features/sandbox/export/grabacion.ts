@@ -55,7 +55,7 @@ export async function activarModoGrabacion(sb: SandboxGrabable, opciones: Opcion
   try {
     await document.fonts?.ready
     await sb.prepararGrabacion?.(plan.ancho, plan.alto)
-    const comp = new Compositor(sb, plan)
+    const comp = new Compositor(sb, plan, new URLSearchParams(location.search).get('url_publica') ?? undefined)
     rec.cuadro = async (k: number) => {
       const c = await comp.cuadro(k)
       return c.toDataURL('image/jpeg', 0.93).slice('data:image/jpeg;base64,'.length)

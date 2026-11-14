@@ -28,6 +28,8 @@ const TX = {
 const x = computed(() => TX[lang.value === 'es' ? 'es' : 'en'])
 
 const abierto = ref(false)
+const arriba = ref(false) // abre hacia donde hay lugar
+const raiz = ref<HTMLElement | null>(null)
 const calidad = ref<'720p' | '1080p'>('720p')
 const vertical = ref(false)
 const modo = ref<'toma' | 'rango'>('toma')
@@ -47,6 +49,8 @@ const total = computed(() => props.sandbox?.duracion ?? 0)
 async function abrir() {
   abierto.value = !abierto.value
   if (abierto.value) {
+    const r = raiz.value?.getBoundingClientRect()
+    arriba.value = !!r && r.top > window.innerHeight / 2
     mp4.value = await puedeMP4()
     if (!hasta.value) hasta.value = Math.round(total.value)
   }
@@ -87,12 +91,12 @@ onBeforeUnmount(() => { cancelar(); limpiar() })
 </script>
 
 <template>
-  <div class="fsx">
+  <div ref="raiz" class="fsx">
     <button class="fsx-btn" type="button" :disabled="!sandbox" :aria-expanded="abierto" @click="abrir">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Zm12 4 5-3v10l-5-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
       {{ x.boton }}
     </button>
-    <div v-if="abierto" class="fsx-panel" role="dialog" :aria-label="x.titulo">
+    <div v-if="abierto" class="fsx-panel" :class="{ arriba }" role="dialog" :aria-label="x.titulo">
       <h3>{{ x.titulo }}</h3>
       <template v-if="progreso < 0 && !resultado">
         <label class="fila">{{ x.calidad }}
@@ -138,7 +142,8 @@ onBeforeUnmount(() => { cancelar(); limpiar() })
 .fsx-btn { display: inline-flex; gap: 8px; align-items: center; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--glass-line, rgba(255,255,255,.6)); background: var(--glass, rgba(255,250,242,.72)); backdrop-filter: blur(12px); color: var(--ink, #2a2118); font-weight: 700; font-size: 14px; cursor: pointer; transition: transform var(--dur, .3s) var(--ease); }
 .fsx-btn:hover:not(:disabled) { transform: translateY(-1px); }
 .fsx-btn:disabled { opacity: .5; cursor: default; }
-.fsx-panel { position: absolute; right: 0; bottom: calc(100% + 10px); width: min(340px, 92vw); padding: 16px; border-radius: var(--radius-lg, 24px); background: var(--surface, #fffaf2); color: var(--ink, #2a2118); box-shadow: var(--shadow-2); z-index: 30; display: grid; gap: 10px; }
+.fsx-panel { position: absolute; right: 0; top: calc(100% + 10px); max-height: min(78vh, 640px); overflow: auto; width: min(340px, 92vw); padding: 16px; border-radius: var(--radius-lg, 24px); background: var(--surface, #fffaf2); color: var(--ink, #2a2118); box-shadow: var(--shadow-2); z-index: 30; display: grid; gap: 10px; }
+.fsx-panel.arriba { top: auto; bottom: calc(100% + 10px); }
 h3 { margin: 0; font-family: var(--font-display); font-size: 20px; }
 .fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
 .seg { display: inline-flex; background: var(--bg-2, #ece2d0); border-radius: 999px; padding: 2px; }
