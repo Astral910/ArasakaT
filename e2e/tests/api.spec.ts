@@ -86,15 +86,22 @@ test('aviso de canícula llega al simulador', async ({ request }) => {
   await chat(request, s, { boton: 'no' })
   await chat(request, s, { boton: 'comida' })
   let m = await chat(request, s, { boton: 'sub_si' })
-  // Fecha de siembra si la pide.
-  const all = ids(m)
-  if (all.length) m = await chat(request, s, { boton: all[0] })
-  // Corrida de la demo en plena canícula 2026.
-  const run = await request.post('/api/admin/run-alerts?date=2026-07-03', { headers: ADMIN })
+  expect(ids(m)).toContain('sembro_si')
+  await chat(request, s, { boton: 'sembro_si' })
+  m = await chat(request, s, { texto: '20/05' })
+  expect(m.map((x) => x.texto).join(' ')).toMatch(/Listo|avisar/i)
+  // Fecha de la demo: el primer aviso de canícula acertado de la máquina del tiempo 2026 (jun–ago).
+  const tl = await (await request.get('/api/alerts/timeline?municipio=jocotan-chiquimula&anio=2026')).json()
+  const av = tl.alertas.find((x: any) => x.tipo === 'canicula' && x.fecha >= '2026-06-01' && x.fecha <= '2026-08-31' && x.verificacion === 'acierto')
+  expect(av, 'sin aviso de canícula acertado en 2026').toBeTruthy()
+  const run = await request.post(`/api/admin/run-alerts?date=${av.fecha}&force=1`, { headers: ADMIN })
   expect(run.ok(), `run-alerts ${run.status()}`).toBeTruthy()
-  // El aviso llega como mensaje pendiente del simulador.
-  m = await chat(request, s, { texto: 'MENU' })
-  const pend = await request.get(`/api/chat?sesion=${s}&session_id=${s}`)
-  const txt = JSON.stringify(m) + (pend.ok() ? await pend.text() : '')
-  expect(txt).toMatch(/can[íi]cula|dry spell|racha seca/i)
+  console.log('run-alerts', (await run.text()).slice(0, 300))
+  // El aviso queda en la bandeja del simulador: GET /api/chat?session_id=
+  const pend = await request.get(`/api/chat?session_id=${s}&sesion=${s}`)
+  expect(pend.ok()).toBeTruthy()
+  const inbox = (await pend.json()) as Msg[]
+  console.log('bandeja', JSON.stringify(inbox).slice(0, 400))
+  expect(inbox.length, 'sin avisos en la bandeja').toBeGreaterThan(0)
+  expect(inbox.map((x) => x.texto).join(' ')).toMatch(/can[íi]cula|dry spell|racha seca/i)
 })
