@@ -20,8 +20,8 @@ import { orientarYRecortar } from './recorte'
 type Calidad = Exclude<Quality, 'auto'>
 const CFG: Record<Calidad, { pr: number; msaa: number; sombra: number; tope: number; lluvia: number; tilt: boolean; N: number; sat: number; polvo: number; grano: number }> = {
   alta: { pr: 2, msaa: 4, sombra: 4096, tope: 6500, lluvia: 22000, tilt: true, N: 224, sat: 2048, polvo: 2500, grano: 0.03 },
-  media: { pr: 1.5, msaa: 4, sombra: 2048, tope: 3200, lluvia: 12000, tilt: true, N: 176, sat: 1536, polvo: 1500, grano: 0.03 },
-  baja: { pr: 1, msaa: 0, sombra: 1024, tope: 1100, lluvia: 4000, tilt: false, N: 112, sat: 1024, polvo: 600, grano: 0 },
+  media: { pr: 1.25, msaa: 2, sombra: 2048, tope: 1900, lluvia: 9000, tilt: true, N: 160, sat: 1536, polvo: 1200, grano: 0.03 },
+  baja: { pr: 1, msaa: 0, sombra: 1024, tope: 900, lluvia: 3500, tilt: false, N: 112, sat: 1024, polvo: 500, grano: 0 },
 }
 
 const M2: Record<string, number> = { cuerda: 436.7, manzana: 6987, ha: 10000 }
@@ -292,6 +292,8 @@ class SandboxImpl implements Sandbox {
     this.sol.shadow.map?.dispose()
     this.renderer.renderLists.dispose()
     this.renderer.dispose()
+    // libera el contexto WebGL ya (los navegadores limitan cuántos hay vivos)
+    this.renderer.forceContextLoss()
     this.oyentes.clear()
   }
 
@@ -562,7 +564,8 @@ class SandboxImpl implements Sandbox {
       c3.u.uStage.value = e.etapa
       // salud del motor; si se fuerza un clima seco (demo), se ve el estrés
       c3.u.uHealth.value = this.override?.sequia ? e.salud * (1 - this.override.sequia * 0.65) : e.salud
-      c3.u.uAltura.value = Math.max(0.02, e.altura)
+      // plántula mínima visible (ilustrativa) desde la emergencia
+      c3.u.uAltura.value = Math.max(e.etapa > 0.03 ? Math.min(0.16, c3.H0 * 0.3) : 0.02, e.altura)
       c3.u.uWidth.value = c3.cultivo === 'mucuna' ? 0.35 + e.cobertura * 1.05 : 1
       if (c3.mesh.visible) cover = Math.max(cover, e.cobertura)
     }
@@ -576,8 +579,9 @@ class SandboxImpl implements Sandbox {
     // sol estable por día (sin parpadeo); a velocidad baja, un leve vaivén
     const lento = Math.max(0, 1 - this.velDias / 0.8)
     const fr = this.x - Math.floor(this.x)
-    const az = 0.95 + Math.sin(fr * Math.PI * 2) * 0.12 * lento
-    const el = 0.78 + c.calor * 0.25 - c.helada * 0.25
+    // luz lateral desde la izquierda-frente: sombras largas entre surcos, relieve marcado
+    const az = -1.0 + Math.sin(fr * Math.PI * 2) * 0.12 * lento
+    const el = 0.6 + c.calor * 0.35 - c.helada * 0.22
     const dir = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el))
     const tgt = this.vista.target
     const mq = this.maqueta

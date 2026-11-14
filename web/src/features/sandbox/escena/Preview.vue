@@ -22,6 +22,7 @@ const info = ref('')
 const fecha = ref('')
 const tl = shallowRef<SimTimeline>()
 const eventos = ref<string[]>([])
+const fuenteTl = ref('')
 
 const CLIMAS: Record<string, Partial<ClimaVisual> | null> = {
   auto: null,
@@ -33,10 +34,16 @@ const CLIMAS: Record<string, Partial<ClimaVisual> | null> = {
 }
 
 async function cargarTimeline(): Promise<SimTimeline> {
-  const url = q.get('tl')
+  // por defecto: salida real del motor (copia de static/sim en ./fixtures); ?sint=1 = sintético
+  const esc = q.get('esc') ?? 'tipico', rg = q.get('riego') ?? '0'
+  const url = q.get('tl') ?? (q.get('sint') === '1' ? null : `./fixtures/jocotan-chiquimula_${est.value}_${esc}_${rg}.json`)
   if (url) {
-    try { const r = await fetch(url); if (r.ok) return await r.json() } catch { /* sintético */ }
+    try {
+      const r = await fetch(url)
+      if (r.ok) { const t = await r.json(); fuenteTl.value = `motor · ${t.motor ?? ''} · clima real ${t.anual?.[0]?.anio_real ?? ''}`; return t }
+    } catch { /* sintético */ }
   }
+  fuenteTl.value = 'timeline sintético de prueba'
   return generarTimelineSintetico({ estrategia: est.value, anios: Number(q.get('anios') ?? 2), riegoMMSemana: Number(q.get('riego') ?? 0), altiplano: q.get('altiplano') === '1', nino: q.get('nino') === '1' })
 }
 
@@ -103,7 +110,7 @@ function estadoHud() {
   <div class="pv">
     <canvas ref="lienzo" class="lienzo" data-testid="escena3d" />
     <div v-if="hud" class="hud arriba">
-      <div class="marca">Field Shift · <b>sandbox 3D</b> <span class="aviso">timeline sintético de prueba</span></div>
+      <div class="marca">Field Shift · <b>sandbox 3D</b> <span class="aviso">{{ fuenteTl }}</span></div>
       <div class="fila">
         <span class="dato">{{ fecha || '—' }}</span>
         <template v-if="estadoHud()">

@@ -175,17 +175,17 @@ export function construirMaqueta(
         suelo = mix(suelo, lin(vec3(0.36,0.22,0.14)), rill*kE*0.9);
         // escorrentía: agua turbia que baja por las cárcavas y los surcos
         float flujo = vnoise(vec2(u*1.4, w*0.25 - uTime*2.2)) ;
-        float kR = uEscorr * mP * clamp(rill*1.4 + valle*0.5, 0.0, 1.0) * smoothstep(0.35, 0.7, flujo);
-        suelo = mix(suelo, lin(vec3(0.45,0.33,0.22)), kR*0.85);
+        float kR = uEscorr * mP * clamp(rill*1.6 + valle*0.7, 0.0, 1.0) * smoothstep(0.3, 0.65, flujo);
+        suelo = mix(suelo, lin(vec3(0.52,0.36,0.22)), kR*0.9);
         gGloss = max(gGloss, kR);
         // charcos en los surcos
-        float ch = smoothstep(1.0 - uCharcos*0.8, 1.0 - uCharcos*0.8 + 0.08, fbm(xz*0.22 + 11.0)*0.7 + valle*0.5);
-        vec3 agua = mix(lin(vec3(0.36,0.30,0.22)), uSkyCol*0.75, 0.55);
+        float ch = smoothstep(1.02 - uCharcos*0.42, 1.02 - uCharcos*0.42 + 0.06, fbm(xz*0.22 + 11.0)*0.75 + valle*0.42);
+        vec3 agua = mix(lin(vec3(0.34,0.26,0.18)), uSkyCol*0.7, 0.4);
         suelo = mix(suelo, agua, ch*mP*0.92);
         gGloss = max(gGloss, ch*mP);
         // riego en los surcos
         float rg = uRiego*valle*mP*smoothstep(0.3,0.6, vnoise(vec2(q.x*0.12, q.y*0.4)) + 0.4);
-        suelo = mix(suelo, mix(lin(vec3(0.3,0.38,0.42)), uSkyCol, 0.5), rg*0.9);
+        suelo = mix(suelo, mix(lin(vec3(0.22,0.26,0.27)), uSkyCol*0.8, 0.35), rg*0.75);
         gGloss = max(gGloss, rg);
         // sombra del dosel
         suelo *= 1.0 - uCover*0.35*mP;
@@ -198,7 +198,7 @@ export function construirMaqueta(
         gGloss = max(gGloss, uWet*0.35);
         // escarcha
         float fr = uFrost * smoothstep(0.55, 0.9, vNormal.y*0.0 + 0.8) * (0.65 + 0.35*vnoise(xz*4.0));
-        c = mix(c, vec3(0.84,0.88,0.95), fr*(0.3 + 0.22*vnoise(xz*3.1) + 0.12*smoothstep(0.45, 0.7, fbm(xz*0.05))));
+        c = mix(c, vec3(0.84,0.88,0.95), fr*(0.14 + 0.16*vnoise(xz*3.1) + 0.1*smoothstep(0.45, 0.7, fbm(xz*0.05))));
         diffuseColor.rgb = c;
       }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
