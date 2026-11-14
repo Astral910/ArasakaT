@@ -173,6 +173,7 @@ func exportStatic(e *plan.Engine, out string) error {
 	if e.CMIP != nil {
 		write(filepath.Join(out, "cmip6_deltas.json"), e.CMIP, false)
 	}
+	write(filepath.Join(out, "metodologia.json"), metodologia(), true)
 	log.Printf("estático listo en %s (%s)", out, time.Since(t0).Round(time.Second))
 	return nil
 }
@@ -196,4 +197,30 @@ func copyFile(src, dst string) error {
 	defer o.Close()
 	_, err = io.Copy(o, in)
 	return err
+}
+
+// metodologia reglas y supuestos del motor, en ES y EN, para "How do we know?".
+func metodologia() []map[string]string {
+	return []map[string]string{
+		{"id": "clima", "es": "Clima diario NASA POWER 2001–2026 por zona nativa (0.5° × 0.625°, ~50 km); la lluvia antes de 2001 no es consistente y no se usa. Temperatura corregida por la altura del municipio (SRTM, −6.5 °C por km).",
+			"en": "Daily NASA POWER weather 2001–2026 per native zone (0.5° × 0.625°, ~50 km); rain before 2001 is inconsistent and not used. Temperature corrected for the municipality elevation (SRTM, −6.5 °C per km)."},
+		{"id": "agua", "es": "ET0 Penman-Monteith FAO-56 diaria; Kc por etapa (maíz, frijol, sorgo, mucuna, canavalia); balance de agua en la raíz con agua disponible de Saxton & Rawls (2006) y 0.6 m de suelo en laderas; escorrentía por número de curva; 2 mm/día de pérdida inicial.",
+			"en": "Daily FAO-56 Penman-Monteith ET0; stage Kc (maize, beans, sorghum, velvet bean, jack bean); root-zone water balance with Saxton & Rawls (2006) available water and 0.6 m soil on hillsides; curve-number runoff; 2 mm/day initial loss."},
+		{"id": "rendimiento", "es": "Rendimiento con FAO-33 por etapas: 1 − Ya/Ym = Ky (1 − ETa/ETc). Referencias sin estrés: maíz 30, frijol 12, maicillo 25 qq/mz (MAGA/ICTA, aproximado). Temporada perdida = grano < 70 % de lo normal.",
+			"en": "Yield with stage-wise FAO-33: 1 − Ya/Ym = Ky (1 − ETa/ETc). No-stress references: maize 30, beans 12, sorghum 25 qq/mz (MAGA/ICTA, approximate). Lost season = grain < 70% of normal."},
+		{"id": "calendario", "es": "Inicio de lluvias (Sivakumar 1988): ≥ 20 mm en 3 días sin racha de 7 días secos (< 2 mm) en los 30 siguientes; si la hay, es falso inicio. Canícula: los 21 días más secos entre el 15 de junio y el 5 de septiembre. Ventanas = percentiles 10–90 de 2001–2025.",
+			"en": "Rainy-season onset (Sivakumar 1988): ≥ 20 mm in 3 days with no 7-day dry spell (< 2 mm) in the next 30; otherwise a false start. Canícula: the driest 21 days between June 15 and September 5. Windows = 10th–90th percentiles of 2001–2025."},
+		{"id": "montecarlo", "es": "Monte Carlo: 1000 secuencias de 10 temporadas remuestreando años reales 2001–2025, con fecha de siembra (+0, +7, +14 días) y agua del suelo (±20 %) inciertas; condicionado a El Niño (ONI JJA–ASO ≥ 0.5) cuando se pide.",
+			"en": "Monte Carlo: 1000 sequences of 10 seasons resampling real years 2001–2025, with uncertain planting date (+0, +7, +14 days) and soil water (±20%); conditioned on El Niño (ONI JJA–ASO ≥ 0.5) when requested."},
+		{"id": "suelo", "es": "Suelo (aproximado): erosión RUSLE con erosividad de Renard & Freimund (1994), K de la textura (EPIC), pendiente SRTM acotada a 3–20 % y cobertura diaria; materia orgánica con un modelo de un compartimento (ICBM) con rastrojo, raíces y cobertura.",
+			"en": "Soil (approximate): RUSLE erosion with Renard & Freimund (1994) erosivity, texture-based K (EPIC), SRTM slope bounded to 3–20% and daily cover; organic matter with a one-pool model (ICBM) with residue, roots and cover crop."},
+		{"id": "2040", "es": "2040: clima 2001–2025 ajustado con cambios mensuales (lluvia × factor, temperaturas + Δ) de 3 modelos NASA NEX-GDDP-CMIP6 (2038–2042 vs 2010–2014), SSP2-4.5 y SSP5-8.5. Escenario, no pronóstico.",
+			"en": "2040: 2001–2025 weather adjusted with monthly changes (rain × factor, temperatures + Δ) from 3 NASA NEX-GDDP-CMIP6 models (2038–2042 vs 2010–2014), SSP2-4.5 and SSP5-8.5. A scenario, not a forecast."},
+		{"id": "ia", "es": "IA vs estadística: regresión logística con datos conocidos al sembrar (ONI, lluvia y humedad de la raíz de abril–mayo, temperatura) contra la frecuencia histórica por zona y El Niño; validación dejando un año fuera con el error de Brier.",
+			"en": "AI vs statistics: logistic regression on data known at planting (ONI, April–May rain and root-zone wetness, temperature) against historical frequency by zone and El Niño; leave-one-year-out validation with the Brier score."},
+		{"id": "validacion", "es": "Validación: 8 sequías documentadas 2001–2025 (FEWS NET, MAGA, SESAN, PMA) que el motor no usa para calibrar; chequeo independiente con NDVI de MODIS (ago–sep) vía NASA GIBS.",
+			"en": "Validation: 8 documented droughts 2001–2025 (FEWS NET, MAGA, SESAN, WFP) never used for calibration; independent check with MODIS NDVI (Aug–Sep) via NASA GIBS."},
+		{"id": "limites", "es": "Límites: zona de ~50 km, no la parcela; IMERG (10 km) y SMAP necesitan cuenta Earthdata y se reemplazaron por NASA POWER; los suelos de SoilGrids o típicos deben confirmarse en campo. Apoya, no reemplaza al extensionista.",
+			"en": "Limits: a ~50 km zone, not the plot; IMERG (10 km) and SMAP need an Earthdata account and were replaced by NASA POWER; SoilGrids or typical soils must be confirmed in the field. It supports, not replaces, the extension agent."},
+	}
 }

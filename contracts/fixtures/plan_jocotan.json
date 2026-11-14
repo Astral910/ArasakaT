@@ -335,6 +335,13 @@
           "deficit_mm": 184,
           "perdida": true,
           "el_nino": false
+        },
+        {
+          "anio": 2026,
+          "grano_qq_mz": 0.2,
+          "deficit_mm": 309,
+          "perdida": true,
+          "el_nino": true
         }
       ]
     },
@@ -642,6 +649,13 @@
           "deficit_mm": 175,
           "perdida": true,
           "el_nino": false
+        },
+        {
+          "anio": 2026,
+          "grano_qq_mz": 0.2,
+          "deficit_mm": 293,
+          "perdida": true,
+          "el_nino": true
         }
       ]
     },
@@ -945,6 +959,13 @@
           "deficit_mm": 181,
           "perdida": true,
           "el_nino": false
+        },
+        {
+          "anio": 2026,
+          "grano_qq_mz": 0.2,
+          "deficit_mm": 296,
+          "perdida": true,
+          "el_nino": true
         }
       ]
     }
@@ -1132,7 +1153,7 @@
       "uso": "cambios mensuales de lluvia y temperatura a 2040"
     }
   ],
-  "generado": "2026-11-14T17:06:36Z",
+  "generado": "2026-11-14T17:14:48Z",
   "siembra_aqui": "05-14",
   "periodos": [
     {
