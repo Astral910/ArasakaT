@@ -32,6 +32,7 @@ type ChromeFFmpeg struct {
 	FFmpeg  string        // ruta a ffmpeg; vacío = "ffmpeg" del PATH
 	Encoder string        // h264_nvenc | libx264 | "" (auto: NVENC si funciona)
 	Espera  time.Duration // cuánto esperar a que la página esté lista (por defecto 90 s)
+	Bitrate int           // bps; 0 = según calidad (3 Mbps 720p, 6 Mbps 1080p)
 
 	once    sync.Once
 	encoder string
@@ -171,6 +172,9 @@ func (r *ChromeFFmpeg) Render(ctx context.Context, pagina, dst string) error {
 	}
 
 	bitrate := tasaBits(info.Ancho*info.Alto, info.Dur)
+	if r.Bitrate > 0 && r.Bitrate < bitrate {
+		bitrate = r.Bitrate
+	}
 	tmp := dst + ".tmp.mp4"
 	defer os.Remove(tmp)
 	enc := r.EncoderElegido()

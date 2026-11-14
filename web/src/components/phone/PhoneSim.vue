@@ -110,7 +110,7 @@ function shareLocation() {
 // *negrita* de WhatsApp → <strong>, con escape de HTML
 function fmt(s: string) {
   const esc = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  return esc.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>').replace(/_([^_\n]+)_/g, '<em>$1</em>').replace(/\n/g, '<br>')
+  return esc.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>').replace(/(^|[\s(])_([^_\n]+)_(?=$|[\s).,!?])/g, '$1<em>$2</em>') /* _cursiva_ como WhatsApp, sin romper URLs con municipio_id */.replace(/\n/g, '<br>')
 }
 
 onMounted(() => { if (props.autoplay) play() })
