@@ -611,7 +611,7 @@ class SandboxImpl implements Sandbox {
     // destello de rayo
     const flash = this.rayos.actualizar(dtE)
     this.U.uFlash.value = flash
-    this.hemi.intensity = L.hemiI + flash * 1.1
+    this.hemi.intensity = L.hemiI + flash * 0.7
     const cu = this.cielo.u
     cu.uTop.value.copy(L.top); cu.uHor.value.copy(L.hor); cu.uSunDir.value.copy(dir)
     cu.uSunCol.value.copy(L.solCol).multiplyScalar(0.5 + L.solI * 0.15)
