@@ -100,3 +100,26 @@ func TestPlanRiegoMM(t *testing.T) {
 		t.Fatalf("riego 35 mm/semana debe bajar riesgo y déficit: %v→%v", a.Estrategias[0].RiesgoDe10, b.Estrategias[0].RiesgoDe10)
 	}
 }
+
+// El bundle (lo que usa WebAssembly) debe dar exactamente lo mismo que el servidor.
+func TestBundleMatchesServer(t *testing.T) {
+	e := engine(t)
+	b, err := e.Bundle("jocotan-chiquimula")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(b)
+	var b2 SiteBundle
+	json.Unmarshal(raw, &b2)
+	req := contract.SimRequest{Plan: contract.PlanRequest{MunicipioID: "jocotan-chiquimula"}, Estrategia: "S2", Escenario: "2040-ssp245", RiegoMMSemana: 10}
+	a, _ := e.Simulate(req)
+	w, err := SimulateEnv(b2.Env(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ja, _ := json.Marshal(a)
+	jw, _ := json.Marshal(w)
+	if string(ja) != string(jw) {
+		t.Fatal("WebAssembly y servidor difieren")
+	}
+}

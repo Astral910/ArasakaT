@@ -79,6 +79,14 @@ func pickAround(list []int, pos, n int) []int {
 	return out
 }
 
+// SimEnv lo que necesita la simulación: nombre del lugar, el sitio por horizonte y los años El Niño.
+// Lo arma el Engine (servidor) o el WebAssembly (navegador, sin servidor).
+type SimEnv struct {
+	Name, Dept string
+	Site       func(horizon string) (*sim.Site, error)
+	IsNino     func(y int) bool
+}
+
 // Simulate implementa POST /api/simulate.
 func (e *Engine) Simulate(r contract.SimRequest) (contract.SimTimeline, error) {
 	req := Normalize(r.Plan)
@@ -86,6 +94,30 @@ func (e *Engine) Simulate(r contract.SimRequest) (contract.SimTimeline, error) {
 	if err != nil {
 		return contract.SimTimeline{}, err
 	}
+	r.Plan = req
+	var nino []int
+	if s, err := e.Site(m, "2026"); err == nil {
+		nino = e.ElNinoYears(s.ClimYears())
+	}
+	_, st26 := e.ONI.ENSOYear(2026)
+	env := SimEnv{Name: m.Name, Dept: m.Dept, Site: func(h string) (*sim.Site, error) { return e.Site(m, h) },
+		IsNino: func(y int) bool {
+			if y == 2026 {
+				return st26 == "nino"
+			}
+			for _, x := range nino {
+				if x == y {
+					return true
+				}
+			}
+			return false
+		}}
+	return SimulateEnv(env, r)
+}
+
+// SimulateEnv calcula la línea de tiempo (sin archivos: sirve igual en el servidor y en WebAssembly).
+func SimulateEnv(env SimEnv, r contract.SimRequest) (contract.SimTimeline, error) {
+	req := Normalize(r.Plan)
 	esc := r.Escenario
 	if esc == "" {
 		esc = "tipico"
@@ -101,7 +133,7 @@ func (e *Engine) Simulate(r contract.SimRequest) (contract.SimTimeline, error) {
 	if strings.HasPrefix(esc, "2040") {
 		horizon = esc
 	}
-	s, err := e.Site(m, horizon)
+	s, err := env.Site(horizon)
 	if err != nil {
 		return contract.SimTimeline{}, err
 	}
@@ -116,19 +148,7 @@ func (e *Engine) Simulate(r contract.SimRequest) (contract.SimTimeline, error) {
 	if esc == "real-2026" {
 		n = 1
 	}
-	nino := e.ElNinoYears(s.ClimYears())
-	isNino := func(y int) bool {
-		for _, x := range nino {
-			if x == y {
-				return true
-			}
-		}
-		if y == 2026 {
-			_, st := e.ONI.ENSOYear(2026)
-			return st == "nino"
-		}
-		return false
-	}
+	isNino := env.IsNino
 	rank := rankYears(s, req.Cultivo)
 	var years []int
 	switch esc {
@@ -189,7 +209,7 @@ func (e *Engine) Simulate(r contract.SimRequest) (contract.SimTimeline, error) {
 	tl.Motor = Version
 	L := lang(req.Idioma)
 	tl.Notas = []string{
-		L.f("%s, %s · zona NASA POWER de ~50 km · pendiente %.0f %% (SRTM).", "%s, %s · NASA POWER zone of ~50 km · slope %.0f%% (SRTM).", m.Name, m.Dept, s.SlopePct),
+		L.f("%s, %s · zona NASA POWER de ~50 km · pendiente %.0f %% (SRTM).", "%s, %s · NASA POWER zone of ~50 km · slope %.0f%% (SRTM).", env.Name, env.Dept, s.SlopePct),
 		L.t("Los números (agua, estrés, cosecha, suelo) son los del motor FAO-56; la escena los dibuja y el número de plantas está escalado.",
 			"Numbers (water, stress, harvest, soil) come from the FAO-56 engine; the scene draws them and the plant count is scaled."),
 	}
