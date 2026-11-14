@@ -67,7 +67,7 @@ export function orientarYRecortar(grande: DatosRelieve, L: number, N: number, sa
   // la cámara general mira ladera arriba = dirección −d
   const rumboCamara = ((Math.atan2(-dE, dS) * 180) / Math.PI + 360) % 360
   return {
-    datos: { N, L, alturas, satelite: out, relieveReal: grande.relieveReal, sateliteReal: grande.sateliteReal },
+    datos: { N, L, alturas, satelite: out, relieveReal: grande.relieveReal, sateliteReal: grande.sateliteReal, picosCorregidos: grande.picosCorregidos, alturaMedia: grande.alturaMedia },
     phi, rumboCamara, desnivel: max - min, Cx, Cz,
   }
 }

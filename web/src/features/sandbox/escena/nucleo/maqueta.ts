@@ -2,7 +2,7 @@
 // erosión, escorrentía, riego, rastrojo), paredes cortadas con el perfil del suelo y base de madera con huipil.
 import * as THREE from 'three'
 import type { DatosRelieve } from './relieve'
-import { fbm2 } from './relieve'
+import { fbm2 } from './ruido'
 import { GLSL_NUBES, GLSL_RUIDO, type UniformsGlobales } from './glsl'
 
 export interface Parcela {
