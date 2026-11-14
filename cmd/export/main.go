@@ -20,6 +20,7 @@ var (
 	outDir    = flag.String("out", "web/public/static", "salida del modo estático")
 	doFixture = flag.Bool("fixture", false, "reescribir contracts/fixtures/plan_jocotan.json")
 	doStatic  = flag.Bool("static", false, "exportar JSON del modo estático")
+	doSim     = flag.Bool("sim", false, "exportar líneas de tiempo del sandbox (fixture + static/sim)")
 )
 
 func main() {
@@ -37,6 +38,11 @@ func main() {
 		}
 		write("contracts/fixtures/plan_jocotan.json", p, true)
 		log.Printf("fixture listo (%s)", time.Since(t0).Round(time.Millisecond))
+	}
+	if *doSim {
+		if err := exportSim(e, *outDir); err != nil {
+			log.Fatal(err)
+		}
 	}
 	if *doStatic {
 		if err := exportStatic(e, *outDir); err != nil {

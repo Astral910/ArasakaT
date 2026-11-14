@@ -58,6 +58,9 @@ func clamp10(x float64) float64 { return math.Round(math.Max(0, math.Min(10, x))
 // Config de simulación a partir de lo que respondió el agricultor.
 func ConfigFor(req contract.PlanRequest, elNino bool) sim.Config {
 	cfg := sim.Config{Crop: req.Cultivo, Irrigation: req.Riego, Livestock: req.Ganado, Cover: "mucuna", Postrera: "bean"}
+	if req.RiegoMMSemana != nil && *req.RiegoMMSemana > 0 {
+		cfg.IrrigMMWeek, cfg.Irrigation = math.Min(*req.RiegoMMSemana, 70), false
+	}
 	if req.Prioridad == "agua" || elNino {
 		cfg.Postrera = "sorghum" // el maicillo aguanta mejor la Postrera seca
 	}
@@ -102,8 +105,8 @@ func (e *Engine) build(req contract.PlanRequest, m *geo.Municipio) (contract.Pla
 	}
 	cfg := ConfigFor(req, cond == "nino")
 	res := s.RunMC(cfg, sim.MCParams{Draws: Draws, Seed: 2026, Filter: filter})
-	s0n := s.RunMC(sim.Config{Crop: req.Cultivo, Irrigation: req.Riego, Livestock: req.Ganado}, sim.MCParams{Draws: Draws / 2, Seed: 7, Filter: isNino})[0]
-	s0o := s.RunMC(sim.Config{Crop: req.Cultivo, Irrigation: req.Riego, Livestock: req.Ganado}, sim.MCParams{Draws: Draws / 2, Seed: 7, Filter: func(y int) bool { return !isNino(y) }})[0]
+	s0n := s.RunMC(sim.Config{Crop: req.Cultivo, Irrigation: cfg.Irrigation, IrrigMMWeek: cfg.IrrigMMWeek, Livestock: req.Ganado}, sim.MCParams{Draws: Draws / 2, Seed: 7, Filter: isNino})[0]
+	s0o := s.RunMC(sim.Config{Crop: req.Cultivo, Irrigation: cfg.Irrigation, IrrigMMWeek: cfg.IrrigMMWeek, Livestock: req.Ganado}, sim.MCParams{Draws: Draws / 2, Seed: 7, Filter: func(y int) bool { return !isNino(y) }})[0]
 
 	mz := Manzanas(req.AreaValor, req.AreaUnidad)
 	p := contract.Plan{Request: req, Motor: Version, Generado: time.Now().UTC().Format(time.RFC3339), AreaManzanas: math.Round(mz*1000) / 1000}

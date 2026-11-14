@@ -14,7 +14,32 @@ type CropOpts struct {
 	CoverKcAdd float64 // Kc extra por cultivo de cobertura intercalado (competencia)
 	CoverFrom  int     // día desde la siembra en que empieza la cobertura
 	CN         float64 // número de curva base
+	// IrrigMMWeek dotación de riego (mm por semana). > 0 reemplaza al riego de auxilio (Irrigation).
+	IrrigMMWeek float64
+	Trace       *[]DayState // opcional: estado día por día (para la línea de tiempo del sandbox)
 }
+
+// DayState estado diario de un cultivo dentro del balance de agua.
+type DayState struct {
+	Idx   int     // índice de día del sitio
+	Day   int     // días desde la siembra
+	Stage int     // 0..3
+	Kc    float64 // Kc efectivo
+	ETc   float64
+	ETa   float64
+	Ks    float64 // 1 = sin estrés
+	Depl  float64 // agotamiento Dr/TAW (0 = capacidad de campo)
+	Irr   float64 // riego aplicado (mm)
+	RO    float64 // escorrentía (mm)
+	Frost bool
+}
+
+// Riego por semana: la dotación se reparte en 2 riegos (días 0 y 3 de cada semana desde la siembra),
+// y cada riego se limita al agua que cabe en el suelo (agotamiento Dr): lo que no cabe no se aplica.
+// Equivalencias del sandbox (justificación): ETc del maíz en floración ≈ 1.2 × ET0 4–4.5 mm/d ≈ 35 mm/semana
+// → "mucho" (35) cubre la demanda completa; "medio" (20) ≈ la mitad (goteo familiar de un tanque de ~5 m³ por
+// cuerda a la semana); "poco" (10) ≈ regadera o manguera unos días. nada = 0 (temporal).
+var IrrigLevels = map[string]float64{"nada": 0, "poco": 10, "medio": 20, "mucho": 35}
 
 // SeasonResult resultado FAO-56/FAO-33 de un cultivo en una temporada.
 type SeasonResult struct {
@@ -85,7 +110,11 @@ func RunCrop(s *Site, c fao56.Crop, sow int, o CropOpts) SeasonResult {
 		ro := fao56.RunoffCN(p, cn)
 		pe := math.Max(0, p-ro-Interception)
 		irr := 0.0
-		if o.Irrigation && dr > raw && irrigLeft > 0 {
+		if o.IrrigMMWeek > 0 {
+			if d%7 == 0 || d%7 == 3 {
+				irr = math.Min(o.IrrigMMWeek/2, math.Max(0, dr+etc-pe))
+			}
+		} else if o.Irrigation && dr > raw && irrigLeft > 0 {
 			irr = math.Min(20, irrigLeft)
 			irrigLeft -= irr
 		}
@@ -99,8 +128,16 @@ func RunCrop(s *Site, c fao56.Crop, sow int, o CropOpts) SeasonResult {
 			dr = taw
 		}
 		st := c.StageAt(d)
-		if (st == 1 || st == 2) && s.Tmin[i] <= 0 { // helada con el cultivo en crecimiento o floración
+		frost := (st == 1 || st == 2) && s.Tmin[i] <= 0 // helada con el cultivo en crecimiento o floración
+		if frost {
 			r.FrostDays++
+		}
+		if o.Trace != nil {
+			dep := 0.0
+			if taw > 0 {
+				dep = dr / taw
+			}
+			*o.Trace = append(*o.Trace, DayState{Idx: i, Day: d, Stage: st, Kc: kc, ETc: etc, ETa: eta, Ks: ks, Depl: dep, Irr: irr, RO: ro, Frost: frost})
 		}
 		etaS[st] += eta
 		etcS[st] += etc
