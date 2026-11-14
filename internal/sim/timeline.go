@@ -27,6 +27,11 @@ type SimSeason struct {
 	Real   int    // año real del clima
 	Label  int    // año que se muestra (2026, 2027…)
 	Source string // observado | remuestreado:<año> | cmip6:<año>
+	// From (opcional, > 0): índice del sitio donde empieza el segmento (si no, el 1-ene de Real).
+	// Lo usa el escenario "pronostico": la línea de tiempo arranca hoy y sigue hasta el 31-dic de la temporada.
+	From int
+	// SourceAt (opcional): fuente por índice del sitio (pronóstico / análogo); si es nil se usa Source.
+	SourceAt func(i int) string
 }
 
 // SimOptions opciones de la línea de tiempo.
@@ -76,6 +81,9 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 	n := 0
 	for _, ss := range o.Seasons {
 		i0, i1 := s.Idx(ss.Real, 1, 1), s.Idx(ss.Real, 12, 31)
+		if ss.From > 0 && ss.From < i1 {
+			i0 = ss.From
+		}
 		if i1 >= s.N {
 			i1 = s.N - 1
 		}
@@ -85,6 +93,11 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 		lp := -1
 		if t := s.Date(s.Idx(ss.Real, 2, 29)); t.Month() == 2 && t.Day() == 29 {
 			lp = s.Idx(ss.Real, 2, 29)
+		}
+		if ss.From > 0 && lp < 0 { // segmento que empieza el año anterior: 29-feb de ese año
+			if t := s.Date(s.Idx(ss.Real-1, 2, 29)); t.Month() == 2 && t.Day() == 29 && s.Idx(ss.Real-1, 2, 29) >= i0 {
+				lp = s.Idx(ss.Real-1, 2, 29)
+			}
 		}
 		segs = append(segs, seg{i0, i1, n, lp, ss})
 		n += i1 - i0 + 1
@@ -97,6 +110,9 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 		return tl
 	}
 	tl.Inicio = fmt.Sprintf("%d-01-01", segs[0].ss.Label)
+	if sg := segs[0]; sg.ss.From > 0 || s.Shift != 0 {
+		tl.Inicio = s.Date(sg.i0).AddDate(sg.ss.Label-sg.ss.Real, 0, -s.Shift).Format("2006-01-02")
+	}
 	mk := func() []float32 { return make([]float32, n) }
 	tl.Fuente = make([]string, n)
 	tl.LluviaMM, tl.RiegoMM, tl.TmaxC, tl.TminC, tl.ET0MM = mk(), mk(), mk(), mk(), mk()
@@ -170,11 +186,14 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 				continue
 			}
 			tl.Fuente[p] = sg.ss.Source
+			if sg.ss.SourceAt != nil {
+				tl.Fuente[p] = sg.ss.SourceAt(i)
+			}
 			month[p] = int(s.Date(i).Month())
 			tl.LluviaMM[p] = r2(s.PR[i])
 			tl.TmaxC[p], tl.TminC[p], tl.ET0MM[p] = r2(s.Tmax[i]), r2(s.Tmin[i]), r2(s.ET0[i])
 			// nubes: lluvia o falta de sol respecto al cielo despejado (FAO-56 Rso)
-			rso := (0.75 + 2e-5*math.Max(s.ElevM, 0)) * fao56.Ra(s.Lat, s.Date(i).YearDay())
+			rso := (0.75 + 2e-5*math.Max(s.ElevM, 0)) * fao56.Ra(s.Lat, s.RealDate(i).YearDay())
 			cloud := 0.0
 			if rso > 0 && i < len(s.rsCache) {
 				cloud = clamp01(1.2 * (1 - s.rsCache[i]/rso))
@@ -191,8 +210,11 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 				ws *= 1.8 // ráfagas de tormenta (visual)
 			}
 			tl.Viento[p] = r2(ws)
-			j := i - sg.i0
-			if j < len(tr.Mulch) {
+			j := i - tr.I0
+			if j < 0 { // días del año anterior (pronóstico): mismo manejo que esa fecha de la temporada
+				j += 365
+			}
+			if j >= 0 && j < len(tr.Mulch) {
 				tl.Residuo[p] = r2(tr.Mulch[j])
 				tl.SueloDesnudo[p] = tr.Bare[j]
 			}
@@ -268,7 +290,7 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 				Texto: fmt.Sprintf(L("Temporada perdida: %.0f qq/mz (menos del 70 %% de lo normal)", "Lost season: %.0f qq/mz (under 70%% of normal)"), grain)})
 		}
 		// falsos inicios de lluvia
-		for _, fi := range FalseStarts(s.PR, s.Idx(y, 4, 15), s.Idx(y, 7, 15)) {
+		for _, fi := range FalseStarts(s.PR, s.at(y, s.Cal.PrimFrom), s.at(y, s.Cal.PrimTo)) {
 			if p := pos(fi); p >= 0 && p < n {
 				tl.Eventos = append(tl.Eventos, contract.SimEvento{Dia: p, Tipo: "falso_inicio",
 					Texto: L("Falso inicio: llovió fuerte y después vino una semana seca", "False start: heavy rain followed by a dry week")})

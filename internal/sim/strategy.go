@@ -133,7 +133,7 @@ func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) 
 	yc := s.YearCal(y)
 	sow := yc.PrimeraOnset
 	if sow < 0 {
-		sow = s.Idx(y, 6, 1)
+		sow = s.at(y, s.Cal.PrimFallback)
 	}
 	sow += offset
 	out := YearOut{Year: y, PrimeraSow: sow, PostSow: -1}

@@ -1,0 +1,56 @@
+{
+  "id": "g_17.06_-96.72",
+  "nombre": "Oaxaca de Juárez, Oaxaca, México",
+  "pais": "MX",
+  "lat": 17.06,
+  "lon": -96.72,
+  "elev_m": 1551,
+  "pendiente_pct": 4.6,
+  "precalculado": false,
+  "bimodal": true,
+  "temporadas": [
+    {
+      "nombre": "primera",
+      "inicio": "05-17",
+      "fin": "07-22",
+      "lluvia_mm": 354
+    },
+    {
+      "nombre": "postrera",
+      "inicio": "08-13",
+      "fin": "11-02",
+      "lluvia_mm": 427
+    }
+  ],
+  "canicula": {
+    "tipo": "canicula",
+    "nombre": "Canícula / veranillo",
+    "inicio": "07-23",
+    "fin": "08-12"
+  },
+  "riesgo_de_10": 2.8,
+  "clima": {
+    "lluvia_anual_mm": 791,
+    "tmedia_c": 20.5,
+    "tmax_c": 32.3,
+    "tmin_c": 10.4,
+    "meses_secos": 7,
+    "resumen": "791 mm de lluvia al año, dos temporadas de lluvia, 7 meses secos; 20 °C de media.",
+    "resumen_en": "791 mm of rain a year, two rainy seasons, 7 dry months; 20 °C on average."
+  },
+  "bioma": "corredor-seco",
+  "suelo": {
+    "arena": 45.1,
+    "arcilla": 27.9,
+    "mo": 3.41,
+    "fuente": "ISRIC SoilGrids 2.0 (0–30 cm, media) en un punto vecino a ~5 km (el punto cae en ciudad o agua)"
+  },
+  "fuentes": [
+    "NASA POWER diario 2001–2025 (community AG): lluvia, temperatura, radiación, humedad, viento",
+    "Temporadas: días con lluvia ≥ ½ ET0 FAO-56 (período de crecimiento FAO-AEZ), climatología suavizada 31 días",
+    "Relieve: SRTM (AWS Terrain Tiles)",
+    "Suelo: ISRIC SoilGrids 2.0 (0–30 cm, media) en un punto vecino a ~5 km (el punto cae en ciudad o agua)",
+    "Nombre: OpenStreetMap Nominatim"
+  ],
+  "motor": "fieldshift-motor 1.0 (FAO-56 + FAO-33 + Monte Carlo 2001–2025)"
+}

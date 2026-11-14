@@ -111,15 +111,17 @@ func TestBundleMatchesServer(t *testing.T) {
 	raw, _ := json.Marshal(b)
 	var b2 SiteBundle
 	json.Unmarshal(raw, &b2)
-	req := contract.SimRequest{Plan: contract.PlanRequest{MunicipioID: "jocotan-chiquimula"}, Estrategia: "S2", Escenario: "2040-ssp245", RiegoMMSemana: 10}
-	a, _ := e.Simulate(req)
-	w, err := SimulateEnv(b2.Env(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ja, _ := json.Marshal(a)
-	jw, _ := json.Marshal(w)
-	if string(ja) != string(jw) {
-		t.Fatal("WebAssembly y servidor difieren")
+	for _, esc := range []string{"2040-ssp245", "pronostico", "tipico"} {
+		req := contract.SimRequest{Plan: contract.PlanRequest{MunicipioID: "jocotan-chiquimula"}, Estrategia: "S2", Escenario: esc, RiegoMMSemana: 10}
+		a, _ := e.Simulate(req)
+		w, err := SimulateEnv(b2.Env(), req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ja, _ := json.Marshal(a)
+		jw, _ := json.Marshal(w)
+		if string(ja) != string(jw) {
+			t.Fatalf("%s: WebAssembly y servidor difieren", esc)
+		}
 	}
 }

@@ -55,6 +55,21 @@
     "id": "sandbox"
   },
   {
+    "en": "The coming season (default scenario): the first 16 days are the Open-Meteo forecast (ECMWF IFS / NOAA GFS); the rest is a real 2001–2025 year, the medoid (most representative) of the years closest to the ECMWF SEAS5 seasonal forecast (local monthly rain and temperature anomalies) and to the forecast ONI (SEAS5 Niño 3.4 anchored to the latest NOAA CPC ONI). Offline: years with an ONI like the latest observed (remuestreo-enso).",
+    "es": "La temporada que viene (escenario por defecto): los primeros 16 días son el pronóstico de Open-Meteo (ECMWF IFS / NOAA GFS); el resto es un año real 2001–2025, el medoide (el más representativo) de los años más parecidos al pronóstico estacional ECMWF SEAS5 (anomalías mensuales de lluvia y temperatura del lugar) y al ONI pronosticado (Niño 3.4 de SEAS5 anclado al último ONI de NOAA CPC). Sin conexión: años con un ONI parecido al último observado (remuestreo-enso).",
+    "id": "pronostico"
+  },
+  {
+    "en": "Confidence: out of 25 years, how many had a season of the same class (loss < 70%, fair, good) for today's milpa; probability of that class among the years resembling the forecast; loss probability and P10–P50–P90 harvest for the chosen strategy; skill = local validation (documented droughts and Brier score). Level by points: probability ≥ 60% (2) or ≥ 40% (1), validation ≥ 60% (1), forecast or observed (1), narrow range (1): high ≥ 4, medium 2–3, low ≤ 1.",
+    "es": "Confianza: de 25 años, cuántos tuvieron una temporada de la misma clase (pérdida < 70 %, regular, buena) para la milpa de hoy; probabilidad de esa clase entre los años parecidos al pronóstico; probabilidad de pérdida y cosecha P10–P50–P90 con la estrategia elegida; habilidad = validación local (sequías documentadas y error de Brier). Nivel por puntos: probabilidad ≥ 60 % (2) o ≥ 40 % (1), validación ≥ 60 % (1), pronóstico u observado (1), rango estrecho (1): alta ≥ 4, media 2–3, baja ≤ 1.",
+    "id": "confianza"
+  },
+  {
+    "en": "Anywhere in the world: NASA POWER daily 2001→yesterday fetched on demand (cached), ISRIC SoilGrids soil (or typical by texture), SRTM relief; seasons = days with rain ≥ ½ ET0 (FAO-AEZ growing period), one or two, with a mid-season dry spell only if rainfall is bimodal; southern hemisphere included. 2040 outside Guatemala: Open-Meteo Climate (CMIP6). No local validation outside Guatemala.",
+    "es": "Cualquier lugar del mundo: NASA POWER diario 2001→ayer bajado al momento (caché), suelo ISRIC SoilGrids (o típico por textura), relieve SRTM; temporadas = días con lluvia ≥ ½ ET0 (período de crecimiento FAO-AEZ), una o dos, con canícula/veranillo solo si la lluvia es bimodal; hemisferio sur incluido. 2040 fuera de Guatemala: Open-Meteo Climate (CMIP6). Fuera de Guatemala no hay validación local.",
+    "id": "global"
+  },
+  {
     "en": "Limits: a ~50 km zone, not the plot; IMERG (10 km) and SMAP need an Earthdata account and were replaced by NASA POWER; SoilGrids or typical soils must be confirmed in the field. It supports, not replaces, the extension agent.",
     "es": "Límites: zona de ~50 km, no la parcela; IMERG (10 km) y SMAP necesitan cuenta Earthdata y se reemplazaron por NASA POWER; los suelos de SoilGrids o típicos deben confirmarse en campo. Apoya, no reemplaza al extensionista.",
     "id": "limites"

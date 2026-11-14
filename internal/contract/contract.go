@@ -166,6 +166,10 @@ type Plan struct {
 	HeladaDe10      float64  `json:"helada_de_10"`       // años con Tmín ≤ 3 °C (altiplano)
 	Resumen         []string `json:"resumen"`            // 4 líneas para WhatsApp, en el idioma pedido
 	Motor           string   `json:"motor"`              // versión del motor
+
+	// Agregados por el motor (ronda 3, 14-nov):
+	Confianza *SimConfianza `json:"confianza,omitempty"` // de dónde sale la temporada que viene y cuánto confiar
+	Sitio     *SitioInfo    `json:"sitio,omitempty"`     // temporadas, bioma y fuentes del punto (sobre todo fuera de Guatemala)
 }
 
 // Planner lo implementa el motor (internal/plan).
@@ -290,4 +294,78 @@ type SimTimeline struct {
 	Pendiente    float64     `json:"pendiente_pct"`
 	Notas        []string    `json:"notas"`
 	Motor        string      `json:"motor"`
+	// Agregados por el motor (ronda 3, 14-nov):
+	Escenario string        `json:"escenario,omitempty"` // escenario efectivo (pronostico cae a remuestreo-enso sin red)
+	Confianza *SimConfianza `json:"confianza,omitempty"`
+}
+
+// ---------- Ronda 3: confianza de la predicción y motor global ----------
+
+// SimConfianza dice de dónde sale lo que se ve y cuánto confiar (escenario "pronostico" y los demás).
+type SimConfianza struct {
+	Metodo         string   `json:"metodo"`          // analogo-pronostico | remuestreo-enso | observado | cmip6
+	AniosAnalogos  []int    `json:"anios_analogos"`  // año real usado en cada temporada
+	AniosBase      int      `json:"anios_base"`      // años de la serie (25 = 2001–2025)
+	AniosParecidos int      `json:"anios_parecidos"` // de AniosBase, cuántos tuvieron un resultado de la misma clase que el mostrado
+	ProbEscenario  float64  `json:"prob_escenario"`  // 0–1: probabilidad de la clase de temporada mostrada según el pronóstico estacional
+	ProbPerdida    float64  `json:"prob_perdida"`    // 0–1: probabilidad de perder la temporada (estrategia pedida)
+	CosechaP10     float64  `json:"cosecha_p10"`     // qq/mz
+	CosechaP50     float64  `json:"cosecha_p50"`
+	CosechaP90     float64  `json:"cosecha_p90"`
+	Habilidad      string   `json:"habilidad"` // validación ("detectó 5 de 8 sequías documentadas · Brier 0.155 vs 0.160") o "sin validación local"
+	Nivel          string   `json:"nivel"`     // alta | media | baja
+	Texto          string   `json:"texto"`     // una frase humana (ES)
+	TextoEN        string   `json:"texto_en"`
+	Fuentes        []string `json:"fuentes"`
+
+	// detalle opcional (para el informe técnico)
+	Clase           string      `json:"clase,omitempty"`       // perdida | regular | buena (clase de la temporada mostrada, milpa de hoy S0)
+	ProbClases      *[3]float64 `json:"prob_clases,omitempty"` // prob. de cada clase (pérdida, regular, buena) entre los años parecidos al pronóstico
+	ONIPronostico   *float64    `json:"oni_pronostico,omitempty"`
+	ONIFuente       string      `json:"oni_fuente,omitempty"`
+	DiasPronostico  int         `json:"dias_pronostico,omitempty"`  // días de la línea de tiempo con pronóstico de 16 días
+	FechaPronostico string      `json:"fecha_pronostico,omitempty"` // YYYY-MM-DD de la corrida usada
+	Regla           string      `json:"regla,omitempty"`            // cómo se decide el nivel
+}
+
+// Temporada de lluvias detectada en la climatología (MM-DD).
+type Temporada struct {
+	Nombre   string  `json:"nombre"` // primera | postrera | lluvias
+	Inicio   string  `json:"inicio"`
+	Fin      string  `json:"fin"`
+	LluviaMM float64 `json:"lluvia_mm"`
+}
+
+// SitioInfo resumen de un punto cualquiera del mundo (GET /api/sitio?lat&lon).
+type SitioInfo struct {
+	ID           string      `json:"id"`
+	Nombre       string      `json:"nombre"`
+	Pais         string      `json:"pais,omitempty"`
+	Lat          float64     `json:"lat"`
+	Lon          float64     `json:"lon"`
+	ElevM        float64     `json:"elev_m"`
+	PendientePct float64     `json:"pendiente_pct"`
+	Precalculado bool        `json:"precalculado"` // municipio de Guatemala con datos locales
+	Bimodal      bool        `json:"bimodal"`
+	Temporadas   []Temporada `json:"temporadas"`
+	Canicula     *Periodo    `json:"canicula,omitempty"` // solo si la lluvia es bimodal
+	RiesgoDe10   float64     `json:"riesgo_de_10"`       // temporadas difíciles de cada 10 (milpa de hoy, S0)
+	Clima        struct {
+		LluviaAnualMM float64 `json:"lluvia_anual_mm"`
+		TmediaC       float64 `json:"tmedia_c"`
+		TmaxC         float64 `json:"tmax_c"`      // media del mes más cálido
+		TminC         float64 `json:"tmin_c"`      // media del mes más frío
+		MesesSecos    int     `json:"meses_secos"` // lluvia < ½ ET0
+		Resumen       string  `json:"resumen"`
+		ResumenEN     string  `json:"resumen_en"`
+	} `json:"clima"`
+	Bioma string `json:"bioma"` // tropical-humedo | corredor-seco | altiplano | templado | arido | sabana
+	Suelo struct {
+		Arena   float64 `json:"arena"`
+		Arcilla float64 `json:"arcilla"`
+		MO      float64 `json:"mo"`
+		Fuente  string  `json:"fuente"`
+	} `json:"suelo"`
+	Fuentes []string `json:"fuentes"`
+	Motor   string   `json:"motor"`
 }

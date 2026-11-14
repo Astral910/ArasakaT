@@ -31,6 +31,11 @@ type Site struct {
 	PR, ET0, GW    []float64
 	N              int // días válidos
 	Scenario       string
+	// Cal calendario agrícola (GTCal por defecto). Shift: días que se corren las etiquetas de fecha para que
+	// la temporada principal caiga en may–oct del calendario interno (hemisferio sur, lluvias de ene–mar…):
+	// fecha real = Date(i) − Shift días. 0 en Guatemala.
+	Cal   SeasonCal
+	Shift int
 
 	rhCache, wsCache, rsCache []float64
 	cycle                     float64
@@ -79,7 +84,7 @@ func NewSite(id, name, dept string, lat, lon, elev, slope float64, cl *data.Clim
 	c := *cl
 	n := c.LastValid() + 1
 	s := &Site{ID: id, Name: name, Dept: dept, Lat: lat, Lon: lon, ElevM: elev, SlopePct: slope, CellElevM: c.ElevM,
-		Soil: soil, Start: c.StartTime(), N: n, Scenario: "historical"}
+		Soil: soil, Start: c.StartTime(), N: n, Scenario: "historical", Cal: GTCal}
 	dT := LapseRate * (elev - c.ElevM)
 	if elev <= 0 {
 		dT = 0
@@ -119,8 +124,41 @@ func NewSite(id, name, dept string, lat, lon, elev, slope float64, cl *data.Clim
 	return s
 }
 
-// Date del índice i.
+// Date del índice i (calendario interno: ver Shift).
 func (s *Site) Date(i int) time.Time { return s.Start.AddDate(0, 0, i) }
+
+// RealDate fecha real del índice i.
+func (s *Site) RealDate(i int) time.Time { return s.Start.AddDate(0, 0, i-s.Shift) }
+
+// WithCal aplica un calendario detectado: corre las etiquetas de fecha shift días (las series no cambian).
+func (s *Site) WithCal(cal SeasonCal, shift int) *Site {
+	o := *s
+	o.Cal, o.Shift = cal, shift
+	o.Start = s.Start.AddDate(0, 0, shift-s.Shift)
+	o.cycle, o.climCache = 0, nil
+	return &o
+}
+
+// Extend copia del sitio con días agregados al final (pronóstico + año análogo): para armar la temporada que viene.
+// La climatología y el ciclo se quedan los del sitio base (los días agregados no cuentan como historia).
+func (s *Site) Extend(tmax, tmin, pr, et0, gw, rh, ws, rs []float64, scenario string) *Site {
+	o := *s
+	o.cycle = s.CycleFactor()
+	o.climCache = s.Clim()
+	cat := func(a, b []float64) []float64 {
+		return append(append(make([]float64, 0, len(a)+len(b)), a[:s.N]...), b...)
+	}
+	o.Tmax, o.Tmin, o.PR, o.ET0, o.GW = cat(s.Tmax, tmax), cat(s.Tmin, tmin), cat(s.PR, pr), cat(s.ET0, et0), cat(s.GW, gw)
+	o.rhCache, o.wsCache, o.rsCache = cat(s.rhCache, rh), cat(s.wsCache, ws), cat(s.rsCache, rs)
+	o.N = s.N + len(pr)
+	o.Scenario = scenario
+	return &o
+}
+
+// Series valores de un día del sitio (para copiar un año análogo).
+func (s *Site) Series(i int) (tmax, tmin, pr, et0, gw, rh, ws, rs float64) {
+	return s.Tmax[i], s.Tmin[i], s.PR[i], s.ET0[i], s.GW[i], s.rhCache[i], s.wsCache[i], s.rsCache[i]
+}
 
 // Idx del día (año, mes, día).
 func (s *Site) Idx(y int, m time.Month, d int) int {
@@ -132,7 +170,7 @@ func (s *Site) Years() []int {
 	var ys []int
 	last := s.Date(s.N - 1)
 	for y := s.Start.Year(); y <= last.Year(); y++ {
-		if s.Idx(y, 10, 31) < s.N {
+		if s.Idx(y, 1, 1) >= 0 && s.Idx(y, 10, 31) < s.N {
 			ys = append(ys, y)
 		}
 	}
@@ -159,12 +197,12 @@ func (s *Site) WithDelta(md data.MonthlyDelta, scen string) *Site {
 	o.climCache = nil
 	o.Tmax, o.Tmin, o.PR, o.ET0 = make([]float64, s.N), make([]float64, s.N), make([]float64, s.N), make([]float64, s.N)
 	for i := 0; i < s.N; i++ {
-		m := int(s.Date(i).Month()) - 1
+		m := int(s.RealDate(i).Month()) - 1
 		o.Tmax[i] = s.Tmax[i] + md.TmaxAdd[m]
 		o.Tmin[i] = s.Tmin[i] + md.TminAdd[m]
 		o.PR[i] = s.PR[i] * md.PrRatio[m]
 		o.ET0[i] = fao56.ET0(fao56.Day{Tmax: o.Tmax[i], Tmin: o.Tmin[i], RH: s.rhCache[i], U2: s.wsCache[i], Rs: s.rsCache[i],
-			DOY: s.Date(i).YearDay()}, math.Max(s.ElevM, 0), s.Lat)
+			DOY: s.RealDate(i).YearDay()}, math.Max(s.ElevM, 0), s.Lat)
 	}
 	return &o
 }

@@ -15,6 +15,38 @@ const (
 	OnsetDrySpell = 7
 )
 
+// MD mes y día (fechas del calendario agrícola, en el calendario "etiquetado" del sitio: ver Site.Shift).
+type MD struct {
+	M time.Month
+	D int
+}
+
+// SeasonCal ventanas del calendario agrícola de un sitio. El valor por defecto es el de Guatemala
+// (Primera 15-abr–15-jul, canícula 15-jun–5-sep, Postrera desde 10-ago hasta 30-sep); fuera de
+// Guatemala se derivan de la climatología (DetectSeasons).
+type SeasonCal struct {
+	PrimFrom, PrimTo MD // ventana para buscar el inicio de lluvias de la temporada principal
+	PrimFallback     MD // siembra si no hubo inicio claro
+	CanFrom, CanTo   MD // ventana de la canícula (21 días más secos)
+	DryFrom, DryTo   MD // ventana de la racha seca más larga
+	PostLim, PostTo  MD // ventana de inicio de la segunda temporada
+	Generic          bool
+}
+
+// GTCal calendario de Guatemala (el original del motor).
+var GTCal = SeasonCal{PrimFrom: MD{4, 15}, PrimTo: MD{7, 15}, PrimFallback: MD{6, 1}, CanFrom: MD{6, 15}, CanTo: MD{9, 5},
+	DryFrom: MD{6, 1}, DryTo: MD{9, 1}, PostLim: MD{8, 10}, PostTo: MD{9, 30}}
+
+// MDOf mes y día de un día del año (año no bisiesto, 1..365; se envuelve).
+func MDOf(doy int) MD {
+	doy = ((doy-1)%365+365)%365 + 1
+	t := time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, doy-1)
+	return MD{t.Month(), t.Day()}
+}
+
+// at índice del día md del año y.
+func (s *Site) at(y int, md MD) int { return s.Idx(y, md.M, md.D) }
+
 // YearCalendar fechas clave de un año (índices de día; -1 si no hubo).
 type YearCalendar struct {
 	Year          int
@@ -77,10 +109,11 @@ func LongestDrySpell(pr []float64, from, to int) (length, start int) {
 // YearCal calcula el calendario observado de un año.
 func (s *Site) YearCal(y int) YearCalendar {
 	yc := YearCalendar{Year: y, PrimeraOnset: -1, PostreraOnset: -1}
-	a, b := s.Idx(y, 4, 15), s.Idx(y, 7, 15)
+	k := s.Cal
+	a, b := s.at(y, k.PrimFrom), s.at(y, k.PrimTo)
 	yc.PrimeraOnset, yc.FalseStarts = Onset(s.PR, a, b)
-	// canícula: ventana de 21 días con menos lluvia entre 15-jun y 5-sep
-	c0, c1 := s.Idx(y, 6, 15), s.Idx(y, 9, 5)
+	// canícula: ventana de 21 días con menos lluvia entre 15-jun y 5-sep (Guatemala)
+	c0, c1 := s.at(y, k.CanFrom), s.at(y, k.CanTo)
 	best := math.Inf(1)
 	for d := c0; d+21 <= c1 && d+21 < s.N; d++ {
 		sum := 0.0
@@ -93,12 +126,12 @@ func (s *Site) YearCal(y int) YearCalendar {
 	}
 	yc.CaniculaEnd = yc.CaniculaStart + 20
 	yc.CaniculaMM = best
-	yc.MaxDrySpell, _ = LongestDrySpell(s.PR, s.Idx(y, 6, 1), s.Idx(y, 9, 1))
+	yc.MaxDrySpell, _ = LongestDrySpell(s.PR, s.at(y, k.DryFrom), s.at(y, k.DryTo))
 	pf := yc.CaniculaEnd + 1
-	if lim := s.Idx(y, 8, 10); pf < lim {
+	if lim := s.at(y, k.PostLim); pf < lim {
 		pf = lim
 	}
-	yc.PostreraOnset, _ = Onset(s.PR, pf, s.Idx(y, 9, 30))
+	yc.PostreraOnset, _ = Onset(s.PR, pf, s.at(y, k.PostTo))
 	for i := s.Idx(y, 5, 1); i < s.Idx(y, 9, 1); i++ {
 		yc.RainMJJA += s.PR[i]
 	}
@@ -177,7 +210,7 @@ func (s *Site) Climate() Climatology {
 	for _, y := range s.ClimYears() {
 		var sum [12]float64
 		for i := s.Idx(y, 1, 1); i <= s.Idx(y, 12, 31); i++ {
-			m := int(s.Date(i).Month()) - 1
+			m := int(s.RealDate(i).Month()) - 1
 			sum[m] += s.PR[i]
 			et0[m] += s.ET0[i]
 			tmin[m] += s.Tmin[i]

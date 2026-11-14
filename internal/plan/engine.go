@@ -15,6 +15,7 @@ import (
 	"fieldshift/internal/contract"
 	"fieldshift/internal/data"
 	"fieldshift/internal/geo"
+	"fieldshift/internal/global"
 	"fieldshift/internal/ml"
 	"fieldshift/internal/sim"
 	"fieldshift/internal/valid"
@@ -41,6 +42,12 @@ type Engine struct {
 	mlRes   *MLResult
 	riskMu  sync.Mutex
 	risk    map[string][]RiskRow
+
+	// Ronda 3: datos globales y pronóstico
+	Net     *global.Client
+	netOnce sync.Once
+	pron    map[string]pronEntry
+	globals map[string]*globalPoint
 }
 
 // New carga data/ (municipios, ONI, CMIP6, suelos). El clima se lee por celda bajo demanda.
@@ -68,6 +75,9 @@ func (e *Engine) climateFor(cell string) (*data.Climate, error) {
 	if c, ok := e.climate[cell]; ok {
 		return c, nil
 	}
+	if strings.HasPrefix(cell, "global:") {
+		return nil, fmt.Errorf("celda %s sin cargar", cell)
+	}
 	var c data.Climate
 	if err := data.ReadGz(filepath.Join(e.Dir, "climate", cell+".json.gz"), &c); err != nil {
 		return nil, err
@@ -78,6 +88,12 @@ func (e *Engine) climateFor(cell string) (*data.Climate, error) {
 
 // Soil del municipio (SoilGrids si hay; si no, valor típico documentado).
 func (e *Engine) Soil(m *geo.Municipio) data.Soil {
+	if m.Global {
+		if g := e.gp(m); g != nil {
+			return g.soil
+		}
+		return sim.DefaultSoil(m.ElevM)
+	}
 	if s, ok := e.soils[m.ID]; ok && s.Sand > 0 {
 		return s
 	}
@@ -114,12 +130,24 @@ func (e *Engine) Site(m *geo.Municipio, horizon string) (*sim.Site, error) {
 		return nil, fmt.Errorf("clima %s: %w", m.Cell, err)
 	}
 	s := sim.NewSite(m.ID, m.Name, m.Dept, m.Lat, m.Lon, m.ElevM, m.SlopePct, cl, e.Soil(m))
+	if g := e.gp(m); m.Global && g != nil {
+		s = s.WithCal(g.cal, g.shift)
+	}
 	if strings.HasPrefix(horizon, "2040") {
 		scen := strings.TrimPrefix(horizon, "2040-")
-		if e.CMIP == nil {
-			return nil, fmt.Errorf("sin deltas CMIP6")
+		var pt *data.CMIP6Point
+		if m.Global {
+			p, err := e.globalCMIP(m)
+			if err != nil {
+				return nil, fmt.Errorf("2040 sin datos CMIP6 para el punto: %w", err)
+			}
+			pt = p
+		} else {
+			if e.CMIP == nil {
+				return nil, fmt.Errorf("sin deltas CMIP6")
+			}
+			pt = e.CMIP.Nearest(m.Lat, m.Lon)
 		}
-		pt := e.CMIP.Nearest(m.Lat, m.Lon)
 		md, ok := pt.Scen[scen]
 		if !ok {
 			return nil, fmt.Errorf("escenario %q desconocido", scen)
@@ -150,6 +178,12 @@ func (e *Engine) Climatology(s *sim.Site) *sim.Climatology {
 
 // Resolve municipio por id o por coordenadas (punto en polígono).
 func (e *Engine) Resolve(req contract.PlanRequest) (*geo.Municipio, error) {
+	if la, lo, ok := parseGlobalID(req.MunicipioID); ok {
+		if m := e.Muni.Locate(la, lo); m != nil {
+			return m, nil
+		}
+		return e.GlobalPoint(la, lo)
+	}
 	if req.MunicipioID != "" {
 		if m, ok := e.Muni.ByID[req.MunicipioID]; ok {
 			return m, nil
@@ -162,7 +196,10 @@ func (e *Engine) Resolve(req contract.PlanRequest) (*geo.Municipio, error) {
 		if m := e.Muni.Locate(*req.Lat, *req.Lon); m != nil {
 			return m, nil
 		}
-		return nil, fmt.Errorf("la ubicación no cae en Guatemala")
+		if math.Abs(*req.Lat) > 90 || math.Abs(*req.Lon) > 180 {
+			return nil, fmt.Errorf("coordenadas fuera de rango")
+		}
+		return e.GlobalPoint(*req.Lat, *req.Lon)
 	}
 	return nil, fmt.Errorf("municipio %q no encontrado", req.MunicipioID)
 }
