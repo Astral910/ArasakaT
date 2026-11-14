@@ -9,6 +9,7 @@ import { nombreEstrategia, cultivoEstrategia } from './util'
 const props = defineProps<{ plan: Plan }>()
 const anio = ref(5)
 const maxMo = computed(() => Math.max(...props.plan.estrategias.flatMap((e) => e.suelo_mo), 0.1))
+const minMo = computed(() => Math.min(...props.plan.estrategias.flatMap((e) => e.suelo_mo)))
 const cols = computed(() => props.plan.estrategias.map((e) => {
   const i = Math.min(anio.value, e.suelo_mo.length - 1)
   const mo = e.suelo_mo[i] ?? 0
@@ -16,7 +17,7 @@ const cols = computed(() => props.plan.estrategias.map((e) => {
   const base = e.suelo_mo[0] || mo
   return {
     e, mo, ero,
-    capa: 18 + (mo / maxMo.value) * 46, // px de capa oscura sobre 150
+    capa: 12 + ((mo - minMo.value) / Math.max(0.01, maxMo.value - minMo.value)) * 62, // px de capa oscura sobre 150
     delta: base ? ((mo - base) / base) * 100 : 0,
     cover: cultivoEstrategia(e) === 'mucuna' ? 'mucuna' : e.suelo_desnudo_dias > 100 ? 'bare' : 'stubble',
   }

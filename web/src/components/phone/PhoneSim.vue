@@ -188,7 +188,7 @@ defineExpose({ play, openAlert })
 
 <style scoped>
 .phone { --w: calc(340px * var(--s)); width: var(--w); display: flex; flex-direction: column; align-items: center; gap: 0.8rem; }
-.frame { width: 100%; aspect-ratio: 340 / 700; border-radius: calc(54px * var(--s)); padding: calc(11px * var(--s)); background: linear-gradient(145deg, #3b3129, #1a1410 60%, #2e2620); box-shadow: 0 0 0 2px #54473b inset, 0 30px 80px rgba(40, 25, 10, 0.35), 0 8px 20px rgba(40, 25, 10, 0.25); }
+.frame { width: 100%; height: calc(700px * var(--s)); border-radius: calc(54px * var(--s)); padding: calc(11px * var(--s)); background: linear-gradient(145deg, #3b3129, #1a1410 60%, #2e2620); box-shadow: 0 0 0 2px #54473b inset, 0 30px 80px rgba(40, 25, 10, 0.35), 0 8px 20px rgba(40, 25, 10, 0.25); }
 .screen { position: relative; height: 100%; border-radius: calc(44px * var(--s)); overflow: hidden; display: flex; flex-direction: column; background: #efe7da; font-size: calc(14px * var(--s)); }
 .status { height: calc(40px * var(--s)); display: flex; align-items: center; justify-content: space-between; padding: 0 calc(26px * var(--s)); background: #1f4f45; color: #fff; font-weight: 700; font-size: calc(13px * var(--s)); flex: none; }
 .island { width: calc(96px * var(--s)); height: calc(26px * var(--s)); background: #000; border-radius: 99px; margin-top: calc(6px * var(--s)); }
@@ -201,7 +201,7 @@ defineExpose({ play, openAlert })
 .who { flex: 1; display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .who strong { font-size: calc(15px * var(--s)); }
 .who small { font-size: calc(11.5px * var(--s)); opacity: 0.85; }
-.chat { flex: 1; overflow-y: auto; padding: calc(10px * var(--s)) calc(10px * var(--s)) calc(4px * var(--s)); display: flex; flex-direction: column; gap: calc(6px * var(--s)); scrollbar-width: none;
+.chat { flex: 1; min-height: 0; overflow-y: auto; padding: calc(10px * var(--s)) calc(10px * var(--s)) calc(4px * var(--s)); display: flex; flex-direction: column; gap: calc(6px * var(--s)); scrollbar-width: none;
   background-color: #efe7da; background-image: radial-gradient(rgba(138, 90, 59, 0.08) 1px, transparent 1.5px), radial-gradient(rgba(46, 74, 143, 0.05) 1px, transparent 1.5px); background-size: 18px 18px, 26px 26px; background-position: 0 0, 9px 13px; }
 .chat::-webkit-scrollbar { display: none; }
 .row { display: flex; }

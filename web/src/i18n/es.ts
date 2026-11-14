@@ -138,7 +138,7 @@ export const es: Record<string, string> = {
   'plan.for': 'Plan para {m}',
   'plan.zone': 'Nivel municipio / zona climática · no es tu parcela exacta',
   'plan.h2026': 'Hoy (2026)',
-  'plan.h2040': '2040 (proyección climática)',
+  'plan.h2040': '2040 (proyección)',
   'plan.horizon': 'Clima',
   'plan.when': 'Cuándo sembrar',
   'plan.primera': 'Siembra de Primera',

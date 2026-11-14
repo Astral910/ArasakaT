@@ -4,3 +4,7 @@ declare module '*.vue' {
   const c: DefineComponent<object, object, any>
   export default c
 }
+declare module '*?worker&url' {
+  const url: string
+  export default url
+}

@@ -231,7 +231,8 @@ async function descargar() {
 .d-maiz { border-color: var(--maiz) !important; } .d-granada { border-color: var(--granada) !important; } .d-jade { border-color: var(--jade) !important; }
 .strat { padding-top: 3.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .lead { max-width: 720px; }
-.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin-top: 1rem; align-items: start; }
+.cards > *, .trust > * { min-width: 0; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.1rem; margin-top: 1rem; align-items: start; }
 .soil-s { padding-top: 3.5rem; }
 .soil-s h2 { margin-bottom: 0.5rem; }
 .soil-s .lead { margin-bottom: 1.4rem; }

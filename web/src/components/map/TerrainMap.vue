@@ -43,8 +43,9 @@ function marcar(id?: string) {
 onMounted(async () => {
   if (!el.value) return
   if (!webglOk()) { estado.value = 'sin-webgl'; return }
-  const [ml] = await Promise.all([import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl.css')])
+  const [ml, wk] = await Promise.all([import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'), import('maplibre-gl/dist/maplibre-gl.css')])
   const maplibregl = ((ml as any).default ?? ml) as typeof import('maplibre-gl')
+  maplibregl.setWorkerUrl((wk as { default: string }).default)
   try {
     geo = await fetch('/geo/municipios.geojson').then((r) => r.json())
   } catch { geo = null }
