@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// webdist lo llena el build (scripts/build-web: copia web/dist aquí). En el repo solo hay un index de reserva.
+// webdist lo llena el build (scripts/build: copia web/dist aquí). En el repo solo hay un index de reserva.
 //
 //go:embed all:webdist
 var webEmbed embed.FS
