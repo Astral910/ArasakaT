@@ -71,7 +71,7 @@ export const en: Record<string, string> = {
   'phone.location': 'Location',
   'phone.send': 'Send',
   'phone.replay': 'Replay',
-  'phone.demo': 'Demo conversation (offline)',
+  'phone.demo': 'Demo replay · type to try it',
   'phone.live': 'Live bot',
   'phone.alertNow': 'now',
   'phone.notifTitle': '🌵 Dry-spell alert · Jocotán',
