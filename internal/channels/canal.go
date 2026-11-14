@@ -59,6 +59,12 @@ func Entregar(c Canal, tel string, salidas []bot.Salida) {
 			err = c.EnviarLista(tel, s.Texto, s.Botones)
 		case "location_request":
 			err = c.PedirUbicacion(tel, s.Texto)
+		case "document":
+			if cd, ok := c.(CanalDocumento); ok {
+				err = cd.EnviarDocumento(tel, s)
+			} else {
+				err = c.EnviarTexto(tel, TextoPlano(s))
+			}
 		case "video":
 			if cv, ok := c.(CanalVideo); ok {
 				err = cv.EnviarVideo(tel, s)

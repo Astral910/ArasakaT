@@ -53,13 +53,23 @@ func New(c Config) (*Service, error) {
 		return nil, err
 	}
 	as := forecast.LoadArchives(c.DataDir)
-	e, err := NewEngine(st, &forecast.Provider{Archives: as, Live: forecast.NewClient(c.CacheDir)}, c.Mensajero, c.DataDir)
+	live := forecast.NewClient(c.CacheDir)
+	live.Fresco = 3 * time.Hour // el scheduler revisa cada 3 h: el pronóstico en caché no puede ser más viejo
+	e, err := NewEngine(st, &forecast.Provider{Archives: as, Live: live}, c.Mensajero, c.DataDir)
 	if err != nil {
 		st.Close()
 		return nil, err
 	}
 	return &Service{Engine: e, Store: st, Archives: as, AdminToken: c.AdminToken}, nil
 }
+
+// PruebaAlerta: PRUEBA ALERTA del bot (alerta real calculada al instante para el lugar del suscriptor).
+func (s *Service) PruebaAlerta(sus contract.Suscriptor) ([]string, error) {
+	return s.Engine.Prueba(sus)
+}
+
+// Correr: corrida "ahora" (scheduler cada 3 h).
+func (s *Service) Correr(now time.Time) error { _, err := s.Engine.Correr(now); return err }
 
 // StartScheduler corre el motor a las 06:00 hora de Guatemala.
 func (s *Service) StartScheduler() (stop func()) { return StartScheduler(s.Engine) }
@@ -124,13 +134,18 @@ func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "sin consentimiento no se guarda nada")
 		return
 	}
-	m, ok := s.Engine.Munis[in.MunicipioID]
-	if !ok {
+	// Cualquier lugar del mundo: municipio precalculado, "pt:<lat>,<lon>|<nombre>" o solo lat/lon.
+	if m, ok := s.Engine.Munis[in.MunicipioID]; ok {
+		if in.Lat == 0 && in.Lon == 0 {
+			in.Lat, in.Lon = m.Lat, m.Lon
+		}
+	} else if lat, lon, _, ok := ParsePunto(in.MunicipioID); ok {
+		in.Lat, in.Lon = lat, lon
+	} else if in.Lat != 0 || in.Lon != 0 {
+		in.MunicipioID = PuntoID(in.Lat, in.Lon, "")
+	} else {
 		fail(w, 400, "municipio_id desconocido")
 		return
-	}
-	if in.Lat == 0 && in.Lon == 0 {
-		in.Lat, in.Lon = m.Lat, m.Lon
 	}
 	if in.FechaSiembra != "" {
 		if _, err := time.Parse("2006-01-02", in.FechaSiembra); err != nil {

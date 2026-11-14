@@ -4,21 +4,30 @@ import (
 	"bufio"
 	"os"
 	"strings"
+	"time"
 )
 
 // Config se lee de variables de entorno (y de .env si existe). Nunca hay secretos en el repo.
 type Config struct {
-	Addr          string   // ADDR (por defecto 127.0.0.1:8200; en la nube PORT manda)
-	CORSOrigins   []string // CORS_ORIGINS, separados por coma; "*" = todos
-	WebDir        string   // WEB_DIR: si existe, sirve el front desde disco en lugar del embebido
-	DataDir       string   // DATA_DIR: carpeta data/ (por defecto "data")
-	StaticDir     string   // STATIC_DIR: JSON del modo estático (por defecto "web/public/static")
-	FixturePath   string   // FIXTURE_PATH: plan de ejemplo para el falso del motor
-	DBPath        string   // DB_PATH: SQLite de alertas/sesiones
-	AdminToken    string   // ADMIN_TOKEN: protege /api/admin/*
-	PublicURL     string   // PUBLIC_URL: base pública (links del bot a la web)
-	SchedulerOn   bool     // SCHEDULER: "off" lo apaga
-	SchedulerHora string   // SCHEDULER_HORA: HH:MM hora de Guatemala (por defecto 06:00)
+	Addr          string        // ADDR (por defecto 127.0.0.1:8200; en la nube PORT manda)
+	CORSOrigins   []string      // CORS_ORIGINS, separados por coma; "*" = todos
+	WebDir        string        // WEB_DIR: si existe, sirve el front desde disco en lugar del embebido
+	DataDir       string        // DATA_DIR: carpeta data/ (por defecto "data")
+	StaticDir     string        // STATIC_DIR: JSON del modo estático (por defecto "web/public/static")
+	FixturePath   string        // FIXTURE_PATH: plan de ejemplo para el falso del motor
+	DBPath        string        // DB_PATH: SQLite de alertas/sesiones
+	AdminToken    string        // ADMIN_TOKEN: protege /api/admin/*
+	PublicURL     string        // PUBLIC_URL: base pública (links del bot a la web)
+	SchedulerOn   bool          // SCHEDULER: "off" lo apaga
+	SchedulerHora string        // SCHEDULER_HORA: HH:MM hora de Guatemala (heredado; el scheduler ahora corre cada SCHEDULER_CADA)
+	SchedulerCada time.Duration // SCHEDULER_CADA: cada cuánto revisa el pronóstico de cada suscriptor (por defecto 3h)
+	// WhatsApp vinculado (whatsmeow, ver docs/whatsapp-vinculado.md)
+	WAModo   string // WA_MODO: "vinculado" lo enciende; vacío = solo Cloud/Twilio/simulador
+	WANumero string // WA_NUMERO: número del bot (código de país + número) para el código de 8 letras
+	WADB     string // WA_DB: SQLite de la sesión (por defecto junto a DB_PATH: whatsapp.db)
+	WAQR     string // WA_QR_PNG: PNG del QR mientras no está vinculado
+	WADebug  bool   // WA_DEBUG=1
+	Geo      bool   // GEOCODER=off lo apaga (nombres de lugares del mundo)
 }
 
 func loadConfig() Config {
@@ -39,7 +48,21 @@ func loadConfig() Config {
 		PublicURL:     env("PUBLIC_URL", "http://127.0.0.1:8200"),
 		SchedulerOn:   !strings.EqualFold(os.Getenv("SCHEDULER"), "off"),
 		SchedulerHora: env("SCHEDULER_HORA", "06:00"),
+		SchedulerCada: duracion(os.Getenv("SCHEDULER_CADA"), 3*time.Hour),
+		WAModo:        strings.ToLower(os.Getenv("WA_MODO")),
+		WANumero:      os.Getenv("WA_NUMERO"),
+		WADB:          os.Getenv("WA_DB"),
+		WAQR:          os.Getenv("WA_QR_PNG"),
+		WADebug:       os.Getenv("WA_DEBUG") == "1",
+		Geo:           !strings.EqualFold(os.Getenv("GEOCODER"), "off"),
 	}
+}
+
+func duracion(s string, def time.Duration) time.Duration {
+	if d, err := time.ParseDuration(strings.TrimSpace(s)); err == nil && d >= time.Minute {
+		return d
+	}
+	return def
 }
 
 func env(k, def string) string {

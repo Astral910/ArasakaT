@@ -165,6 +165,8 @@ func TextoPlano(s bot.Salida) string {
 			fmt.Fprintf(&b, "\n%d. %s", i+1, o.Title)
 		}
 		return b.String()
+	case "document":
+		return textoDocLink(s, "")
 	}
 	return s.Texto
 }

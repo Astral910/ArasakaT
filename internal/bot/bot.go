@@ -41,6 +41,10 @@ type Salida struct {
 	ImageURL string         // ruta relativa de la tarjeta (/api/cards/plan.png?...)
 	Idioma   string         // es | en (para dibujar la tarjeta)
 	VideoURL string         // Tipo video: ruta relativa del MP4 (/api/sim/video.mp4?...)
+	// Tipo document: ruta relativa del PDF (/api/informe.pdf?...), nombre del archivo y link web de respaldo.
+	DocURL    string
+	DocNombre string
+	LinkURL   string
 }
 
 // Bot es la máquina de estados. Seguro para uso concurrente.
@@ -52,6 +56,8 @@ type Bot struct {
 	Nombre     string           // nombre del bot (pendiente de decidir por el equipo)
 	WebURL     string           // base pública de la web, sin barra final
 	Ahora      func() time.Time // reloj (tests)
+	Geo        Geocoder         // lugares del mundo por nombre y nombre de una coordenada (opcional)
+	Pruebas    Probador         // PRUEBA ALERTA (opcional; lo cumple alerts.Service)
 
 	locks sync.Map
 }
@@ -116,6 +122,10 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 		return b.ubicacion(se, *e.Lat, *e.Lon)
 	}
 
+	// PRUEBA ALERTA: alerta real calculada ahora para su lugar (demo).
+	if comandosPrueba[cmd] {
+		return b.pruebaAlerta(se)
+	}
 	// Video 3D del plan: botón o comando en cualquier momento.
 	if e.BotonID == "video" || comandosVideo[cmd] {
 		return b.video(se)
@@ -130,7 +140,7 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 	case "ES", "ESPANOL", "SPANISH":
 		b.cambiarIdioma(se, "es")
 		return append(txt(t("es", "idioma_ok")), b.repetir(se)...)
-	case "BAJA", "STOP", "UNSUBSCRIBE", "CANCELAR":
+	case "BAJA", "STOP", "ALTO", "PARAR", "UNSUBSCRIBE", "CANCELAR", "NOMASAVISOS":
 		if b.Subs != nil {
 			if err := b.Subs.Baja(se.Tel); err != nil {
 				log.Printf("bot: baja %s: %v", Enmascarar(se.Tel), err)
@@ -149,10 +159,10 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 		}
 		return b.saludo(se)
 	case "AVISAME", "ALERTS", "ALERTAS", "AVISOS":
-		if se.Plan == nil {
+		if _, ok := b.suscriptorDe(se, ""); !ok {
 			return append(txt(t(L, "sin_plan")), b.saludo(se)...)
 		}
-		return b.preguntarSembro(se)
+		return b.suscribir(se, se.Req.FechaSiembra)
 	case "HOLA", "HI", "HELLO", "BUENAS", "BUENOSDIAS", "BUENASTARDES", "INICIO", "START":
 		if se.Plan != nil {
 			se.Paso = PasoListo
@@ -178,6 +188,11 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 		return b.buscarMunicipio(se, e.Texto)
 	case PasoElegirMun:
 		if id, ok := elegirDe(e, se.Candidatos, nil); ok {
+			if strings.HasPrefix(id, "geo:") {
+				if i, err := strconv.Atoi(id[4:]); err == nil && i < len(se.Lugares) {
+					return b.fijarPunto(se, se.Lugares[i])
+				}
+			}
 			if m := b.Municipios.ByID[id]; m != nil {
 				return b.fijarMunicipio(se, m, nil, nil)
 			}
@@ -189,7 +204,12 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 			return append(txt(t(L, "no_entendi")), b.preguntar(se, PasoCultivo)...)
 		}
 		se.Req.Cultivo = id
-		return b.preguntar(se, PasoRiego)
+		return b.preguntar(se, PasoTamano)
+	case PasoTamano:
+		if out, ok := b.respuestaTamano(se, e); ok {
+			return out
+		}
+		return append(txt(t(L, "no_entendi")), b.preguntar(se, PasoTamano)...)
 	case PasoRiego:
 		id, ok := elegir(e, opcRiego)
 		if !ok {
@@ -202,7 +222,8 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 			return append(txt(t(L, "no_entendi")), b.preguntar(se, PasoRiego)...)
 		}
 		fijarRiego(se, id)
-		return b.preguntar(se, PasoGanado)
+		// Solo las preguntas básicas (como la landing): ganado y prioridad van con valores por defecto.
+		return b.calcularPlan(se)
 	case PasoGanado:
 		id, ok := elegirSiNo(e)
 		if !ok {
@@ -236,6 +257,10 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 		if se.Suscrito {
 			if r := seguimientoTexto(e.Texto); r != "" {
 				return b.seguimiento(se, "seg:"+r)
+			}
+			// "20/05": fecha de siembra → avisos según la etapa del cultivo
+			if f, ok := parseFecha(e.Texto, b.ahora()); ok {
+				return b.suscribir(se, f)
 			}
 		}
 		return txt(t(L, "ayuda"))
@@ -285,7 +310,7 @@ func (b *Bot) cambiarIdioma(se *Sesion, L string) {
 // repetir vuelve a hacer la pregunta del paso actual (tras cambiar de idioma, etc.).
 func (b *Bot) repetir(se *Sesion) []Salida {
 	switch se.Paso {
-	case PasoCultivo, PasoRiego, PasoGanado, PasoPrioridad:
+	case PasoCultivo, PasoTamano, PasoRiego, PasoGanado, PasoPrioridad:
 		return b.preguntar(se, se.Paso)
 	case PasoPlan, PasoListo:
 		if se.Plan != nil {
@@ -307,8 +332,8 @@ func (b *Bot) ubicacion(se *Sesion, lat, lon float64) []Salida {
 	}
 	m := b.Municipios.Locate(lat, lon)
 	if m == nil {
-		se.Paso = PasoUbicacion
-		return txt(t(se.Idioma, "municipio_lejos"))
+		// Cualquier lugar del mundo: el motor arma el plan global (/api/plan con lat/lon).
+		return b.puntoDesdeUbicacion(se, lat, lon)
 	}
 	return b.fijarMunicipio(se, m, &lat, &lon)
 }
@@ -321,6 +346,9 @@ func (b *Bot) buscarMunicipio(se *Sesion, q string) []Salida {
 	}
 	ms := b.Municipios.Search(q, 10)
 	if len(ms) == 0 {
+		if out, ok := b.buscarEnElMundo(se, q); ok {
+			return out
+		}
 		se.Paso = PasoUbicacion
 		return txt(t(L, "municipio_no", strings.TrimSpace(q)))
 	}
@@ -348,7 +376,8 @@ func (b *Bot) fijarMunicipio(se *Sesion, m *geo.Municipio, lat, lon *float64) []
 	se.Req.MunicipioID = m.ID
 	se.Req.Lat, se.Req.Lon = lat, lon
 	se.Municipio = m.Name + ", " + m.Dept
-	se.Candidatos = nil
+	se.Candidatos, se.Lugares = nil, nil
+	se.Pais = "GT"
 	se.Plan = nil
 	ok := txt(t(se.Idioma, "municipio_ok", m.Name, m.Dept))
 	return append(ok, b.preguntar(se, PasoCultivo)...)
@@ -362,6 +391,11 @@ func (b *Bot) preguntar(se *Sesion, paso string) []Salida {
 	switch paso {
 	case PasoCultivo:
 		ops, tipo = opcCultivo, "list"
+	case PasoTamano:
+		for _, o := range opcionesTamano(se) {
+			ops = append(ops, o.opcion)
+		}
+		tipo = "list"
 	case PasoRiego:
 		ops, tipo = opcRiego, "list"
 	case PasoGanado:
@@ -391,6 +425,9 @@ func (b *Bot) calcularPlan(se *Sesion) []Salida {
 		r.Horizonte = "2026"
 	}
 	r.SemillaCobertura = true
+	if r.Prioridad == "" {
+		r.Prioridad = "comida"
+	}
 	if b.Planner == nil {
 		log.Printf("bot: %v", errSinPlanner)
 		return txt(t(se.Idioma, "error_plan"))
@@ -398,6 +435,13 @@ func (b *Bot) calcularPlan(se *Sesion) []Salida {
 	p, err := b.Planner.Plan(*r)
 	if err != nil || len(p.Estrategias) == 0 {
 		log.Printf("bot: plan %s: %v", r.MunicipioID, err)
+		// Sin plan para ese punto todavía: las alertas igual funcionan (pronóstico en vivo para cualquier lugar).
+		if _, ok := b.suscriptorDe(se, ""); ok && !se.Suscrito {
+			se.Paso = PasoPlan
+			se.Ofrecidas = []string{"sub_si", "sub_no"}
+			return []Salida{{Tipo: "text", Texto: t(se.Idioma, "error_plan_punto")},
+				{Tipo: "buttons", Texto: t(se.Idioma, "suscribir_pregunta"), Botones: botones(se.Idioma, opcSuscribir)}}
+		}
 		return txt(t(se.Idioma, "error_plan"))
 	}
 	se.Plan = &p
@@ -412,7 +456,7 @@ func (b *Bot) resumen(se *Sesion, conSuscripcion bool) []Salida {
 	rec, base := recomendada(p), base(p)
 	riego := textoRiego(se)
 	lineas := []string{
-		fmt.Sprintf("📍 *%s* · %s · %s", nombreMunicipio(se, p), tituloCultivo(L, se.Req.Cultivo), pick(L, riego)),
+		strings.Join(noVacios(fmt.Sprintf("📍 *%s*", nombreMunicipio(se, p)), tituloCultivo(L, se.Req.Cultivo), textoArea(L, se.Req), pick(L, riego)), " · "),
 		pick(L, [2]string{
 			fmt.Sprintf("🌱 Sembrá Primera del %s al %s · Postrera del %s al %s", fecha(L, p.VentanaPrimera.Inicio), fecha(L, p.VentanaPrimera.Fin), fecha(L, p.VentanaPostrera.Inicio), fecha(L, p.VentanaPostrera.Fin)),
 			fmt.Sprintf("🌱 Plant Primera %s–%s · Postrera %s–%s", fecha(L, p.VentanaPrimera.Inicio), fecha(L, p.VentanaPrimera.Fin), fecha(L, p.VentanaPostrera.Inicio), fecha(L, p.VentanaPostrera.Fin)),
@@ -464,7 +508,14 @@ func (b *Bot) resumen(se *Sesion, conSuscripcion bool) []Salida {
 		det += "\n\n" + t(L, "ver_web", b.LinkWeb(req))
 	}
 	out = append(out, Salida{Tipo: "text", Texto: det})
-	out = append(out, Salida{Tipo: "buttons", Texto: t(L, "video_ofrecer"), Botones: botones(L, opcVideo)})
+	if conSuscripcion {
+		// Primera vez: el video guía y el informe salen solos (menos clics, como la landing).
+		out = append(out, b.video(se)...)
+		out = append(out, b.informe(se))
+		se.Paso = PasoPlan
+	} else {
+		out = append(out, Salida{Tipo: "buttons", Texto: t(L, "video_ofrecer"), Botones: botones(L, opcVideo)})
+	}
 	if conSuscripcion && !se.Suscrito {
 		se.Ofrecidas = []string{"sub_si", "sub_no"}
 		out = append(out, Salida{Tipo: "buttons", Texto: t(L, "suscribir_pregunta"), Botones: botones(L, opcSuscribir)})
@@ -528,7 +579,7 @@ func (b *Bot) detalle(se *Sesion, i int) []Salida {
 
 func (b *Bot) respuestaSuscribir(se *Sesion, id string) []Salida {
 	if id == "sub_si" {
-		return b.preguntarSembro(se)
+		return b.suscribir(se, se.Req.FechaSiembra)
 	}
 	se.Paso = PasoListo
 	return txt(t(se.Idioma, "no_suscrito"))
@@ -550,28 +601,9 @@ func (b *Bot) respuestaSembro(se *Sesion, id string) []Salida {
 
 func (b *Bot) suscribir(se *Sesion, fechaSiembra string) []Salida {
 	L := se.Idioma
-	s := contract.Suscriptor{
-		ID:             "sub-" + hashCorto(se.Tel),
-		Telefono:       se.Tel,
-		MunicipioID:    se.Req.MunicipioID,
-		Cultivo:        se.Req.Cultivo,
-		Estrategia:     se.Estrategia,
-		FechaSiembra:   fechaSiembra,
-		Idioma:         L,
-		Consentimiento: b.ahora().Format(time.RFC3339),
-		Activo:         true,
-	}
-	if s.Estrategia == "" {
-		if r := recomendada(se.Plan); r != nil {
-			s.Estrategia = r.ID
-		}
-	}
-	if se.Req.Lat != nil && se.Req.Lon != nil {
-		s.Lat, s.Lon = *se.Req.Lat, *se.Req.Lon
-	} else if b.Municipios != nil {
-		if m := b.Municipios.ByID[s.MunicipioID]; m != nil {
-			s.Lat, s.Lon = m.Lat, m.Lon
-		}
+	s, ok := b.suscriptorDe(se, fechaSiembra)
+	if !ok {
+		return append(txt(t(L, "sin_plan")), b.saludo(se)...)
 	}
 	se.Req.FechaSiembra = fechaSiembra
 	if b.Subs != nil {
@@ -585,6 +617,9 @@ func (b *Bot) suscribir(se *Sesion, fechaSiembra string) []Salida {
 	lugar := se.Municipio
 	if i := strings.Index(lugar, ","); i > 0 {
 		lugar = lugar[:i]
+	}
+	if fechaSiembra != "" {
+		return txt(t(L, "suscrito_fecha", lugar, fecha(L, fechaSiembra[5:])))
 	}
 	return txt(t(L, "suscrito", lugar))
 }
@@ -713,9 +748,8 @@ func (b *Bot) video(se *Sesion) []Salida {
 		{Tipo: "video", Texto: t(L, "video_caption", nombreMunicipio(se, se.Plan), linea), VideoURL: "/api/sim/video.mp4?" + c.Query().Encode(), Idioma: L},
 	}
 	if b.WebURL != "" {
-		q := c.Query()
-		q.Del("calidad")
-		q.Del("vertical")
+		q := QuerySandbox(se, b.Municipios)
+		q.Set("estrategia", c.Estrategia)
 		out = append(out, Salida{Tipo: "text", Texto: t(L, "video_web", strings.TrimRight(b.WebURL, "/")+"/sandbox?"+q.Encode())})
 	}
 	return out
@@ -1013,10 +1047,23 @@ func num(f float64) string {
 }
 
 func nombreMunicipio(se *Sesion, p *contract.Plan) string {
-	if p != nil && p.Municipio.Nombre != "" {
+	if p != nil && p.Municipio.Nombre != "" && (se.Req.MunicipioID != "" || se.Municipio == "") {
+		if p.Municipio.Departamento == "" {
+			return p.Municipio.Nombre
+		}
 		return p.Municipio.Nombre + ", " + p.Municipio.Departamento
 	}
 	return se.Municipio
+}
+
+func noVacios(xs ...string) []string {
+	var out []string
+	for _, x := range xs {
+		if strings.TrimSpace(x) != "" {
+			out = append(out, x)
+		}
+	}
+	return out
 }
 
 func tituloCultivo(L, id string) string {

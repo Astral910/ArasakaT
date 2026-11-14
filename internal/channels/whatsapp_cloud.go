@@ -44,6 +44,7 @@ type Cloud struct {
 	Sync bool
 	// Videos genera o toma de caché el MP4 del sandbox (VIDEO 🎬); PublicURL para el link de respaldo.
 	Videos    FuenteVideo
+	Informes  FuenteInforme
 	PublicURL string
 
 	vistos *dedup
@@ -275,6 +276,31 @@ func (c *Cloud) EnviarVideo(tel string, s bot.Salida) error {
 	if err != nil {
 		log.Printf("channels: video a %s: %v → texto con link", bot.Enmascarar(tel), err)
 		return c.EnviarTexto(tel, textoConLink(s, c.PublicURL))
+	}
+	return nil
+}
+
+// EnviarDocumento: baja el informe PDF, lo sube a /media y lo manda como documento; si falla, el link.
+func (c *Cloud) EnviarDocumento(tel string, s bot.Salida) error {
+	err := func() error {
+		if c.Informes == nil {
+			return errors.New("sin fuente de informes")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+		pdf, err := c.Informes.PDF(ctx, queryDoc(s))
+		if err != nil {
+			return err
+		}
+		id, err := c.subirMedia(pdf, "application/pdf", s.DocNombre)
+		if err != nil {
+			return err
+		}
+		return c.enviar(tel, "document", map[string]string{"id": id, "filename": s.DocNombre, "caption": recortar(s.Texto, 1024)})
+	}()
+	if err != nil {
+		log.Printf("channels: informe a %s: %v → texto con link", bot.Enmascarar(tel), err)
+		return c.EnviarTexto(tel, textoDocLink(s, c.PublicURL))
 	}
 	return nil
 }

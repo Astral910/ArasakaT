@@ -66,17 +66,29 @@ func TestConversacionCompletaConUbicacion(t *testing.T) {
 	out = say(Entrada{Tipo: "location", Lat: f64(m.Lat), Lon: f64(m.Lon)})
 	debe(t, out, "Jocotán, Chiquimula ✅", "¿Qué sembrás?", "[milpa]")
 	out = say(Entrada{Tipo: "interactive", BotonID: "milpa"})
+	debe(t, out, "¿De qué tamaño", "[c1] 1 cuerda", "[m1] 1 manzana")
+	out = say(Entrada{Texto: "3 cuerdas"})
 	debe(t, out, "¿Cuánto regás", "[nada] Nada", "[mucho] Mucho · ~35 mm/semana")
 	if out[0].Tipo != "list" {
 		t.Fatalf("riego debe ser lista (4 opciones): %s", out[0].Tipo)
 	}
 	out = say(Entrada{Tipo: "interactive", BotonID: "nada"})
-	debe(t, out, "ganado")
-	out = say(Entrada{Texto: "no"})
-	debe(t, out, "¿Qué te importa más", "[comida]")
-	out = say(Entrada{Texto: "1"}) // comida, respondiendo con número
-	debe(t, out, "📍 *Jocotán, Chiquimula*", "Sembrá Primera del 15 may al 5 jun", "canícula", "Mejor opción", "Respondé *1*, *2* o *3*",
-		"https://fieldshift.example/plan?", "[sub_si]")
+	// solo las preguntas básicas: cultivo, tamaño (defecto 1 manzana) y riego → plan, video, informe y alertas
+	debe(t, out, "📍 *Jocotán, Chiquimula* · Milpa (maíz y frijol) · 3 cuerdas · sin riego", "Sembrá Primera del 15 may al 5 jun", "canícula", "Mejor opción", "Respondé *1*, *2* o *3*",
+		"https://fieldshift.example/plan?", "[sub_si]", "Preparando el video", "Informe técnico")
+	var doc *Salida
+	for i := range out {
+		if out[i].Tipo == "document" {
+			doc = &out[i]
+		}
+	}
+	if doc == nil || !strings.HasPrefix(doc.DocURL, "/api/informe.pdf?") || !strings.Contains(doc.DocURL, "unidad=cuerda") || !strings.Contains(doc.DocURL, "area=3") ||
+		!strings.Contains(doc.DocURL, "pais=GT") || !strings.Contains(doc.DocURL, "riego=0") || !strings.Contains(doc.LinkURL, "https://fieldshift.example/informe?") {
+		t.Fatalf("falta el informe PDF: %+v", doc)
+	}
+	if out[len(out)-1].Tipo != "buttons" || out[len(out)-1].Botones[0].ID != "sub_si" {
+		t.Fatalf("la pregunta de alertas va al final: %s", todo(out))
+	}
 	var img *Salida
 	for i := range out {
 		if out[i].Tipo == "image" {
@@ -94,13 +106,12 @@ func TestConversacionCompletaConUbicacion(t *testing.T) {
 	out = say(Entrada{Texto: "3"})
 	debe(t, out, "*3 · Milpa con cobertura de mucuna*", "Temporadas perdidas: ~3 de cada 10", "extensionista")
 	out = say(Entrada{Tipo: "interactive", BotonID: "sub_si"})
-	debe(t, out, "¿Ya sembraste?", "[sembro_si]")
-	out = say(Entrada{Tipo: "interactive", BotonID: "sembro_si"})
-	debe(t, out, "¿Qué día")
-	out = say(Entrada{Texto: "31/02"})
-	debe(t, out, "No entendí la fecha")
+	debe(t, out, "¡Listo! ✅", "Jocotán", "PRUEBA ALERTA", "ALTO", "7:00 a 20:00")
+	if s := subs.Subs[tel]; !s.Activo || s.FechaSiembra != "" {
+		t.Fatalf("suscrito sin fecha: %+v", s)
+	}
 	out = say(Entrada{Texto: "20/05"})
-	debe(t, out, "¡Listo! ✅", "Jocotán")
+	debe(t, out, "¡Listo! ✅", "Jocotán", "20 may")
 
 	s, ok := subs.Subs[tel]
 	if !ok || !s.Activo || s.FechaSiembra != "2026-05-20" || s.MunicipioID != "jocotan-chiquimula" || s.Estrategia != "S2" || s.Cultivo != "milpa" || s.Lat == 0 {
@@ -125,7 +136,7 @@ func TestConversacionCompletaConUbicacion(t *testing.T) {
 
 	// Comandos.
 	debe(t, say(Entrada{Texto: "MENU"}), "📍 *Jocotán, Chiquimula*")
-	debe(t, say(Entrada{Texto: "ayuda"}), "CAMBIAR", "BAJA")
+	debe(t, say(Entrada{Texto: "ayuda"}), "CAMBIAR", "ALTO", "PRUEBA ALERTA")
 	out = say(Entrada{Texto: "EN"})
 	debe(t, out, "switching to English", "Best option", "idioma=en")
 	for _, s := range out {
@@ -135,7 +146,7 @@ func TestConversacionCompletaConUbicacion(t *testing.T) {
 	}
 	debe(t, say(Entrada{Texto: "2"}), "Seasons lost")
 	debe(t, say(Entrada{Texto: "ES"}), "seguimos en español")
-	debe(t, say(Entrada{Texto: "baja"}), "ya no te mando avisos")
+	debe(t, say(Entrada{Texto: "alto"}), "ya no te mando avisos")
 	if subs.Subs[tel].Activo {
 		t.Fatal("BAJA no desactivó")
 	}
@@ -159,8 +170,8 @@ func TestMunicipioEscritoYAmbiguo(t *testing.T) {
 	// Primer mensaje que ya es un municipio.
 	out = b.Responder(Entrada{Tel: "50255550003", Texto: "Jocotán"})
 	debe(t, out, "Jocotán, Chiquimula ✅")
-	// Ubicación fuera de Guatemala.
-	debe(t, b.Responder(Entrada{Tel: "50255550004", Lat: f64(40.4), Lon: f64(-3.7)}), "fuera de Guatemala")
+	// Ubicación fuera de Guatemala: sirve igual (plan global por lat/lon); sin geocodificador, con coordenadas.
+	debe(t, b.Responder(Entrada{Tel: "50255550004", Lat: f64(40.4), Lon: f64(-3.7)}), "📍 40.400, -3.700 ✅", "¿Qué sembrás?")
 }
 
 func TestTextoLibreYEntradasRaras(t *testing.T) {
@@ -170,24 +181,23 @@ func TestTextoLibreYEntradasRaras(t *testing.T) {
 	say(Entrada{Texto: "hola"})
 	say(Entrada{Texto: "Jocotan"})
 	debe(t, say(Entrada{Texto: "banano"}), "No te entendí", "¿Qué sembrás?")
-	debe(t, say(Entrada{Texto: "maíz"}), "regás")
+	debe(t, say(Entrada{Texto: "maíz"}), "tamaño")
 	debe(t, say(Entrada{Tipo: "audio"}), "notas de voz")
-	debe(t, say(Entrada{Texto: "sí"}), "ganado")
-	debe(t, say(Entrada{Texto: "yes"}), "importa")
-	out := say(Entrada{Texto: "cuidar el suelo"})
-	debe(t, out, "Mejor opción")
+	debe(t, say(Entrada{Texto: "un terreno grande"}), "No te entendí", "tamaño")
+	debe(t, say(Entrada{Texto: "media manzana"}), "regás")
+	out := say(Entrada{Texto: "sí"})
+	debe(t, out, "Mejor opción", "0.5 manzanas", "riego 20 mm/semana")
 	debe(t, say(Entrada{Texto: "No, gracias"}), "AVISAME")
 	if len(subs.Subs) != 0 {
 		t.Fatal("no debía suscribir")
 	}
-	debe(t, say(Entrada{Texto: "avisame"}), "¿Ya sembraste?")
-	debe(t, say(Entrada{Texto: "todavía no"}), "¡Listo! ✅")
+	debe(t, say(Entrada{Texto: "avisame"}), "¡Listo! ✅")
 	if s := subs.Subs[tel]; !s.Activo || s.FechaSiembra != "" || s.Cultivo != "maiz" {
 		t.Fatalf("suscriptor: %+v", s)
 	}
 	// La sesión persiste en archivo.
 	st := NewStore(b.Sesiones.path)
-	if se := st.Get(tel); se.Plan == nil || se.Req.Prioridad != "suelo" || !se.Suscrito {
+	if se := st.Get(tel); se.Plan == nil || se.Req.AreaValor != 0.5 || !se.Suscrito {
 		t.Fatalf("sesión no persistió: %+v", se)
 	}
 }
@@ -200,11 +210,10 @@ func TestEnglishFlow(t *testing.T) {
 	debe(t, say(Entrada{Texto: "EN"}), "switching to English", "Send your location")
 	debe(t, say(Entrada{Texto: "Jocotán"}), "What do you grow?")
 	say(Entrada{BotonID: "milpa"})
-	say(Entrada{BotonID: "si"})
-	say(Entrada{BotonID: "si"})
-	out := say(Entrada{BotonID: "agua"})
-	debe(t, out, "Plant Primera May 15–Jun 5", "Best option", "Reply *1*, *2* or *3*", "Yes, alert me", "[video] 🎬 See my milpa 3D", "irrigation 20 mm/week")
-	if p := out[1].Plan; p == nil || p.Request.Idioma != "en" || !p.Request.Riego || !p.Request.Ganado || p.Request.Prioridad != "agua" {
+	debe(t, say(Entrada{Texto: "1 ha"}), "How much do you irrigate")
+	out := say(Entrada{BotonID: "si"})
+	debe(t, out, "Plant Primera May 15–Jun 5", "Best option", "Reply *1*, *2* or *3*", "Yes, alert me", "Your milpa in 3D", "Technical report", "irrigation 20 mm/week", "1 ha")
+	if p := out[1].Plan; p == nil || p.Request.Idioma != "en" || !p.Request.Riego || p.Request.Ganado || p.Request.Prioridad != "comida" || p.Request.AreaUnidad != "ha" {
 		t.Fatalf("request mal armado: %+v", p.Request)
 	}
 }
@@ -225,9 +234,8 @@ func TestResumenDelMotor(t *testing.T) {
 	say(Entrada{Texto: "hola"})
 	say(Entrada{Texto: "Jocotán"})
 	say(Entrada{BotonID: "milpa"})
-	say(Entrada{BotonID: "no"})
-	say(Entrada{BotonID: "no"})
-	out := say(Entrada{BotonID: "comida"})
+	say(Entrada{BotonID: "m1"})
+	out := say(Entrada{BotonID: "nada"})
 	if out[0].Texto != strings.Join(p.Resumen, "\n") {
 		t.Fatalf("resumen:\n%s\nquería:\n%s", out[0].Texto, strings.Join(p.Resumen, "\n"))
 	}
@@ -269,14 +277,14 @@ func TestRiegoNivelesYVideo(t *testing.T) {
 	say(Entrada{Texto: "hola"})
 	say(Entrada{Texto: "Camotán"})
 	say(Entrada{BotonID: "milpa"})
-	debe(t, say(Entrada{Texto: "4"}), "ganado") // 4 = mucho, por número
+	say(Entrada{Texto: "4"})        // tamaño: 4 = 1 manzana, por número
+	out := say(Entrada{Texto: "4"}) // riego: 4 = mucho, por número
 	se := b.Sesiones.Get(tel)
-	if se.RiegoNivel != "mucho" || se.Req.RiegoMMSemana == nil || *se.Req.RiegoMMSemana != 35 || !se.Req.Riego {
-		t.Fatalf("riego mal guardado: %+v", se.Req)
+	if se.RiegoNivel != "mucho" || se.Req.RiegoMMSemana == nil || *se.Req.RiegoMMSemana != 35 || !se.Req.Riego || se.Req.AreaValor != 1 || se.Req.AreaUnidad != "manzana" {
+		t.Fatalf("riego/tamaño mal guardado: %+v", se.Req)
 	}
-	say(Entrada{Texto: "no"})
-	out := say(Entrada{BotonID: "comida"})
-	debe(t, out, "riego 35 mm/semana", "[video] 🎬 Ver mi milpa 3D", "VIDEO")
+	debe(t, out, "riego 35 mm/semana", "Tu milpa en 3D", "riego=35")
+	debe(t, say(Entrada{Texto: "menu"}), "[video] 🎬 Ver mi milpa 3D")
 	if p := out[1].Plan; p == nil || p.Request.RiegoMMSemana == nil || *p.Request.RiegoMMSemana != 35 {
 		t.Fatalf("el plan no recibió riego_mm_semana: %+v", p)
 	}
@@ -320,7 +328,8 @@ func TestRiegoTextoLibre(t *testing.T) {
 		say(Entrada{Texto: "hola"})
 		say(Entrada{Texto: "Jocotan"})
 		say(Entrada{BotonID: "maiz"})
-		debe(t, say(Entrada{Texto: in}), "ganado")
+		say(Entrada{Texto: "no sé"})
+		debe(t, say(Entrada{Texto: in}), "Mejor opción")
 		if got := b.Sesiones.Get(tel).RiegoNivel; got != want {
 			t.Fatalf("%q → %q, quería %q", in, got, want)
 		}

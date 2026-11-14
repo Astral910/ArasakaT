@@ -32,6 +32,16 @@ type Ctx struct {
 	DryThr map[string]float64
 	// HeavyThr umbral de lluvia fuerte por modelo (CalibrateHeavy). Vacío = regla fija P99 / 3 días > P95.
 	HeavyThr map[string]float64
+	// Sur: hemisferio sur (puntos del mundo): las temporadas se corren 6 meses.
+	Sur bool
+}
+
+// fecha de temporada: en el hemisferio sur, el calendario se corre 6 meses (mayo–octubre ↔ noviembre–abril).
+func (c Ctx) estacion() time.Time {
+	if c.Sur {
+		return c.Date.AddDate(0, 6, 0)
+	}
+	return c.Date
 }
 
 // Event: resultado de una regla, antes de escribir el texto para cada persona.
@@ -143,7 +153,7 @@ func spellProb(ms []forecast.Run, from, to int, cal map[string]float64) (prob fl
 
 // RuleCanicula racha seca ≥ 7 días que empieza en los próximos 10 días (mayo–octubre).
 func RuleCanicula(c Ctx) *Event {
-	if !inSeason(c.Date) {
+	if !inSeason(c.estacion()) {
 		return nil
 	}
 	p, yes, tot, st, n := spellProb(c.Members, 0, SpellLookahead-1, c.DryThr)
@@ -163,15 +173,15 @@ func HeavyThreshold(cl *Clim) float64 {
 
 // RuleLluviaFuerte: en los próximos 7 días, un día por encima del umbral calibrado del propio modelo (CalibrateHeavy).
 // Sin calibración (no hay archivo de pronósticos): un día > P99 local (tope 50 mm) o 3 días seguidos > P95.
+// Punto del mundo sin climatología: un día > 50 mm o 3 días seguidos > 25 mm (umbrales fijos, conservadores).
 func RuleLluviaFuerte(c Ctx) *Event {
-	if c.Clim == nil {
-		return nil
-	}
-	if len(c.HeavyThr) > 0 {
+	if len(c.HeavyThr) > 0 && c.Clim != nil {
 		return heavyCalibrated(c)
 	}
-	thr1 := HeavyThreshold(c.Clim)
-	thr3 := c.Clim.P95
+	thr1, thr3 := HeavyAbsMM, HeavyAbsMM/2
+	if c.Clim != nil {
+		thr1, thr3 = HeavyThreshold(c.Clim), c.Clim.P95
+	}
 	var starts, maxs []float64
 	yes, tot := 0, 0
 	for _, m := range c.Members {
@@ -212,7 +222,7 @@ func RuleLluviaFuerte(c Ctx) *Event {
 // y sin racha seca de ≥ 7 días en el resto del pronóstico; si viene una racha → falso inicio.
 // Después de un aviso de inicio, una racha seca dentro de 30 días también es falso inicio.
 func RuleInicio(c Ctx) *Event {
-	md := int(c.Date.Month())*100 + c.Date.Day()
+	md := int(c.estacion().Month())*100 + c.estacion().Day()
 	if c.InicioEmitido != nil {
 		days := int(c.Date.Sub(*c.InicioEmitido).Hours() / 24)
 		if days < 1 || days > 30 {

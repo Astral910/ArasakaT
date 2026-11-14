@@ -133,13 +133,15 @@ func Day(t time.Time) time.Time {
 
 // RunResult lo que hizo una corrida.
 type RunResult struct {
-	Fecha     string            `json:"fecha"`
-	Saltada   bool              `json:"saltada"` // ya estaba hecha (idempotente)
-	Revisados int               `json:"revisados"`
-	Emitidas  int               `json:"emitidas"`
-	Enviadas  int               `json:"enviadas"`
-	Errores   []string          `json:"errores,omitempty"`
-	Alertas   []contract.Alerta `json:"alertas"`
+	Fecha     string `json:"fecha"`
+	Saltada   bool   `json:"saltada"` // ya estaba hecha (idempotente)
+	Revisados int    `json:"revisados"`
+	Emitidas  int    `json:"emitidas"`
+	Enviadas  int    `json:"enviadas"`
+	// FueraDeHora: suscriptores que no se revisaron porque en su lugar es de noche (antes de 7:00 o después de 20:00).
+	FueraDeHora int               `json:"fuera_de_hora"`
+	Errores     []string          `json:"errores,omitempty"`
+	Alertas     []contract.Alerta `json:"alertas"`
 }
 
 // Run corre el motor para el día `date` (YYYY-MM-DD local de Guatemala). Idempotente: una corrida terminada no se repite
@@ -166,14 +168,15 @@ func (e *Engine) Run(date time.Time, force bool) (RunResult, error) {
 	fcErr := map[key]error{}
 	for _, s := range subs {
 		res.Revisados++
-		m, ok := e.Munis[s.MunicipioID]
-		if !ok {
-			res.Errores = append(res.Errores, "municipio desconocido "+s.MunicipioID)
+		m, cl, err := e.Lugar(s)
+		if err != nil {
+			res.Errores = append(res.Errores, err.Error())
 			continue
 		}
-		cl, err := e.Clim(m)
-		if err != nil {
-			res.Errores = append(res.Errores, "clima "+m.Cell+": "+err.Error())
+		// Horario decente (7:00–20:00 hora local de la persona): fuera de hora no se evalúa ni se guarda;
+		// la corrida siguiente (cada 3 h) lo manda cuando ya es de día.
+		if !HoraDecente(HoraLocal(m, e.now())) {
+			res.FueraDeHora++
 			continue
 		}
 		k := key{m.ID}
@@ -185,14 +188,14 @@ func (e *Engine) Run(date time.Time, force bool) (RunResult, error) {
 			}
 			members[k] = ms
 		}
-		ctx := Ctx{Date: date, Members: members[k], Obs: cl.ObsBefore(date, 10), Clim: cl, ONI: e.ONI, DryThr: e.Cal(m).Dry, HeavyThr: e.Cal(m).Heavy}
+		ctx := e.ctx(m, cl, members[k], date)
 		if em, ini, ok := e.Store.UltimaAlerta(s.ID, TInicio, ds); ok && em[:4] == ds[:4] {
 			if t, err := time.Parse("2006-01-02", em); err == nil {
 				_ = ini
 				ctx.InicioEmitido = &t
 			}
 		}
-		p := Persona{Municipio: m.Name, Cultivo: s.Cultivo, FechaSiembra: s.FechaSiembra, Idioma: s.Idioma}
+		p := Persona{Municipio: m.Name, Cultivo: s.Cultivo, FechaSiembra: s.FechaSiembra, Idioma: s.Idioma, Global: cl == nil}
 		var out []contract.Alerta
 		for _, ev := range Evaluate(ctx) {
 			if e.enCooldown(s.ID, ev.Tipo, date) {
@@ -214,10 +217,16 @@ func (e *Engine) Run(date time.Time, force bool) (RunResult, error) {
 				continue
 			}
 			if !nuevo {
-				continue
+				// Ya estaba: si el envío anterior falló (canal caído), se reintenta; si se mandó, nada (sin duplicar).
+				id, enviada, ok := e.Store.EstadoEnvio(a.SuscriptorID, a.Tipo, a.FechaEmision)
+				if !ok || enviada || e.Mensajero == nil {
+					continue
+				}
+				a.ID = id
+			} else {
+				res.Emitidas++
+				res.Alertas = append(res.Alertas, *a)
 			}
-			res.Emitidas++
-			res.Alertas = append(res.Alertas, *a)
 			if e.Mensajero == nil {
 				continue
 			}
@@ -251,8 +260,9 @@ func (e *Engine) enCooldown(susID, tipo string, date time.Time) bool {
 }
 
 // send dentro de la ventana de 24 h: mensaje normal (seguimiento con botones); fuera: plantilla Utility aprobada.
+// Con un canal sin ventana (WhatsApp vinculado, simulador) siempre va el mensaje normal.
 func (e *Engine) send(s contract.Suscriptor, a contract.Alerta, p Persona) (string, error) {
-	if e.Store.VentanaAbierta(s.Telefono, e.now()) {
+	if sv, ok := e.Mensajero.(SinVentana); (ok && sv.SinVentana(s.Telefono)) || e.Store.VentanaAbierta(s.Telefono, e.now()) {
 		if a.Tipo == TSeguimiento {
 			_, bs := RenderSeguimiento(p, Day(e.now()))
 			for i := range bs {

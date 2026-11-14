@@ -30,7 +30,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if cfg.SchedulerOn {
-		go scheduler(ctx, cfg.SchedulerHora, a.alertador)
+		go scheduler(ctx, cfg.SchedulerCada, a.alertador)
 	}
 
 	srv := &http.Server{
@@ -67,6 +67,10 @@ func newServer(cfg Config) (http.Handler, *app) {
 	// El resumen del panel del extensionista es público (solo conteos, sin teléfonos); lo demás de admin no.
 	root.Handle("GET /api/admin/resumen", api)
 	root.Handle("/api/admin/", adminOnly(cfg.AdminToken, api))
+	if a.waAdmin != nil { // vinculación de WhatsApp (QR / código): /admin/whatsapp?token=…
+		root.Handle("/admin/whatsapp", adminOnly(cfg.AdminToken, a.waAdmin))
+		root.Handle("/admin/whatsapp/", adminOnly(cfg.AdminToken, a.waAdmin))
+	}
 	root.Handle("/api/", api)
 	root.Handle("/webhook/", api)
 	root.Handle("/", spaHandler(frontFS(cfg)))

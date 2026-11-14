@@ -4,8 +4,10 @@ package main
 // (p. ej. falta data/), el servidor sigue con su falso y lo dice en /healthz.
 
 import (
+	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,15 +15,17 @@ import (
 	"time"
 
 	"fieldshift/internal/alerts"
+	"fieldshift/internal/bot"
 	"fieldshift/internal/channels"
+	"fieldshift/internal/channels/whatsmeow"
 	"fieldshift/internal/contract"
 	"fieldshift/internal/geo"
 	"fieldshift/internal/plan"
 )
 
-// Alertador lo implementa internal/alerts: corrida diaria idempotente.
+// Alertador lo implementa internal/alerts: corrida "ahora" (cada 3 h), sin duplicar.
 type Alertador interface {
-	RunDaily(date string) error
+	Correr(now time.Time) error
 }
 
 // Componentes indica qué está real y qué es falso (sale en /healthz).
@@ -39,6 +43,7 @@ type app struct {
 	alertador Alertador
 	comp      Componentes
 	cerrar    []func()
+	waAdmin   http.Handler // página de vinculación de WhatsApp (solo con WA_MODO=vinculado)
 }
 
 func montar(mux *http.ServeMux, cfg Config) *app {
@@ -86,6 +91,17 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		d.Subs = alSvc.Store.Bot()
 	}
 	d.Planner, d.Municipios = a.planner, muni
+	if alSvc != nil {
+		d.Pruebas = alSvc // PRUEBA ALERTA
+	}
+	if cfg.Geo {
+		d.Geo = bot.NewGeoWeb() // lugares del mundo por nombre / nombre de la ubicación
+	}
+	d.InformeBase = baseLocal(cfg.Addr) // el PDF del informe sale del propio servidor
+	wa := vinculado(cfg)
+	if wa != nil {
+		d.Vinculado = wa
+	}
 	if os.Getenv("BOT_SESIONES") == "" {
 		d.SesionesPath = filepath.Join(filepath.Dir(cfg.DBPath), "sesiones.json")
 	}
@@ -100,6 +116,13 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 	diferido.set(svc.Mensajero)
 	a.comp.Bot = "real"
 	a.comp.WhatsApp = activo(d.Cloud.Activo())
+	if wa != nil {
+		wa.OnMensaje = func(m whatsmeow.Mensaje) { svc.Vinculado.Recibir(m.ID, m.Entrada) }
+		wa.Iniciar(context.Background())
+		a.waAdmin = wa.AdminHandler()
+		a.cerrar = append(a.cerrar, wa.Cerrar)
+		a.comp.WhatsApp = "vinculado"
+	}
 	a.comp.Twilio = activo(d.Twilio.Activo())
 
 	return a
@@ -108,16 +131,40 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 // alertadorReal adapta internal/alerts al scheduler del servidor.
 type alertadorReal struct{ s *alerts.Service }
 
-func (r alertadorReal) RunDaily(date string) error {
-	t, err := time.ParseInLocation("2006-01-02", date, zonaGT)
+func (r alertadorReal) Correr(now time.Time) error { return r.s.Correr(now) }
+
+// vinculado abre el WhatsApp vinculado si WA_MODO=vinculado (sesión en SQLite junto a DB_PATH).
+func vinculado(cfg Config) *whatsmeow.Cliente {
+	if cfg.WAModo != "vinculado" {
+		return nil
+	}
+	db := cfg.WADB
+	if db == "" {
+		db = filepath.Join(filepath.Dir(cfg.DBPath), "whatsapp.db")
+	}
+	qr := cfg.WAQR
+	if qr == "" {
+		qr = filepath.Join(filepath.Dir(cfg.DBPath), "whatsapp-qr.png")
+	}
+	c, err := whatsmeow.Nuevo(whatsmeow.Config{DBPath: db, Numero: cfg.WANumero, QRPath: qr, Debug: cfg.WADebug})
 	if err != nil {
-		return err
+		log.Printf("whatsapp vinculado: %v → apagado", err)
+		return nil
 	}
-	res, err := r.s.Engine.Run(t, false)
-	if err == nil {
-		log.Printf("alertas: corrida %s → %+v", date, res)
+	log.Printf("whatsapp vinculado: sesión en %s · QR en %s · página /admin/whatsapp", db, qr)
+	return c
+}
+
+// baseLocal: URL para llamarse a sí mismo (0.0.0.0:8080 → http://127.0.0.1:8080).
+func baseLocal(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return ""
 	}
-	return err
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	return "http://" + net.JoinHostPort(host, port)
 }
 
 // mensajeroDiferido deja construir alertas antes que los canales del bot.

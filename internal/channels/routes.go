@@ -32,6 +32,14 @@ type Deps struct {
 	// GET /api/sim/video.mp4 (ver docs/video.md). SinVideo = no montar nada.
 	Videos   FuenteVideo
 	SinVideo bool
+	// Informes: PDF del informe técnico (📄). Nil = InformeHTTP sobre InformeBase (o PublicURL).
+	Informes    FuenteInforme
+	InformeBase string
+	// Geo: lugares del mundo por nombre y nombre de una coordenada. Pruebas: PRUEBA ALERTA (alerts.Service).
+	Geo     bot.Geocoder
+	Pruebas bot.Probador
+	// Vinculado: transporte de WhatsApp vinculado (whatsmeow, WA_MODO=vinculado). Si viene, manda sobre Cloud/Twilio.
+	Vinculado Transporte
 }
 
 // DepsDesdeEnv lee la configuración de variables de entorno (ver docs/whatsapp-setup.md).
@@ -74,6 +82,7 @@ type Servicio struct {
 	Twilio    *Twilio
 	Web       *Web
 	Media     *MediaStore
+	Vinculado *Vinculado // nil si WA_MODO no es vinculado
 	Mensajero contract.Mensajero
 }
 
@@ -96,7 +105,7 @@ func Routes(mux *http.ServeMux, d Deps) *Servicio {
 			d.Subs = bot.NewMemSuscripciones()
 		}
 		b = &bot.Bot{Planner: d.Planner, Municipios: d.Municipios, Subs: d.Subs,
-			Sesiones: bot.NewStore(d.SesionesPath), Nombre: d.NombreBot, WebURL: d.WebURL}
+			Sesiones: bot.NewStore(d.SesionesPath), Nombre: d.NombreBot, WebURL: d.WebURL, Geo: d.Geo, Pruebas: d.Pruebas}
 	}
 	if d.Planner == nil {
 		d.Planner = b.Planner
@@ -119,6 +128,19 @@ func Routes(mux *http.ServeMux, d Deps) *Servicio {
 		log.Printf("channels: video 3D en /api/sim/video.mp4 (render=%v, precalculados=%q)", vs.Render != nil, vs.Cfg.PrecalcDir)
 	}
 	s.Cloud.Videos, s.Cloud.PublicURL = d.Videos, d.PublicURL
+	// INFORME 📄: /api/informe.pdf del propio servidor (lo monta el agente informe; sin él, va el link).
+	if d.Informes == nil {
+		base := d.InformeBase
+		if base == "" {
+			base = d.PublicURL
+		}
+		d.Informes = InformeHTTP{Base: base}
+	}
+	s.Cloud.Informes = d.Informes
+	if d.Vinculado != nil {
+		s.Vinculado = NewVinculado(d.Vinculado, b)
+		s.Vinculado.Videos, s.Vinculado.Informes, s.Vinculado.PublicURL = d.Videos, d.Informes, d.PublicURL
+	}
 
 	mux.Handle("/api/chat", s.Web)
 	mux.Handle("/webhook/whatsapp", s.Cloud)
@@ -126,7 +148,7 @@ func Routes(mux *http.ServeMux, d Deps) *Servicio {
 	mux.Handle("/api/cards/plan.png", cards.Handler(d.Planner))
 	mux.Handle("/api/cards/media/", media)
 
-	log.Printf("channels: simulador web activo · WhatsApp Cloud: %v · Twilio: %v", d.Cloud.Activo(), d.Twilio.Activo())
+	log.Printf("channels: simulador web activo · WhatsApp vinculado: %v · WhatsApp Cloud: %v · Twilio: %v", s.Vinculado.Activo(), d.Cloud.Activo(), d.Twilio.Activo())
 	return s
 }
 
@@ -137,6 +159,8 @@ func (r *router) canal(tel string) Canal {
 	switch {
 	case strings.HasPrefix(tel, "web:"):
 		return r.s.Web
+	case r.s.Vinculado.Activo():
+		return r.s.Vinculado
 	case r.s.Cloud.Cfg.Activo():
 		return r.s.Cloud
 	case r.s.Twilio.Cfg.Activo():
@@ -146,6 +170,15 @@ func (r *router) canal(tel string) Canal {
 }
 
 func (r *router) EnviarTexto(tel, texto string) error { return r.canal(tel).EnviarTexto(tel, texto) }
+
+// SinVentana: el canal de ese teléfono no tiene la ventana de 24 h (vinculado, simulador) → alertas como texto.
+func (r *router) SinVentana(tel string) bool {
+	c := r.canal(tel)
+	if sv, ok := c.(interface{ SinVentana(string) bool }); ok {
+		return sv.SinVentana(tel)
+	}
+	return c == Canal(r.s.Web)
+}
 func (r *router) EnviarBotones(tel, texto string, b []contract.Boton) error {
 	return r.canal(tel).EnviarBotones(tel, texto, b)
 }
