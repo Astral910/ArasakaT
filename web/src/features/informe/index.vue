@@ -117,6 +117,7 @@ const rangoAnios = computed(() => {
   const a = est.value[i0.value]?.anios?.map((x) => x.anio) ?? []
   return a.length ? `${Math.min(...a)}–${Math.max(...a)}` : '2001–2025'
 })
+const hayIA = computed(() => { const x = plan.value?.ia_vs_estadistica; return !!x && (x.error_ia > 0 || x.error_estadistica > 0) })
 const escEfectivo = computed(() => datos.value?.sim[rec.value?.id as 'S1']?.escenario ?? '')
 const analogos = computed(() => confianza.value?.anios_analogos?.filter((a) => a > 1900) ?? [])
 
@@ -513,7 +514,7 @@ const secciones = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 
       <section class="hoja" id="s9">
         <h2 class="h-sec"><span class="num">9</span>{{ tx('s9') }}</h2>
         <p>{{ plan.incertidumbre }}</p>
-        <div class="ia">
+        <div v-if="hayIA" class="ia">
           <div v-for="[k, nombre] in [['ia', tx('ia')], ['estadistica', tx('est')]]" :key="k" class="ia-fila">
             <p class="ia-n">{{ nombre }}</p>
             <div class="ia-barra"><span :style="{ width: (plan.ia_vs_estadistica[('prob_' + k) as 'prob_ia'] * 100) + '%' }" :class="'b-' + k" /></div>
@@ -538,20 +539,20 @@ const secciones = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 
       <section class="hoja" id="s11">
         <h2 class="h-sec"><span class="num">11</span>{{ tx('s11') }}</h2>
         <p v-if="fueraGT" class="nota warn">{{ tx('fueraGT') }}</p>
-        <p class="destacado"><Frase :t="tx('valDet')" :vars="{ d: { src: 'plan:validacion.detectadas' }, t: { src: 'plan:validacion.total' } }" /></p>
-        <div class="val" v-if="validacion.length">
+        <p v-if="plan.validacion?.total" class="destacado"><Frase :t="tx('valDet')" :vars="{ d: { src: 'plan:validacion.detectadas' }, t: { src: 'plan:validacion.total' } }" /></p>
+        <div class="val" v-if="validacion.length && plan.validacion?.total">
           <div v-for="v in validacion" :key="v.anio" class="val-a" :class="{ doc: v.documentada, det: v.detectada, fa: !v.documentada && perdidaS0(v.anio) }">
             <span class="val-c" />
             <span class="val-y">{{ String(v.anio).slice(2) }}</span>
           </div>
         </div>
-        <p class="ley chico">
+        <p v-if="plan.validacion?.total" class="ley chico">
           <span class="ley-i"><span class="val-a doc det"><span class="val-c" /></span>{{ tx('documentada') }} · {{ tx('detectada') }}</span>
           <span class="ley-i"><span class="val-a doc"><span class="val-c" /></span>{{ tx('documentada') }} · {{ tx('noDetectada') }}</span>
           <span class="ley-i"><span class="val-a fa"><span class="val-c" /></span>{{ tx('falsa') }}</span>
         </p>
         <p class="chico muted">{{ tx('valFig') }}</p>
-        <p class="chico">IA vs {{ tx('est').split(' ')[0].toLowerCase() }} (Brier): <N src="plan:ia_vs_estadistica.error_ia" :dec="3" /> vs <N src="plan:ia_vs_estadistica.error_estadistica" :dec="3" /><template v-if="confianza?.habilidad"> · {{ confianza.habilidad }}</template></p>
+        <p v-if="hayIA" class="chico">IA vs {{ tx('est').split(' ')[0].toLowerCase() }} (Brier): <N src="plan:ia_vs_estadistica.error_ia" :dec="3" /> vs <N src="plan:ia_vs_estadistica.error_estadistica" :dec="3" /><template v-if="confianza?.habilidad"> · {{ confianza.habilidad }}</template></p>
       </section>
 
       <!-- ============ 12. FUENTES ============ -->
