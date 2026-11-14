@@ -14,7 +14,7 @@ const pasos = [
   { n: 'mapa', url: '/map', espera: '[data-testid=ranking] li', extra: async (p) => { await p.waitForTimeout(6000) } },
   { n: 'mapa-rayos', url: '/map', espera: '[data-testid=btn-rayos]', extra: async (p) => { await p.waitForTimeout(4000); await p.click('[data-testid=btn-rayos]'); await p.waitForTimeout(6000) } },
   { n: 'mapa-fly', url: '/map', espera: '[data-testid=ranking] li', extra: async (p) => { await p.waitForTimeout(4000); await p.fill('[data-testid=buscar]', 'Jocotán'); await p.click('[data-testid=ranking] li button'); await p.waitForTimeout(5000) } },
-  { n: 'alertas', url: '/alerts', espera: 'main, section', extra: async (p) => { await p.waitForTimeout(5000) } },
+  { n: 'alertas', url: '/alerts', espera: '[data-testid=maquina-tiempo]', extra: async (p) => { await p.waitForTimeout(11000) } },
   { n: 'how', url: '/how', espera: 'main, section', extra: async (p) => { await p.waitForTimeout(2500) } },
 ]
 for (const v of vistas) {
