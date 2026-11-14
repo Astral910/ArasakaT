@@ -77,7 +77,7 @@ onMounted(async () => {
   s.on('fps', (d) => { fps.value = d.fps; ;(window as unknown as Record<string, unknown>).__fps = d.fps })
   s.on('dia', (d) => { fecha.value = d.fecha })
   s.on('evento', (e) => { eventos.value = [e.texto, ...eventos.value].slice(0, 4) })
-  s.on('ready', (d) => { info.value = `lista en ${d.ms} ms · relieve ${d.relieveReal ? 'SRTM real' : 'procedural'} · ${d.satelite ? 'satélite Esri' : 'textura procedural'}` })
+  s.on('ready', (d) => { ;(window as unknown as Record<string, unknown>).__readyMs = d.ms; info.value = `lista en ${d.ms} ms · relieve ${d.relieveReal ? 'SRTM real' : 'procedural'} · ${d.satelite ? 'satélite Esri' : 'textura procedural'}` })
   tl.value = await cargarTimeline()
   s.setTimeline(tl.value)
   s.setDay(Math.floor(dia.value), dia.value % 1)

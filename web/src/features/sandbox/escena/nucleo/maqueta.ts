@@ -47,6 +47,8 @@ export interface Maqueta {
   pendientePct: number
   abajo: THREE.Vector2 // dirección ladera abajo en la parcela
   satCanvas: HTMLCanvasElement
+  /** Reemplaza la imagen satelital (carga progresiva: z17 → z18). */
+  actualizarSatelite(c: HTMLCanvasElement): void
   dispose(): void
 }
 
@@ -108,11 +110,15 @@ export function construirMaqueta(
   const pos = geo.attributes.position as THREE.BufferAttribute
   for (let k = 0; k < pos.count; k++) pos.setY(k, h[k])
   geo.computeVertexNormals()
-  const tex = new THREE.CanvasTexture(datos.satelite)
-  tex.colorSpace = THREE.SRGBColorSpace
-  tex.anisotropy = calidad === 'baja' ? 2 : 8
-  tex.generateMipmaps = true
-  tex.minFilter = THREE.LinearMipmapLinearFilter
+  const texDe = (c: HTMLCanvasElement) => {
+    const t = new THREE.CanvasTexture(c)
+    t.colorSpace = THREE.SRGBColorSpace
+    t.anisotropy = calidad === 'baja' ? 2 : 8
+    t.generateMipmaps = true
+    t.minFilter = THREE.LinearMipmapLinearFilter
+    return t
+  }
+  const tex = texDe(datos.satelite)
   const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0 })
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U, US)
@@ -221,6 +227,12 @@ export function construirMaqueta(
 
   return {
     grupo, N, L, yBase, yMin, yMax, alturas: h, alturaEn, pendientePct, abajo, satCanvas: datos.satelite,
+    actualizarSatelite(c: HTMLCanvasElement) {
+      // textura nueva (cambia de tamaño: no se puede reusar el almacenamiento inmutable)
+      const vieja = mat.map
+      mat.map = texDe(c)
+      vieja?.dispose()
+    },
     dispose() {
       grupo.traverse((o) => {
         const m = o as THREE.Mesh

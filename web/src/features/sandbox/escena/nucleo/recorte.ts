@@ -10,6 +10,9 @@ export interface Recorte {
   rumboCamara: number
   /** Desnivel del recorte (m, sin exagerar). */
   desnivel: number
+  /** Centro de la maqueta respecto al punto (m, este/sur). */
+  Cx: number
+  Cz: number
 }
 
 function muestrearGrid(a: Float32Array, N: number, B: number, E: number, S: number) {
@@ -60,8 +63,18 @@ export function orientarYRecortar(grande: DatosRelieve, L: number, N: number, sa
     if (h < min) min = h
     if (h > max) max = h
   }
-  // satélite rotado
-  const src = grande.satelite
+  const out = recortarImagen(grande.satelite, B, L, satPx, phi, Cx, Cz)
+  // la cámara general mira ladera arriba = dirección −d
+  const rumboCamara = ((Math.atan2(-dE, dS) * 180) / Math.PI + 360) % 360
+  return {
+    datos: { N, L, alturas, satelite: out, relieveReal: grande.relieveReal, sateliteReal: grande.sateliteReal },
+    phi, rumboCamara, desnivel: max - min, Cx, Cz,
+  }
+}
+
+/** Recorta (rotada) la imagen de la región grande al cuadrado de la maqueta. */
+export function recortarImagen(src: HTMLCanvasElement, B: number, L: number, satPx: number, phi: number, Cx: number, Cz: number) {
+  const cphi = Math.cos(phi), sphi = Math.sin(phi)
   const out = document.createElement('canvas')
   out.width = out.height = satPx
   const ctx = out.getContext('2d', { willReadFrequently: true })!
@@ -75,10 +88,5 @@ export function orientarYRecortar(grande: DatosRelieve, L: number, N: number, sa
   )
   ctx.drawImage(src, 0, 0)
   ctx.setTransform(1, 0, 0, 1, 0, 0)
-  // la cámara general mira ladera arriba = dirección −d
-  const rumboCamara = ((Math.atan2(-dE, dS) * 180) / Math.PI + 360) % 360
-  return {
-    datos: { N, L, alturas, satelite: out, relieveReal: grande.relieveReal, sateliteReal: grande.sateliteReal },
-    phi, rumboCamara, desnivel: max - min,
-  }
+  return out
 }

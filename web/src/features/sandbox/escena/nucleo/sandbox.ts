@@ -6,7 +6,7 @@ import type {
 } from '../api'
 import type { SimTimeline } from '../tipos'
 import { crearUniformsGlobales } from './glsl'
-import { cargarRelieve } from './relieve'
+import { cargarRelieve, cargarSatelite } from './relieve'
 import { construirMaqueta, crearUniformsSuelo, type Maqueta, type Parcela } from './maqueta'
 import { crearCapa, estadoCapa, liberarCapa, type Capa3D, ESCALA_PLANTA } from './cultivos'
 import { construirProps, type Props } from './props'
@@ -15,7 +15,7 @@ import {
   actualizarUniformsClima, crearCielo, crearLluvia, crearNubes, crearPolvo, crearSalpicaduras, luzDelClima, Rayos, type LuzClima,
 } from './clima3d'
 import { Post } from './post'
-import { orientarYRecortar } from './recorte'
+import { orientarYRecortar, recortarImagen } from './recorte'
 
 type Calidad = Exclude<Quality, 'auto'>
 const CFG: Record<Calidad, { pr: number; msaa: number; sombra: number; tope: number; lluvia: number; tilt: boolean; N: number; sat: number; polvo: number; grano: number }> = {
@@ -179,7 +179,7 @@ class SandboxImpl implements Sandbox {
     try {
       const grande = await cargarRelieve({
         lat: p.lat, lon: p.lon, L: B, offX: 0, offZ: 0, N: Math.round((cfg.N * B) / L), satPx: Math.min(3072, Math.round((cfg.sat * B) / L)),
-        sinRed: p.sinRed, signal: ab.signal, progreso: (fase, v) => this.emitir('progress', { fase, p: v }),
+        zSat: 17, sinRed: p.sinRed, signal: ab.signal, progreso: (fase, v) => this.emitir('progress', { fase, p: v }),
       })
       rec = orientarYRecortar(grande, L, cfg.N, cfg.sat, cz, lado / 2)
     } catch (e) {
@@ -207,6 +207,17 @@ class SandboxImpl implements Sandbox {
     this.cuadro(0, false)
     this.emitir('progress', { fase: 'listo', p: 1 })
     this.emitir('ready', { ms: Math.round(performance.now() - t0), relieveReal: datos.relieveReal, satelite: datos.sateliteReal, rumboCamara: Math.round(this.rumbo) })
+    // carga progresiva: la imagen nítida (z18) llega después sin frenar el arranque
+    if (datos.sateliteReal && !p.sinRed && this.calidad !== 'baja') {
+      const mq = this.maqueta
+      cargarSatelite(p.lat, p.lon, B, Math.min(4096, Math.round((cfg.sat * 1.6 * B) / L)), 18, ab.signal)
+        .then((c) => {
+          if (ab.signal.aborted || this.desechado || this.maqueta !== mq) return
+          mq.actualizarSatelite(recortarImagen(c, B, L, Math.round(cfg.sat * 1.33), rec.phi, rec.Cx, rec.Cz))
+          this.emitir('progress', { fase: 'satelite-hd', p: 1 })
+        })
+        .catch(() => { /* se queda con z17 */ })
+    }
   }
 
   setTimeline(tl: SimTimeline) {
@@ -441,7 +452,9 @@ class SandboxImpl implements Sandbox {
     const t = this.tiempo
     const az = this.vista.az + this.usuario.az + Math.sin(t * 0.07) * 0.025
     const el = Math.min(1.5, Math.max(0.03, this.vista.el + this.usuario.el + Math.sin(t * 0.05) * 0.008))
-    const dist = this.vista.dist * this.usuario.zoom
+    // pantallas verticales (celular): alejar para que la parcela entre a lo ancho
+    const asp = this.camara.aspect
+    const dist = this.vista.dist * this.usuario.zoom * (asp < 1.3 ? Math.pow(1.3 / asp, 0.8) : 1)
     const c = this.camara
     c.position.set(
       this.vista.target.x + dist * Math.cos(el) * Math.sin(az),
