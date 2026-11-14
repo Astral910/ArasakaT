@@ -19,10 +19,10 @@ const (
 	PasoRiego     = "riego"
 	PasoGanado    = "ganado"
 	PasoPrioridad = "prioridad"
-	PasoPlan      = "plan"       // plan entregado; espera 1/2/3 o respuesta de suscripción
-	PasoSembro    = "sembro"     // ¿ya sembraste?
-	PasoFecha     = "fecha"      // ¿qué día?
-	PasoListo     = "listo"      // suscrito o no; sigue aceptando 1/2/3, MENU…
+	PasoPlan      = "plan"   // plan entregado; espera 1/2/3 o respuesta de suscripción
+	PasoSembro    = "sembro" // ¿ya sembraste?
+	PasoFecha     = "fecha"  // ¿qué día?
+	PasoListo     = "listo"  // suscrito o no; sigue aceptando 1/2/3, MENU…
 )
 
 // Sesion por número (o por id del simulador).

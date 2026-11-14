@@ -48,9 +48,9 @@ var textos = map[string][2]string{
 		"¿Querés que te avise por aquí si viene canícula 🌵 o lluvia fuerte 🌧?",
 		"Want me to warn you here if a dry spell 🌵 or heavy rain 🌧 is coming?",
 	},
-	"ya_sembro":     {"¿Ya sembraste? 🌱", "Have you planted yet? 🌱"},
-	"que_dia":       {"¿Qué día sembraste? Escribí la fecha, por ejemplo *20/05*.", "What day did you plant? Type the date, e.g. *20/05*."},
-	"fecha_mala":    {"No entendí la fecha 🙏 Escribila así: *20/05* (día/mes).", "I didn't get the date 🙏 Write it like *20/05* (day/month)."},
+	"ya_sembro":  {"¿Ya sembraste? 🌱", "Have you planted yet? 🌱"},
+	"que_dia":    {"¿Qué día sembraste? Escribí la fecha, por ejemplo *20/05*.", "What day did you plant? Type the date, e.g. *20/05*."},
+	"fecha_mala": {"No entendí la fecha 🙏 Escribila así: *20/05* (día/mes).", "I didn't get the date 🙏 Write it like *20/05* (day/month)."},
 	"suscrito": {
 		"¡Listo! ✅ Te voy a avisar antes de canícula, lluvia fuerte o inicio de lluvias en %s, y cada semana te pregunto cómo va tu milpa.\nEscribí BAJA cuando no quieras recibir avisos.",
 		"Done! ✅ I'll warn you ahead of dry spells, heavy rain or rain onset in %s, and check in weekly on your milpa.\nType STOP anytime to unsubscribe.",
