@@ -13,7 +13,7 @@ export function nivelRiesgo(perdidas: number): Nivel {
 
 /** El texto del plan viene en el idioma pedido; si no coincide (fixture en español), usamos la traducción por id. */
 function textoPorIdioma(plan: Plan | null | undefined, lang: Lang) {
-  return !plan || plan.request?.idioma === lang
+  return !!plan && plan.request?.idioma === lang && plan.generado !== 'fixture'
 }
 export function nombreEstrategia(e: Estrategia, lang: Lang, plan?: Plan | null) {
   if (lang === 'es' || textoPorIdioma(plan, lang)) return e.nombre

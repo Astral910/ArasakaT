@@ -19,7 +19,7 @@ defineProps<{ plan: Plan }>()
       <ul>
         <li v-for="e in plan.estrategias" :key="e.id" :class="[nivelRiesgo(e.perdidas_de_10.p50), { rec: e.recomendada }]">
           <span class="id">{{ e.id }}</span>
-          <span class="nm">{{ nombreEstrategia(e, lang) }}</span>
+          <span class="nm">{{ nombreEstrategia(e, lang, plan) }}</span>
           <span class="bar"><i :style="{ width: e.perdidas_de_10.p50 * 10 + '%' }" /></span>
           <b class="num">{{ e.perdidas_de_10.p50 }}/10</b>
         </li>
