@@ -19,6 +19,7 @@ var simEscenarios = []struct {
 	Anios int
 	Key   string
 }{
+	{"pronostico", 1, "pronostico"},
 	{"tipico", 1, "tipico"},
 	{"nino", 1, "nino"},
 	{"real-2026", 1, "real-2026"},
@@ -35,6 +36,12 @@ func exportSim(e *plan.Engine, out string) error {
 		return err
 	}
 	write("contracts/fixtures/sim_jocotan_S2_tipico.json", tl, false)
+	tl, err = e.Simulate(contract.SimRequest{Plan: contract.PlanRequest{MunicipioID: "jocotan-chiquimula", Cultivo: "milpa", Idioma: "es"},
+		Estrategia: "S2", Escenario: "pronostico"})
+	if err != nil {
+		return err
+	}
+	write("contracts/fixtures/sim_jocotan_pronostico.json", tl, false)
 	dir := filepath.Join(out, "sim")
 	os.MkdirAll(dir, 0o755)
 	var index []map[string]any
@@ -66,7 +73,7 @@ func exportSim(e *plan.Engine, out string) error {
 		}
 	}
 	write(filepath.Join(dir, "index.json"), map[string]any{
-		"formato":   "sim/<municipio>_<S0|S1|S2>_<tipico|nino|real-2026|secuencia-p50|2040-ssp245>_<riego mm/semana: 0|20>[_en].json (= POST /api/simulate; también .json.gz)",
+		"formato":   "sim/<municipio>_<S0|S1|S2>_<pronostico|tipico|nino|real-2026|secuencia-p50|2040-ssp245>_<riego mm/semana: 0|20>[_en].json (= POST /api/simulate; también .json.gz)",
 		"supuestos": "milpa, 1 manzana, percentil p50, semilla 2026; secuencia = 5 años; textos de eventos en español (o _en)",
 		"archivos":  index,
 		"generado":  time.Now().UTC().Format(time.RFC3339),

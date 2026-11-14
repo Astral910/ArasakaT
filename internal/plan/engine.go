@@ -15,6 +15,7 @@ import (
 	"fieldshift/internal/contract"
 	"fieldshift/internal/data"
 	"fieldshift/internal/geo"
+	"fieldshift/internal/global"
 	"fieldshift/internal/ml"
 	"fieldshift/internal/sim"
 	"fieldshift/internal/valid"
@@ -41,6 +42,11 @@ type Engine struct {
 	mlRes   *MLResult
 	riskMu  sync.Mutex
 	risk    map[string][]RiskRow
+
+	// Ronda 3: datos globales y pronóstico
+	Net     *global.Client
+	netOnce sync.Once
+	pron    map[string]pronEntry
 }
 
 // New carga data/ (municipios, ONI, CMIP6, suelos). El clima se lee por celda bajo demanda.

@@ -212,6 +212,7 @@ func (e *Engine) build(req contract.PlanRequest, m *geo.Municipio) (contract.Pla
 		p.IAvsEst.ErrorEstadistica = math.Round(mlr.Eval.BrierEst*1000) / 1000
 		p.IAvsEst.Nota = L.mlNote(mlr, st)
 	}
+	p.Confianza = e.planConfianza(m, s, req, &p)
 	p.Incertidumbre = L.uncertainty(&p, s, req)
 	p.Fuentes = L.sources(e)
 	p.Resumen = L.summary(&p, m)

@@ -16,3 +16,4 @@ e2e/playwright-report/
 sesiones.json
 var/
 submission/video/*.mp4
+data/cache/

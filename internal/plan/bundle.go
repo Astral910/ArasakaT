@@ -22,6 +22,15 @@ type SiteBundle struct {
 	NinoYears []int            `json:"nino_years"`
 	Nino2026  bool             `json:"nino_2026"`
 	CMIP6     *data.CMIP6Point `json:"cmip6,omitempty"`
+	// Ronda 3: escenario "pronostico" sin servidor (foto del pronóstico del día de la exportación) y confianza.
+	Pron       *PronInput         `json:"pron,omitempty"`
+	ONI        map[string]float64 `json:"oni,omitempty"`
+	Habilidad  string             `json:"habilidad,omitempty"`
+	ValidHits  int                `json:"valid_hits,omitempty"`
+	ValidTotal int                `json:"valid_total,omitempty"`
+	CMIPFuente string             `json:"cmip_fuente,omitempty"`
+	Cal        *sim.SeasonCal     `json:"cal,omitempty"` // calendario detectado (fuera de Guatemala)
+	Shift      int                `json:"shift,omitempty"`
 }
 
 // Bundle arma el SiteBundle de un municipio.
@@ -44,6 +53,14 @@ func (e *Engine) Bundle(id string) (*SiteBundle, error) {
 	if e.CMIP != nil {
 		b.CMIP6 = e.CMIP.Nearest(m.Lat, m.Lon)
 	}
+	b.Pron = e.Pron(m.Lat, m.Lon)
+	b.ONI = e.ONI.Values
+	b.Habilidad, b.ValidHits, b.ValidTotal = e.habilidad(m)
+	b.CMIPFuente = e.cmipFuente(m)
+	if s.Cal.Generic {
+		c := s.Cal
+		b.Cal, b.Shift = &c, s.Shift
+	}
 	return b, nil
 }
 
@@ -51,8 +68,14 @@ func (e *Engine) Bundle(id string) (*SiteBundle, error) {
 func (b *SiteBundle) Env() SimEnv {
 	sites := map[string]*sim.Site{}
 	base := sim.NewSite(b.ID, b.Name, b.Dept, b.Lat, b.Lon, b.ElevM, b.SlopePct, b.Climate, b.Soil)
+	if b.Cal != nil {
+		base = base.WithCal(*b.Cal, b.Shift)
+	}
 	sites["2026"] = base
 	return SimEnv{Name: b.Name, Dept: b.Dept,
+		Pron:      func() *PronInput { return b.Pron },
+		ONIVal:    func(k string) (float64, bool) { v, ok := b.ONI[k]; return v, ok },
+		Habilidad: b.Habilidad, ValidHits: b.ValidHits, ValidTotal: b.ValidTotal, CMIPFuente: b.CMIPFuente,
 		Site: func(h string) (*sim.Site, error) {
 			if s, ok := sites[h]; ok {
 				return s, nil

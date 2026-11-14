@@ -2,6 +2,24 @@
   "archivos": [
     {
       "anios": 1,
+      "archivo": "jocotan-chiquimula_S0_pronostico_0.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S0",
+      "municipio": "jocotan-chiquimula",
+      "riego_mm_semana": 0
+    },
+    {
+      "anios": 1,
+      "archivo": "jocotan-chiquimula_S0_pronostico_20.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S0",
+      "municipio": "jocotan-chiquimula",
+      "riego_mm_semana": 20
+    },
+    {
+      "anios": 1,
       "archivo": "jocotan-chiquimula_S0_tipico_0.json",
       "dias": 365,
       "escenario": "tipico",
@@ -87,6 +105,24 @@
       "dias": 365,
       "escenario": "2040-ssp245",
       "estrategia": "S0",
+      "municipio": "jocotan-chiquimula",
+      "riego_mm_semana": 20
+    },
+    {
+      "anios": 1,
+      "archivo": "jocotan-chiquimula_S1_pronostico_0.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S1",
+      "municipio": "jocotan-chiquimula",
+      "riego_mm_semana": 0
+    },
+    {
+      "anios": 1,
+      "archivo": "jocotan-chiquimula_S1_pronostico_20.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S1",
       "municipio": "jocotan-chiquimula",
       "riego_mm_semana": 20
     },
@@ -182,6 +218,24 @@
     },
     {
       "anios": 1,
+      "archivo": "jocotan-chiquimula_S2_pronostico_0.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S2",
+      "municipio": "jocotan-chiquimula",
+      "riego_mm_semana": 0
+    },
+    {
+      "anios": 1,
+      "archivo": "jocotan-chiquimula_S2_pronostico_20.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S2",
+      "municipio": "jocotan-chiquimula",
+      "riego_mm_semana": 20
+    },
+    {
+      "anios": 1,
       "archivo": "jocotan-chiquimula_S2_tipico_0.json",
       "dias": 365,
       "escenario": "tipico",
@@ -272,6 +326,24 @@
     },
     {
       "anios": 1,
+      "archivo": "camotan-chiquimula_S0_pronostico_0.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S0",
+      "municipio": "camotan-chiquimula",
+      "riego_mm_semana": 0
+    },
+    {
+      "anios": 1,
+      "archivo": "camotan-chiquimula_S0_pronostico_20.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S0",
+      "municipio": "camotan-chiquimula",
+      "riego_mm_semana": 20
+    },
+    {
+      "anios": 1,
       "archivo": "camotan-chiquimula_S0_tipico_0.json",
       "dias": 365,
       "escenario": "tipico",
@@ -357,6 +429,24 @@
       "dias": 365,
       "escenario": "2040-ssp245",
       "estrategia": "S0",
+      "municipio": "camotan-chiquimula",
+      "riego_mm_semana": 20
+    },
+    {
+      "anios": 1,
+      "archivo": "camotan-chiquimula_S1_pronostico_0.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S1",
+      "municipio": "camotan-chiquimula",
+      "riego_mm_semana": 0
+    },
+    {
+      "anios": 1,
+      "archivo": "camotan-chiquimula_S1_pronostico_20.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S1",
       "municipio": "camotan-chiquimula",
       "riego_mm_semana": 20
     },
@@ -452,6 +542,24 @@
     },
     {
       "anios": 1,
+      "archivo": "camotan-chiquimula_S2_pronostico_0.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S2",
+      "municipio": "camotan-chiquimula",
+      "riego_mm_semana": 0
+    },
+    {
+      "anios": 1,
+      "archivo": "camotan-chiquimula_S2_pronostico_20.json",
+      "dias": 413,
+      "escenario": "pronostico",
+      "estrategia": "S2",
+      "municipio": "camotan-chiquimula",
+      "riego_mm_semana": 20
+    },
+    {
+      "anios": 1,
       "archivo": "camotan-chiquimula_S2_tipico_0.json",
       "dias": 365,
       "escenario": "tipico",
@@ -541,7 +649,7 @@
       "riego_mm_semana": 20
     }
   ],
-  "formato": "sim/<municipio>_<S0|S1|S2>_<tipico|nino|real-2026|secuencia-p50|2040-ssp245>_<riego mm/semana: 0|20>[_en].json (= POST /api/simulate; también .json.gz)",
-  "generado": "2026-11-14T19:14:27Z",
+  "formato": "sim/<municipio>_<S0|S1|S2>_<pronostico|tipico|nino|real-2026|secuencia-p50|2040-ssp245>_<riego mm/semana: 0|20>[_en].json (= POST /api/simulate; también .json.gz)",
+  "generado": "2026-11-14T21:55:17Z",
   "supuestos": "milpa, 1 manzana, percentil p50, semilla 2026; secuencia = 5 años; textos de eventos en español (o _en)"
 }

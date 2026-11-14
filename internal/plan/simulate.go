@@ -9,13 +9,15 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"fieldshift/internal/contract"
+	"fieldshift/internal/geo"
 	"fieldshift/internal/sim"
 )
 
 // Escenarios del sandbox 3D.
-var Escenarios = []string{"tipico", "nino", "real-2026", "secuencia", "2040-ssp245", "2040-ssp585"}
+var Escenarios = []string{"pronostico", "tipico", "nino", "real-2026", "secuencia", "2040-ssp245", "2040-ssp585"}
 
 var yearRank sync.Map // sitio|escenario → años ordenados del peor al mejor (grano S0)
 
@@ -85,6 +87,14 @@ type SimEnv struct {
 	Name, Dept string
 	Site       func(horizon string) (*sim.Site, error)
 	IsNino     func(y int) bool
+	// Ronda 3 (escenario "pronostico" y confianza):
+	Pron       func() *PronInput                // nil o sin datos → remuestreo-enso
+	ONIVal     func(key string) (float64, bool) // ONI histórico "2015-DJF"
+	Habilidad  string                           // validación ("detectó 5 de 8 sequías…") o "sin validación local…"
+	ValidHits  int
+	ValidTotal int
+	CMIPFuente string
+	Hoy        func() time.Time // fecha real de hoy (por defecto: la del pronóstico o time.Now)
 }
 
 // Simulate implementa POST /api/simulate.
@@ -95,12 +105,21 @@ func (e *Engine) Simulate(r contract.SimRequest) (contract.SimTimeline, error) {
 		return contract.SimTimeline{}, err
 	}
 	r.Plan = req
+	return SimulateEnv(e.Env(m), r)
+}
+
+// Env entorno de simulación del lugar (servidor).
+func (e *Engine) Env(m *geo.Municipio) SimEnv {
 	var nino []int
 	if s, err := e.Site(m, "2026"); err == nil {
 		nino = e.ElNinoYears(s.ClimYears())
 	}
 	_, st26 := e.ONI.ENSOYear(2026)
-	env := SimEnv{Name: m.Name, Dept: m.Dept, Site: func(h string) (*sim.Site, error) { return e.Site(m, h) },
+	hab, vh, vt := e.habilidad(m)
+	return SimEnv{Name: m.Name, Dept: m.Dept, Site: func(h string) (*sim.Site, error) { return e.Site(m, h) },
+		Habilidad: hab, ValidHits: vh, ValidTotal: vt, CMIPFuente: e.cmipFuente(m),
+		ONIVal: func(k string) (float64, bool) { v, ok := e.ONI.Values[k]; return v, ok },
+		Pron:   func() *PronInput { return e.Pron(m.Lat, m.Lon) },
 		IsNino: func(y int) bool {
 			if y == 2026 {
 				return st26 == "nino"
@@ -112,7 +131,6 @@ func (e *Engine) Simulate(r contract.SimRequest) (contract.SimTimeline, error) {
 			}
 			return false
 		}}
-	return SimulateEnv(env, r)
 }
 
 // SimulateEnv calcula la línea de tiempo (sin archivos: sirve igual en el servidor y en WebAssembly).
@@ -120,7 +138,7 @@ func SimulateEnv(env SimEnv, r contract.SimRequest) (contract.SimTimeline, error
 	req := Normalize(r.Plan)
 	esc := r.Escenario
 	if esc == "" {
-		esc = "tipico"
+		esc = "pronostico"
 	}
 	valid := false
 	for _, x := range Escenarios {
@@ -149,6 +167,9 @@ func SimulateEnv(env SimEnv, r contract.SimRequest) (contract.SimTimeline, error
 		n = 1
 	}
 	isNino := env.IsNino
+	if esc == "pronostico" {
+		return simulatePron(env, r, req, s)
+	}
 	rank := rankYears(s, req.Cultivo)
 	var years []int
 	switch esc {
@@ -207,6 +228,29 @@ func SimulateEnv(env SimEnv, r contract.SimRequest) (contract.SimTimeline, error
 	}
 	tl := s.Timeline(def, cfg, sim.SimOptions{Lang: req.Idioma, IsNino: isNino, Seasons: seasons})
 	tl.Motor = Version
+	tl.Escenario = esc
+	{
+		ca := confArgs{metodo: "remuestreo-enso", shown: years, probEsc: -1, horizon: horizon}
+		var pool []int
+		switch {
+		case esc == "real-2026":
+			ca.metodo = "observado"
+			pool = []int{2026}
+		case horizon != "2026":
+			ca.metodo = "cmip6"
+		case esc == "nino":
+			for _, y := range rank {
+				if isNino(y) {
+					pool = append(pool, y)
+				}
+			}
+		}
+		ca.pool = pool
+		tl.Confianza = buildConfianza(env, s, def, cfg, req.Cultivo, ca)
+		if esc == "real-2026" {
+			tl.Confianza.ProbEscenario = 1
+		}
+	}
 	L := lang(req.Idioma)
 	tl.Notas = []string{
 		L.f("%s, %s · zona NASA POWER de ~50 km · pendiente %.0f %% (SRTM).", "%s, %s · NASA POWER zone of ~50 km · slope %.0f%% (SRTM).", env.Name, env.Dept, s.SlopePct),

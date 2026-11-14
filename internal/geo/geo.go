@@ -30,6 +30,9 @@ type Municipio struct {
 	SlopePct float64    `json:"slope_pct"`
 	Polys    []Polygon  `json:"-"`
 	BBox     [4]float64 `json:"bbox"`
+	// Global: punto fuera de Guatemala (datos bajo demanda, sin polígono). Pais: código ISO si se sabe.
+	Global bool   `json:"global,omitempty"`
+	Pais   string `json:"pais,omitempty"`
 }
 
 type rawFC struct {
