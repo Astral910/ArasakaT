@@ -1,0 +1,37 @@
+{
+  "_nota": "Catálogo de la narración de la guía. Lo leen tools/tts/generar.py (genera los MP3) y narracion.ts (arma las frases). Una frase = segmentos estáticos + un segmento numérico con el número del motor.",
+  "voces": { "es": "es-GT-MartaNeural", "en": "en-US-JennyNeural" },
+  "estaticas": {
+    "inicio": { "es": "Así podría venir la temporada en tu parcela.", "en": "This is how the season could unfold on your plot." },
+    "primera_milpa": { "es": "Empieza la Primera: se siembra la milpa, maíz con frijol.", "en": "The first season begins: the milpa is planted, maize with beans." },
+    "primera_maiz": { "es": "Empieza la Primera: se siembra el maíz.", "en": "The first season begins: maize is planted." },
+    "primera_frijol": { "es": "Empieza la Primera: se siembra el frijol.", "en": "The first season begins: beans are planted." },
+    "primera_sorgo": { "es": "Empieza la Primera: se siembra el sorgo.", "en": "The first season begins: sorghum is planted." },
+    "primera": { "es": "Empieza la Primera: es tiempo de sembrar.", "en": "The first season begins: time to plant." },
+    "postrera": { "es": "Empieza la Postrera, la segunda siembra del año.", "en": "The second season begins, the year's second planting." },
+    "mucuna_siembra": { "es": "Se siembra la mucuna: cubre el suelo y lo protege.", "en": "Mucuna is planted: it covers the soil and protects it." },
+    "mucuna_agua": { "es": "Con mucuna, el suelo guarda más agua.", "en": "With mucuna, the soil holds more water." },
+    "cobertura_agua": { "es": "La cobertura ayuda a que el suelo guarde agua.", "en": "The ground cover helps the soil hold water." },
+    "suelo_sufre": { "es": "El suelo se seca y el cultivo sufre.", "en": "The soil dries out and the crop suffers." },
+    "falso_inicio": { "es": "Falso inicio: llovió fuerte y después vino una semana seca.", "en": "False start: heavy rain, then a dry week." },
+    "suelo_arrastre": { "es": "Sin cobertura, la lluvia arrastra el suelo.", "en": "Without cover, the rain washes the soil away." },
+    "helada": { "es": "Helada: el frío quema las hojas.", "en": "Frost: the cold burns the leaves." },
+    "perdida": { "es": "Esta temporada se pierde la cosecha.", "en": "This season the harvest is lost." },
+    "canicula": { "es": "Viene la canícula:", "en": "Here comes the midsummer drought:" },
+    "racha": { "es": "Racha seca:", "en": "Dry spell:" },
+    "tormenta": { "es": "Tormenta:", "en": "Storm:" },
+    "calor": { "es": "Calor fuerte, hasta", "en": "Strong heat, up to" },
+    "riego": { "es": "Empieza el riego de apoyo: el cultivo recibe agua cada semana.", "en": "Supplemental irrigation begins: the crop gets water every week." },
+    "cosecha_maiz": { "es": "Cosecha de maíz:", "en": "Maize harvest:" },
+    "cosecha_frijol": { "es": "Cosecha de frijol:", "en": "Bean harvest:" },
+    "cosecha_sorgo": { "es": "Cosecha de sorgo:", "en": "Sorghum harvest:" },
+    "cosecha": { "es": "Cosecha:", "en": "Harvest:" },
+    "fin": { "es": "Toda la información está en el informe técnico.", "en": "All the data is in the technical report." }
+  },
+  "numericas": {
+    "dias": { "es": "{n} días sin lluvia.", "en": "{n} days without rain.", "valores": [[7, 60, 1]] },
+    "mm": { "es": "{n} milímetros en un día.", "en": "{n} millimeters in one day.", "valores": [[10, 60, 1], [65, 200, 5]] },
+    "grados": { "es": "{n} grados.", "en": "{n} degrees Celsius.", "valores": [[30, 46, 1]] },
+    "qq": { "es": "{n} quintales por manzana.", "en": "{n} quintals per manzana.", "valores": [[0, 100, 1]] }
+  }
+}
