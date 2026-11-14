@@ -42,6 +42,9 @@ func TestSuscribirBajaRespuestas(t *testing.T) {
 	if len(r) != 1 || r[0].Suscriptores != 1 || r[0].Activos != 0 || r[0].Respuestas["amarillas"] != 1 {
 		t.Fatalf("resumen %+v", r)
 	}
+	if err := s.Bot().RegistrarRespuesta("50255551234", "", "seca"); err != nil {
+		t.Fatal(err)
+	}
 	if Mask("+502 5555-1234") != "****1234" {
 		t.Fatal("mask")
 	}

@@ -152,7 +152,7 @@ Alert for *{{1}}*: {{2}} ({{3}}).
 - **Categoría:** Utility · **Idiomas:** es, en
 - **Encabezado:** es `🤝 Seguimiento de tu cultivo` · en `🤝 Crop check-in`
 - **Variables propias:** `{{1}}` cultivo · `{{2}}` municipio · `{{3}}` consejo de la etapa (`SeguimientoVars`).
-- **Botones de respuesta rápida (4):** es `Bien` · `Hojas amarillas` · `Se está secando` · `Se perdió` — en `Good` · `Yellow leaves` · `Drying out` · `Lost`. Ids que guarda el bot: `seg_bien`, `seg_amarillas`, `seg_secando`, `seg_perdida`.
+- **Botones de respuesta rápida (4):** es `Bien` · `Hojas amarillas` · `Se está secando` · `Se perdió` — en `Good` · `Yellow leaves` · `Drying out` · `Lost`. Payload de cada botón (lo lee `internal/bot`): `seg:bien`, `seg:amarillas`, `seg:seca`, `seg:perdida`.
 
 **Cuerpo (es)**
 ```

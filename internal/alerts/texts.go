@@ -295,8 +295,9 @@ func RenderSeguimiento(p Persona, d time.Time) (Texto, []contract.Boton) {
 			t.Etapa = pick(en, "Ya es tiempo de cosecha: dejá el rastrojo como cobertura.", "It's harvest time: leave the residue as soil cover.")
 		}
 	}
-	bs := []contract.Boton{{ID: "seg_bien", Title: pick(en, "Bien", "Good")}, {ID: "seg_amarillas", Title: pick(en, "Hojas amarillas", "Yellow leaves")},
-		{ID: "seg_secando", Title: pick(en, "Se está secando", "Drying out")}, {ID: "seg_perdida", Title: pick(en, "Se perdió", "Lost")}}
+	// ids que entiende internal/bot: "seg:<respuesta>[:<alerta_id>]" (el motor agrega el id de la alerta al enviar)
+	bs := []contract.Boton{{ID: "seg:bien", Title: pick(en, "Bien", "Good")}, {ID: "seg:amarillas", Title: pick(en, "Hojas amarillas", "Yellow leaves")},
+		{ID: "seg:seca", Title: pick(en, "Se está secando", "Drying out")}, {ID: "seg:perdida", Title: pick(en, "Se perdió", "Lost")}}
 	return t, bs
 }
 

@@ -245,6 +245,9 @@ func (e *Engine) send(s contract.Suscriptor, a contract.Alerta, p Persona) (stri
 	if e.Store.VentanaAbierta(s.Telefono, e.now()) {
 		if a.Tipo == TSeguimiento {
 			_, bs := RenderSeguimiento(p, Day(e.now()))
+			for i := range bs {
+				bs[i].ID += ":" + a.ID
+			}
 			return "botones", e.Mensajero.EnviarBotones(s.Telefono, a.Texto, bs)
 		}
 		return "texto", e.Mensajero.EnviarTexto(s.Telefono, a.Texto)
