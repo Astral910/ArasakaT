@@ -283,6 +283,9 @@ func CalFor(T Temporadas) (SeasonCal, int) {
 	for shift < -182 {
 		shift += 365
 	}
+	if shift >= -45 && shift <= 45 { // corrimiento chico: se deja el calendario real (la temporada cae donde cae)
+		shift, startL = 0, s1
+	}
 	// día del calendario interno: la temporada principal queda en startL; lo que viene después se mide desde ahí
 	// y se limita al 20-dic (las ventanas no cruzan el fin del año interno).
 	at := func(doyReal, add int) MD {

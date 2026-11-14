@@ -21,6 +21,7 @@ var (
 	doFixture = flag.Bool("fixture", false, "reescribir contracts/fixtures/plan_jocotan.json")
 	doStatic  = flag.Bool("static", false, "exportar JSON del modo estático")
 	doSim     = flag.Bool("sim", false, "exportar líneas de tiempo del sandbox (fixture + static/sim)")
+	doMetod   = flag.Bool("metodologia", false, "reescribir solo static/metodologia.json")
 	doMeso    = flag.Bool("meso", false, "exportar static/riesgo_mesoamerica.geojson (ADM1 de México a Panamá, necesita red la primera vez)")
 	doWasm    = flag.Bool("wasm", false, "exportar web/public/wasm/sites/<municipio>.json para el motor WebAssembly")
 )
@@ -55,6 +56,9 @@ func main() {
 			write(filepath.Join("web", "public", "wasm", "sites", h+".json"), b, false)
 		}
 		log.Printf("wasm: sitios listos")
+	}
+	if *doMetod {
+		write(filepath.Join(*outDir, "metodologia.json"), metodologia(), true)
 	}
 	if *doMeso {
 		if err := exportMeso(e, *outDir); err != nil {
