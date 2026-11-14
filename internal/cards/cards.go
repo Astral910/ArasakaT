@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"image/png"
 	"math"
+	"sort"
 	"strings"
 	"sync"
 
@@ -18,6 +19,7 @@ import (
 	"golang.org/x/image/font/gofont/gomedium"
 	"golang.org/x/image/font/gofont/goregular"
 
+	"fieldshift/internal/bot"
 	"fieldshift/internal/contract"
 )
 
@@ -42,6 +44,7 @@ var (
 	cSueloA   = hex("#C9A884")
 	cSueloB   = hex("#A27C5B")
 	cHelada   = hex("#7FA7D9")
+	cCobert   = hex("#2F6B3A")
 )
 
 func hex(s string) color.RGBA {
@@ -101,6 +104,7 @@ var L10n = txt{
 	"postrera":    {"Postrera", "Postrera"},
 	"canicula":    {"Canícula", "Dry spell (canícula)"},
 	"suelo":       {"Suelo desnudo", "Bare soil"},
+	"cobertura":   {"Suelo cubierto", "Cover crop"},
 	"ventana":     {"Ventana de siembra", "Planting window"},
 	"vulnerable":  {"Etapa sensible", "Sensitive stage"},
 	"helada":      {"Helada", "Frost"},
@@ -362,14 +366,28 @@ func anillo(dc *gg.Context, p *contract.Plan, L string) {
 	pista(dc, cx, cy, rR, wR, cHuesoOsc)
 
 	var temporadas, riesgos, ventanas []arco
+	var pers []contract.Periodo
 	if rec := recomendada(p); rec != nil {
-		for _, pe := range rec.Calendario {
+		pers = append(pers, rec.Calendario...)
+	}
+	for _, pe := range p.Periodos { // calendario común del motor: canícula, etapa sensible, helada
+		if pe.Tipo == "canicula" || pe.Tipo == "vulnerable" || pe.Tipo == "helada" {
+			pers = append(pers, pe)
+		}
+	}
+	vistos := map[string]bool{}
+	{
+		for _, pe := range pers {
+			if vistos[pe.Tipo+pe.Inicio] {
+				continue
+			}
+			vistos[pe.Tipo+pe.Inicio] = true
 			a, ok := toArco(pe)
 			if !ok {
 				continue
 			}
 			switch pe.Tipo {
-			case "primera", "postrera", "suelo_desnudo":
+			case "primera", "postrera", "suelo_desnudo", "cobertura":
 				temporadas = append(temporadas, a)
 			case "canicula", "vulnerable", "helada":
 				riesgos = append(riesgos, a)
@@ -394,8 +412,12 @@ func anillo(dc *gg.Context, p *contract.Plan, L string) {
 		}
 	}
 
+	// la cobertura va encima de la temporada (se dibuja al final)
+	sort.SliceStable(temporadas, func(i, j int) bool { return temporadas[i].tipo != "cobertura" && temporadas[j].tipo == "cobertura" })
 	for _, a := range temporadas {
 		switch a.tipo {
+		case "cobertura":
+			arcoGrueso(dc, cx, cy, rS, wS*0.55, a, cCobert)
 		case "primera":
 			arcoGrueso(dc, cx, cy, rS, wS, a, cVerde)
 		case "postrera":
@@ -404,6 +426,8 @@ func anillo(dc *gg.Context, p *contract.Plan, L string) {
 			arcoRayado(dc, cx, cy, rS, wS, a)
 		}
 	}
+	// la canícula encima de la etapa sensible
+	sort.SliceStable(riesgos, func(i, j int) bool { return riesgos[i].tipo != "canicula" && riesgos[j].tipo == "canicula" })
 	for _, a := range riesgos {
 		c := cGranada
 		switch a.tipo {
@@ -436,8 +460,12 @@ func anillo(dc *gg.Context, p *contract.Plan, L string) {
 		dc.DrawStringAnchored(meses[li][m], cx+rL*math.Cos(mid), cy+rL*math.Sin(mid), 0.5, 0.38)
 	}
 
-	// marcador "siembra aquí" al inicio de la ventana de Primera
-	if a, ok := toArco(p.VentanaPrimera); ok {
+	// marcador "siembra aquí": mediana del inicio de lluvias (motor) o inicio de la ventana de Primera
+	marca := p.VentanaPrimera
+	if p.SiembraAqui != "" {
+		marca = contract.Periodo{Inicio: p.SiembraAqui, Fin: p.SiembraAqui}
+	}
+	if a, ok := toArco(marca); ok {
 		an := ang(a.ini)
 		px, py := cx+rV*math.Cos(an), cy+rV*math.Sin(an)
 		dc.SetColor(cHueso)
@@ -493,6 +521,7 @@ func anillo(dc *gg.Context, p *contract.Plan, L string) {
 	add("helada", cHelada, false, "helada", riesgos)
 	add("postrera", cJade, false, "postrera", temporadas)
 	add("suelo_desnudo", cSueloA, true, "suelo", temporadas)
+	add("cobertura", cCobert, false, "cobertura", temporadas)
 	var vs []string
 	for _, pe := range []contract.Periodo{p.VentanaPrimera, p.VentanaPostrera} {
 		if a, ok := toArco(pe); ok {
@@ -611,16 +640,11 @@ func fechaCorta(L, mmdd string) string {
 
 // ---------- 3 opciones ----------
 
-func riesgo(s *contract.Estrategia) int {
-	r := int(s.PerdidasDe10.P50 + 0.5)
-	return max(0, min(10, r))
-}
-
-func colorRiesgo(r int) color.RGBA {
+func colorRiesgo(r float64) color.RGBA {
 	switch {
-	case r <= 3:
+	case r < 2.5:
 		return cJade
-	case r <= 6:
+	case r < 5.5:
 		return cMaiz
 	}
 	return cGranada
@@ -668,25 +692,26 @@ func opciones(dc *gg.Context, p *contract.Plan, L string) {
 		dc.DrawStringAnchored(fmt.Sprint(i+1), bx+52, by+alto/2, 0.5, 0.38)
 
 		// medidor de riesgo a la derecha
-		r := riesgo(s)
-		mx := bx + bw - 330
+		r := bot.Riesgo(s)
+		mx := bx + bw - 372
 		for k := 0; k < 10; k++ {
-			c := cHuesoOsc
-			if k < r {
-				c = colorRiesgo(r)
-			}
-			dc.SetColor(c)
-			dc.DrawRoundedRectangle(mx+float64(k)*20, by+42, 14, 32, 4)
+			dc.SetColor(cHuesoOsc)
+			dc.DrawRoundedRectangle(mx+float64(k)*19, by+42, 13, 32, 4)
 			dc.Fill()
+			if f := math.Min(1, r-float64(k)); f > 0 { // barra parcial para decimales
+				dc.SetColor(colorRiesgo(r))
+				dc.DrawRoundedRectangle(mx+float64(k)*19, by+42, 13*f, 32, 4)
+				dc.Fill()
+			}
 		}
 		dc.SetColor(colorRiesgo(r))
 		dc.SetFontFace(face("bold", 44))
-		dc.DrawStringAnchored(fmt.Sprint(r), bx+bw-78, by+alto/2-4, 1, 0.38)
+		dc.DrawStringAnchored(bot.RiesgoTexto(s), bx+bw-78, by+alto/2-4, 1, 0.38)
 		dc.SetColor(cTierraMd)
 		dc.SetFontFace(face("med", 22))
 		dc.DrawStringAnchored("/10", bx+bw-74, by+alto/2-2, 0, 0.38)
 		dc.SetFontFace(face("reg", 17))
-		dc.DrawStringAnchored(L10n.get(L, "riesgo"), mx+100, by+94, 0.5, 0)
+		dc.DrawStringAnchored(L10n.get(L, "riesgo"), mx+93, by+94, 0.5, 0)
 
 		// nombre y descripción
 		tx := bx + 100
@@ -705,7 +730,7 @@ func opciones(dc *gg.Context, p *contract.Plan, L string) {
 		}
 		dc.SetFontFace(face("bold", 29))
 		dc.SetColor(cTierra)
-		dc.DrawString(ajustar(dc, s.Nombre, maxw), tx, ty)
+		dc.DrawString(ajustar(dc, sinParentesis(dc, s.Nombre, maxw), maxw), tx, ty)
 		dc.SetFontFace(face("reg", 21))
 		dc.SetColor(cTierraMd)
 		dc.DrawString(ajustar(dc, s.Descripcion, maxw), tx, ty+30)
@@ -725,9 +750,9 @@ func pie(dc *gg.Context, p *contract.Plan, L string) {
 	var xs []string
 	seen := map[string]bool{}
 	for _, f := range p.Fuentes {
-		if f.Dato != "" && !seen[f.Dato] {
-			seen[f.Dato] = true
-			xs = append(xs, f.Dato)
+		if d := bot.NombreFuente(f.Dato); d != "" && !seen[d] {
+			seen[d] = true
+			xs = append(xs, d)
 		}
 	}
 	if len(xs) == 0 {
@@ -758,6 +783,17 @@ func ajustar(dc *gg.Context, s string, maxw float64) string {
 		if w, _ := dc.MeasureString(c); w <= maxw {
 			return c
 		}
+	}
+	return s
+}
+
+// sinParentesis quita "(…)" final si el texto no cabe: "Milpa con mucuna (frijol abono)" → "Milpa con mucuna".
+func sinParentesis(dc *gg.Context, s string, maxw float64) string {
+	if w, _ := dc.MeasureString(s); w <= maxw {
+		return s
+	}
+	if i := strings.LastIndex(s, " ("); i > 0 && strings.HasSuffix(s, ")") {
+		return s[:i]
 	}
 	return s
 }

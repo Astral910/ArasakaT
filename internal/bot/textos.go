@@ -43,7 +43,7 @@ var textos = map[string][2]string{
 		"Reply *1*, *2* or *3* to see each option in detail.\n%s",
 	},
 	"ver_web":      {"Ver el plan completo 👉 %s", "See the full plan 👉 %s"},
-	"opcion_linea": {"%s *%s* · riesgo %d/10%s", "%s *%s* · risk %d/10%s"},
+	"opcion_linea": {"%s *%s* · riesgo %s/10%s", "%s *%s* · risk %s/10%s"},
 	"recomendada":  {" ⭐ recomendada", " ⭐ recommended"},
 	"suscribir_pregunta": {
 		"¿Querés que te avise por aquí si viene canícula 🌵 o lluvia fuerte 🌧?",

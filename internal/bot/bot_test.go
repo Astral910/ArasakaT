@@ -17,7 +17,7 @@ func nuevoBot(t *testing.T) (*Bot, *MemSuscripciones) {
 	}
 	subs := NewMemSuscripciones()
 	b := &Bot{
-		Planner:    &FixturePlanner{Municipios: ix},
+		Planner:    &FixturePlanner{Municipios: ix, Path: filepath.Join("testdata", "plan_ejemplo.json")},
 		Municipios: ix,
 		Subs:       subs,
 		Sesiones:   NewStore(filepath.Join(t.TempDir(), "sesiones.json")),
@@ -195,6 +195,31 @@ func TestEnglishFlow(t *testing.T) {
 	if p := out[1].Plan; p == nil || p.Request.Idioma != "en" || !p.Request.Riego || !p.Request.Ganado || p.Request.Prioridad != "agua" {
 		t.Fatalf("request mal armado: %+v", p.Request)
 	}
+}
+
+// Con la salida real del motor (contracts/fixtures), el resumen son las 4 líneas del motor.
+func TestResumenDelMotor(t *testing.T) {
+	b, _ := nuevoBot(t)
+	b.Planner = &FixturePlanner{Municipios: b.Municipios}
+	p, err := b.Planner.Plan(contract.PlanRequest{MunicipioID: "jocotan-chiquimula", Cultivo: "milpa", Prioridad: "comida", Idioma: "es"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Resumen) < 4 || EsEjemplo(&p) {
+		t.Skip("el fixture del motor todavía no trae resumen real")
+	}
+	tel := "50255550099"
+	say := func(e Entrada) []Salida { e.Tel = tel; return b.Responder(e) }
+	say(Entrada{Texto: "hola"})
+	say(Entrada{Texto: "Jocotán"})
+	say(Entrada{BotonID: "milpa"})
+	say(Entrada{BotonID: "no"})
+	say(Entrada{BotonID: "no"})
+	out := say(Entrada{BotonID: "comida"})
+	if out[0].Texto != strings.Join(p.Resumen, "\n") {
+		t.Fatalf("resumen:\n%s\nquería:\n%s", out[0].Texto, strings.Join(p.Resumen, "\n"))
+	}
+	debe(t, out, "riesgo "+RiesgoTexto(&p.Estrategias[0])+"/10")
 }
 
 func TestParseFecha(t *testing.T) {
