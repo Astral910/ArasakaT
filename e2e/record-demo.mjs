@@ -18,7 +18,8 @@ const seconds = Number(args[1] || 30)
 const FPS = 30
 const W = 1920, H = 1080
 fs.mkdirSync(outDir, { recursive: true })
-const out = path.join(outDir, 'fieldshift-demo-30s.mp4')
+const outArg = process.argv.find((a) => a.startsWith('--out='))
+const out = outArg ? path.resolve(outArg.slice(6)) : path.join(outDir, 'fieldshift-demo-30s.mp4')
 const outSub = path.join(outDir, 'fieldshift-demo-30s-subtitled.mp4')
 const srt = path.join(outDir, 'subtitles_en.srt')
 

@@ -32,6 +32,7 @@
 ## Software and libraries
 - Go 1.26 standard library · `github.com/fogleman/gg` (MIT) and `github.com/golang/freetype` (FreeType/BSD) for PNG cards · `modernc.org/sqlite` (BSD-3) · `golang.org/x/image`, `golang.org/x/text` (BSD-3) · `github.com/google/uuid` (BSD-3).
 - Vue 3, Vite, TypeScript, Pinia, Vue Router (MIT) · MapLibre GL JS (BSD-3) · GSAP (GreenSock standard license, free) · Lucide icons (ISC) · Vitest, Playwright (MIT / Apache-2.0).
+- 3D sandbox: three.js (MIT) · `mp4-muxer` (MIT) + WebCodecs for in-browser video · Go compiled to WebAssembly (engine offline) · `github.com/chromedp/chromedp` (MIT) + ffmpeg (LGPL/GPL, NVENC) for server-rendered videos.
 - Messaging: Meta WhatsApp Cloud API · Twilio WhatsApp Sandbox.
 - Fonts: Fraunces (Undercase Type) and Figtree (Erik Kennedy), both SIL Open Font License 1.1, self-hosted via Fontsource.
 - Hosting: Render / Fly.io (backend), Vercel / GitHub Pages (static site).

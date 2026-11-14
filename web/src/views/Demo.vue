@@ -6,16 +6,12 @@ import { useRoute } from 'vue-router'
 import { gsap } from 'gsap'
 import { Play, RotateCcw } from 'lucide-vue-next'
 import PhoneSim from '@/components/phone/PhoneSim.vue'
-import TerrainMap from '@/components/map/TerrainMap.vue'
-import CalendarRing from '@/components/plan/CalendarRing.vue'
-import CropIllustration from '@/components/illus/CropIllustration.vue'
 import BrandMark from '@/components/layout/BrandMark.vue'
-import { Gauge, HuipilBand, StatusBadge } from '@/components/ui'
+import { HuipilBand } from '@/components/ui'
 import { usePlanStore } from '@/stores/plan'
 import { fixturePlan, pub } from '@/api/client'
 import { maquina, avisoCanicula } from '@/data/maquina'
 import { t, lang } from '@/i18n'
-import { descEstrategia, nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo, cambioSuelo } from '@/components/plan/util'
 
 const route = useRoute()
 const store = usePlanStore()
@@ -25,12 +21,17 @@ const elapsed = ref(0)
 const scale = ref(1)
 const corriendo = ref(false)
 const phone = ref<InstanceType<typeof PhoneSim> | null>(null)
-const mapa = ref<InstanceType<typeof TerrainMap> | null>(null)
+const sbVideo = ref<HTMLVideoElement | null>(null)
 const endRef = ref<HTMLElement | null>(null)
 const TOTAL = 30
-// marcas de tiempo (s) del guion de la nota 20
-const CORTES = [0, 4, 9, 15, 21, 25]
-const subt = computed(() => [t('demo.c1'), t('demo.c2'), t('demo.c3'), t('demo.c4'), t('demo.c5', { n: tm.value.n }), ''][Math.max(0, escena.value)])
+// Guion (nota 20 + sandbox, nota 25): 0 WhatsApp · 1 tarjeta · 2 sandbox 3D (clip del motor: plano alto → maqueta →
+// sequía y tormentas en timelapse → comparar S0|S2) · 3 máquina del tiempo · 4 cierre.
+const CORTES = [0, 4, 7.5, 20.3, 25]
+const SB_COMPARA = 7.5 + 9.9 // en el clip, la comparación S0|S2 empieza a los 9.9 s
+const subt = computed(() => {
+  if (escena.value === 2) return elapsed.value >= SB_COMPARA ? t('demo.c3c') : elapsed.value >= 11.5 ? t('demo.c3b') : t('demo.c3')
+  return [t('demo.c1'), t('demo.c2'), '', t('demo.c5', { n: tm.value.n }), ''][Math.max(0, escena.value)]
+})
 
 // Máquina del tiempo 2026: lluvia real y aviso del backtest (WEBDATOS/ALERTAS); si no hay datos, ejemplo marcado.
 const av = avisoCanicula()
@@ -61,7 +62,6 @@ async function start() {
   corriendo.value = true
   escena.value = 0
   elapsed.value = 0
-  mapa.value?.overview()
   await nextTick()
   phone.value?.play()
   t0 = performance.now()
@@ -72,8 +72,8 @@ async function start() {
 }
 function entrar(i: number) {
   escena.value = i
-  if (i === 2) setTimeout(() => mapa.value?.flyTo(plan.value.municipio.lon, plan.value.municipio.lat, plan.value.municipio.id), 200)
-  if (i === 5) nextTick(() => {
+  if (i === 2 && sbVideo.value) { sbVideo.value.currentTime = 0; sbVideo.value.play().catch(() => {}) }
+  if (i === 4) nextTick(() => {
     if (!endRef.value) return
     gsap.fromTo(endRef.value.querySelectorAll('.e-line'), { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, stagger: 0.35, ease: 'power3.out' })
   })
@@ -100,35 +100,17 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
         <span class="tag">NASA Space Apps 2026 · Guatemala</span>
       </header>
 
-      <div class="phone-slot" :class="{ out: escena === 5, center: escena <= 1 && escena >= 0 }">
-        <PhoneSim ref="phone" :plan="plan" :autoplay="false" :interactive="false" :speed="0.55" :notif-delay="14200" :auto-open="3000" :scale="1.24" />
+      <div class="phone-slot" :class="{ out: escena === 4 || escena === 2, center: escena <= 1 && escena >= 0 }">
+        <PhoneSim ref="phone" :plan="plan" :autoplay="false" :interactive="false" :speed="0.55" :notif-delay="13400" :auto-open="3000" :scale="1.24" />
       </div>
 
-      <!-- escena 2–3: mapa + anillo; escena 3: tarjetas -->
-      <div class="panel map-panel" :class="{ show: escena === 2 }">
-        <TerrainMap ref="mapa" :fly="false" :interactive="false" :duration="5200" />
-        <div class="ring-over" :class="{ show: escena === 2 && elapsed > 12 }">
-          <CalendarRing v-if="escena === 2 && elapsed > 12" :plan="plan" :size="360" :labels="true" />
-        </div>
+      <!-- escena 2: sandbox 3D (clip renderizado con el motor real: internal/simvideo + comparar S0|S2) -->
+      <div class="panel map-panel sb-panel" :class="{ show: escena === 2 }">
+        <video ref="sbVideo" :src="pub('static/demo/sandbox.mp4')" muted playsinline preload="auto" />
       </div>
 
-      <div class="panel cards-panel" :class="{ show: escena === 3 }">
-        <div v-if="escena === 3" class="d-cards">
-          <article v-for="(e, i) in plan.estrategias" :key="e.id" class="d-card" :class="{ rec: e.recomendada }" :style="{ animationDelay: i * 450 + 'ms' }">
-            <CropIllustration :crop="cultivoEstrategia(e)" :health="saludDeRiesgo(e.perdidas_de_10.p50)" :size="170" />
-            <h3>{{ nombreEstrategia(e, lang, plan) }}</h3>
-            <StatusBadge :level="nivelRiesgo(e.perdidas_de_10.p50)" :label="t('plan.level.' + nivelRiesgo(e.perdidas_de_10.p50))" />
-            <p class="d-desc">{{ descEstrategia(e, lang, plan) }}</p>
-            <div class="d-g">
-              <Gauge :value="e.perdidas_de_10.p50" :max="10" :p10="e.perdidas_de_10.p10" :p90="e.perdidas_de_10.p90" :level="nivelRiesgo(e.perdidas_de_10.p50)" :label="t('plan.risk')" :unit="t('plan.riskUnit')" :size="120" :delay="i * 450" />
-              <Gauge :value="Math.abs(cambioSuelo(e))" :prefix="cambioSuelo(e) > 0 ? '+' : cambioSuelo(e) < 0 ? '−' : ''" :max="40" :level="cambioSuelo(e) > 2 ? 'ok' : cambioSuelo(e) >= -2 ? 'warn' : 'risk'" :label="t('plan.soil')" unit="% MO" :size="120" :delay="i * 450 + 150" />
-            </div>
-          </article>
-        </div>
-      </div>
-
-      <!-- escena 4: máquina del tiempo -->
-      <div class="panel tm-panel" :class="{ show: escena === 4 }">
+      <!-- escena 3: máquina del tiempo -->
+      <div class="panel tm-panel" :class="{ show: escena === 3 }">
         <h2>{{ t('demo.c5', { n: tm.n }) }}</h2>
         <svg viewBox="0 0 1000 340" class="tm">
           <rect :x="tm.c0 * 16 + 20" y="20" :width="tm.dias * 16" height="260" fill="var(--granada)" opacity="0.14" rx="8" />
@@ -147,7 +129,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
       </div>
 
       <!-- escena 5: cierre -->
-      <div ref="endRef" class="panel end" :class="{ show: escena === 5 }">
+      <div ref="endRef" class="panel end" :class="{ show: escena === 4 }">
         <HuipilBand :h="22" class="e-line" />
         <p class="e-line big">{{ t('demo.end1') }}</p>
         <p class="e-line mid">{{ t('demo.end2') }}</p>
@@ -160,7 +142,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
       <p v-if="store.origen === 'fixture' && !rec" class="fixture-note">{{ t('demo.example') }}</p>
 
       <!-- portada -->
-      <div v-if="!rec && (escena === -1 || (!corriendo && escena === 5 && elapsed >= TOTAL))" class="cover" :class="{ ended: escena === 5 }">
+      <div v-if="!rec && (escena === -1 || (!corriendo && escena === 4 && elapsed >= TOTAL))" class="cover" :class="{ ended: escena === 4 }">
         <template v-if="escena === -1">
           <h1>{{ t('demo.title') }}</h1>
           <button type="button" class="go" @click="start"><Play /> {{ t('demo.start') }}</button>
@@ -177,19 +159,23 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 .rec .progress { display: none; }
 .stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center; overflow: hidden; background: var(--bg); color: var(--ink); }
 .bg { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--sky-top) 60%, var(--bg)), var(--bg) 70%); transition: background 1s; }
-.bg.e4 { background: linear-gradient(180deg, #fff1d6, var(--bg) 70%); }
-.bg.e5 { background: linear-gradient(180deg, #1f4f45, #15302a); }
+.bg.e2 { background: linear-gradient(180deg, #24343a, #121a1c 75%); }
+.bg.e3 { background: linear-gradient(180deg, #fff1d6, var(--bg) 70%); }
+.bg.e4 { background: linear-gradient(180deg, #1f4f45, #15302a); }
 .relief { position: absolute; right: -80px; top: 40px; width: 980px; opacity: 0.9; transition: opacity 800ms, transform 1.2s var(--ease); -webkit-mask-image: radial-gradient(closest-side, #000 65%, transparent); mask-image: radial-gradient(closest-side, #000 65%, transparent); }
 .relief.dim { opacity: 0; transform: scale(1.1); }
 .top { position: absolute; left: 80px; top: 50px; display: flex; align-items: center; gap: 16px; font-family: var(--font-display); font-size: 40px; font-weight: 650; z-index: 4; }
 .tag { font-family: var(--font-ui); font-size: 20px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tierra); margin-left: 12px; }
-.e5 ~ .top, .stage:has(.bg.e5) .top { color: #f5efe4; }
+.stage:has(.bg.e2) .top, .stage:has(.bg.e4) .top { color: #f5efe4; }
+.stage:has(.bg.e2) .tag { color: #e8c98a; }
 .phone-slot { position: absolute; left: 130px; top: 140px; z-index: 3; transition: transform 1s var(--ease), opacity 800ms; }
 .phone-slot.center { transform: translateX(560px); }
 .phone-slot.out { transform: translateX(-700px); opacity: 0; }
 .panel { position: absolute; left: 720px; right: 80px; top: 150px; bottom: 170px; opacity: 0; transform: translateY(30px); transition: opacity 700ms var(--ease), transform 700ms var(--ease); pointer-events: none; z-index: 2; }
 .panel.show { opacity: 1; transform: none; }
 .map-panel { border-radius: 36px; overflow: hidden; box-shadow: var(--shadow-2); }
+.sb-panel { left: 200px; right: 200px; top: 125px; bottom: auto; height: 855px; background: #0d1214; }
+.sb-panel video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ring-over { position: absolute; right: 30px; top: 30px; padding: 26px; border-radius: 30px; background: var(--glass); backdrop-filter: blur(12px); opacity: 0; transition: opacity 600ms; }
 .ring-over.show { opacity: 1; }
 .ring-over :deep(.legend) { display: none; }
@@ -219,6 +205,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 .big { font-family: var(--font-display); font-size: 110px; font-weight: 650; line-height: 1; letter-spacing: -0.02em; }
 .mid { font-size: 48px; font-weight: 600; max-width: 1300px; }
 .small { font-size: 26px; opacity: 0.8; }
+.stage:has(.bg.e2) .subs, .stage:has(.bg.e4) .subs { left: 40px; bottom: 28px; }
 .subs { position: absolute; left: 640px; right: 40px; bottom: 70px; display: flex; justify-content: center; z-index: 6; opacity: 0; transition: opacity 400ms; }
 .subs.show { opacity: 1; }
 .subs span { background: rgba(15, 12, 9, 0.78); color: #fff; font-size: 34px; font-weight: 650; padding: 12px 30px; border-radius: 16px; }
