@@ -29,14 +29,18 @@ func NewWeb(b *bot.Bot, publicURL string) *Web {
 }
 
 // ChatRequest: lo que manda el simulador.
+// Acepta los nombres de la web ("sesion", "boton") y los largos ("session_id", "boton_id").
 type ChatRequest struct {
 	SessionID string   `json:"session_id"`
+	Sesion    string   `json:"sesion,omitempty"`
 	MensajeID string   `json:"mensaje_id,omitempty"` // opcional, para idempotencia
 	Texto     string   `json:"texto"`
 	BotonID   string   `json:"boton_id,omitempty"`
+	Boton     string   `json:"boton,omitempty"`
 	Lat       *float64 `json:"lat,omitempty"`
 	Lon       *float64 `json:"lon,omitempty"`
-	Tipo      string   `json:"tipo,omitempty"` // text | interactive | location | audio
+	Tipo      string   `json:"tipo,omitempty"`   // text | interactive | location | audio
+	Idioma    string   `json:"idioma,omitempty"` // es | en: idioma de arranque de la sesión
 }
 
 // TelWeb: clave de sesión del simulador.
@@ -46,6 +50,9 @@ func (wb *Web) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		id := r.URL.Query().Get("session_id")
+		if id == "" {
+			id = r.URL.Query().Get("sesion")
+		}
 		if id == "" {
 			http.Error(w, "falta session_id", http.StatusBadRequest)
 			return
@@ -58,6 +65,12 @@ func (wb *Web) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if req.SessionID == "" {
+			req.SessionID = req.Sesion
+		}
+		if req.BotonID == "" {
+			req.BotonID = req.Boton
+		}
+		if req.SessionID == "" {
 			req.SessionID = nuevoID()
 		}
 		if len(req.SessionID) > 64 {
@@ -67,6 +80,9 @@ func (wb *Web) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		tel := TelWeb(req.SessionID)
 		out := wb.sacar(tel)
 		if req.MensajeID == "" || !wb.vistos.visto(tel+"|"+req.MensajeID) {
+			if req.Idioma == "en" || req.Idioma == "es" {
+				wb.Bot.IdiomaInicial(tel, req.Idioma)
+			}
 			e := bot.Entrada{Tel: tel, Tipo: req.Tipo, Texto: req.Texto, BotonID: req.BotonID, Lat: req.Lat, Lon: req.Lon}
 			if e.Tipo == "" {
 				e.Tipo = "text"

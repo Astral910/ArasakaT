@@ -97,6 +97,7 @@ func CargarMunicipios() (*geo.Index, error) {
 // municipio y la solicitud del usuario. Generado = "fixture" para que se note en la tarjeta.
 type FixturePlanner struct {
 	Municipios *geo.Index
+	Path       string // por defecto contracts/fixtures/plan_jocotan.json
 	once       sync.Once
 	base       contract.Plan
 	err        error
@@ -104,8 +105,12 @@ type FixturePlanner struct {
 
 func (f *FixturePlanner) Plan(req contract.PlanRequest) (contract.Plan, error) {
 	f.once.Do(func() {
+		path := f.Path
+		if path == "" {
+			path = filepath.Join(RepoRoot(), "contracts", "fixtures", "plan_jocotan.json")
+		}
 		var b []byte
-		b, f.err = os.ReadFile(filepath.Join(RepoRoot(), "contracts", "fixtures", "plan_jocotan.json"))
+		b, f.err = os.ReadFile(path)
 		if f.err == nil {
 			f.err = json.Unmarshal(b, &f.base)
 		}
@@ -117,14 +122,17 @@ func (f *FixturePlanner) Plan(req contract.PlanRequest) (contract.Plan, error) {
 	b, _ := json.Marshal(f.base)
 	var p contract.Plan
 	_ = json.Unmarshal(b, &p)
+	// Si piden otro municipio, idioma o respuestas, los números no son de ese caso: se marca como ejemplo.
+	if p.Request.MunicipioID != req.MunicipioID || p.Request.Cultivo != req.Cultivo || p.Request.Idioma != req.Idioma ||
+		p.Request.Prioridad != req.Prioridad || p.Request.Riego != req.Riego || p.Generado == "" {
+		p.Generado = "fixture"
+		p.Resumen = nil
+	}
 	p.Request = req
 	if f.Municipios != nil {
 		if m := f.Municipios.ByID[req.MunicipioID]; m != nil {
 			p.Municipio = contract.Municipio{ID: m.ID, Nombre: m.Name, Departamento: m.Dept, Lat: m.Lat, Lon: m.Lon}
 		}
-	}
-	if p.Generado == "" {
-		p.Generado = "fixture"
 	}
 	return p, nil
 }

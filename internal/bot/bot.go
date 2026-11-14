@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"math"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -72,6 +73,18 @@ func (b *Bot) Responder(e Entrada) []Salida {
 	out := b.paso(&se, e)
 	b.Sesiones.Put(se)
 	return out
+}
+
+// IdiomaInicial fija el idioma de una sesión que todavía no empezó (el simulador web lo manda).
+func (b *Bot) IdiomaInicial(tel, idioma string) {
+	mu, _ := b.locks.LoadOrStore(tel, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	defer mu.(*sync.Mutex).Unlock()
+	se := b.Sesiones.Get(tel)
+	if se.Paso == PasoInicio && se.Idioma != idioma {
+		se.Idioma = idioma
+		b.Sesiones.Put(se)
+	}
 }
 
 var reNumero = regexp.MustCompile(`^\s*(\d{1,2})\s*[\.\)]?\s*$`)
@@ -383,14 +396,17 @@ func (b *Bot) resumen(se *Sesion, conSuscripcion bool) []Salida {
 	}
 	if rec != nil && base != nil && rec.ID != base.ID {
 		lineas = append(lineas, pick(L, [2]string{
-			fmt.Sprintf("✅ Mejor opción: *%s*: se pierden ~%d de cada 10 temporadas (como siempre: %d)", rec.Nombre, riesgo(rec), riesgo(base)),
-			fmt.Sprintf("✅ Best option: *%s*: ~%d of 10 seasons lost (as usual: %d)", rec.Nombre, riesgo(rec), riesgo(base)),
+			fmt.Sprintf("✅ Mejor opción: *%s*: se pierden ~%s de cada 10 temporadas (como siempre: %s)", rec.Nombre, RiesgoTexto(rec), RiesgoTexto(base)),
+			fmt.Sprintf("✅ Best option: *%s*: ~%s of 10 seasons lost (as usual: %s)", rec.Nombre, RiesgoTexto(rec), RiesgoTexto(base)),
 		}))
 	} else if rec != nil {
 		lineas = append(lineas, pick(L, [2]string{
-			fmt.Sprintf("✅ Mejor opción: *%s*: se pierden ~%d de cada 10 temporadas", rec.Nombre, riesgo(rec)),
-			fmt.Sprintf("✅ Best option: *%s*: ~%d of 10 seasons lost", rec.Nombre, riesgo(rec)),
+			fmt.Sprintf("✅ Mejor opción: *%s*: se pierden ~%s de cada 10 temporadas", rec.Nombre, RiesgoTexto(rec)),
+			fmt.Sprintf("✅ Best option: *%s*: ~%s of 10 seasons lost", rec.Nombre, RiesgoTexto(rec)),
 		}))
+	}
+	if len(p.Resumen) >= 4 {
+		lineas = p.Resumen
 	}
 	texto := strings.Join(lineas, "\n")
 	if EsEjemplo(p) {
@@ -413,7 +429,7 @@ func (b *Bot) resumen(se *Sesion, conSuscripcion bool) []Salida {
 		if s.Recomendada {
 			star = t(L, "recomendada")
 		}
-		ops = append(ops, t(L, "opcion_linea", nums[i], s.Nombre, riesgo(&s), star))
+		ops = append(ops, t(L, "opcion_linea", nums[i], s.Nombre, RiesgoTexto(&s), star))
 	}
 	det := t(L, "elegi_detalle", strings.Join(ops, "\n"))
 	if b.WebURL != "" {
@@ -441,12 +457,12 @@ func (b *Bot) detalle(se *Sesion, i int) []Salida {
 		fmt.Fprintf(&w, "🗓 %s\n", strings.Join(s.Secuencia, " → "))
 	}
 	if L == "en" {
-		fmt.Fprintf(&w, "📉 Seasons lost: ~%d of 10 (%s–%s)\n", riesgo(&s), num(s.PerdidasDe10.P10), num(s.PerdidasDe10.P90))
+		fmt.Fprintf(&w, "📉 Seasons lost: ~%s of 10 (%s–%s)\n", RiesgoTexto(&s), num(s.PerdidasDe10.P10), num(s.PerdidasDe10.P90))
 		fmt.Fprintf(&w, "💧 Water deficit: %s mm (%s–%s)\n", num(s.DeficitAguaMM.P50), num(s.DeficitAguaMM.P10), num(s.DeficitAguaMM.P90))
 		fmt.Fprintf(&w, "🌽 Yield: %s qq/mz (%s–%s)\n", num(s.RendimientoQQMZ.P50), num(s.RendimientoQQMZ.P10), num(s.RendimientoQQMZ.P90))
 		fmt.Fprintf(&w, "🟫 Bare soil: %d days a year\n", s.SueloDesnudoDias)
 	} else {
-		fmt.Fprintf(&w, "📉 Temporadas perdidas: ~%d de cada 10 (entre %s y %s)\n", riesgo(&s), num(s.PerdidasDe10.P10), num(s.PerdidasDe10.P90))
+		fmt.Fprintf(&w, "📉 Temporadas perdidas: ~%s de cada 10 (entre %s y %s)\n", RiesgoTexto(&s), num(s.PerdidasDe10.P10), num(s.PerdidasDe10.P90))
 		fmt.Fprintf(&w, "💧 Falta de agua: %s mm (%s–%s)\n", num(s.DeficitAguaMM.P50), num(s.DeficitAguaMM.P10), num(s.DeficitAguaMM.P90))
 		fmt.Fprintf(&w, "🌽 Rendimiento: %s qq/mz (%s–%s)\n", num(s.RendimientoQQMZ.P50), num(s.RendimientoQQMZ.P10), num(s.RendimientoQQMZ.P90))
 		fmt.Fprintf(&w, "🟫 Suelo desnudo: %d días al año\n", s.SueloDesnudoDias)
@@ -570,7 +586,7 @@ func (b *Bot) LinkWeb(r contract.PlanRequest) string {
 // QueryPlan codifica la solicitud para la URL de la tarjeta y de la web.
 func QueryPlan(r contract.PlanRequest) url.Values {
 	v := url.Values{}
-	v.Set("municipio", r.MunicipioID)
+	v.Set("municipio_id", r.MunicipioID)
 	v.Set("cultivo", r.Cultivo)
 	v.Set("riego", strconv.FormatBool(r.Riego))
 	v.Set("ganado", strconv.FormatBool(r.Ganado))
@@ -582,17 +598,32 @@ func QueryPlan(r contract.PlanRequest) url.Values {
 		v.Set("idioma", r.Idioma)
 	}
 	if r.FechaSiembra != "" {
-		v.Set("siembra", r.FechaSiembra)
+		v.Set("fecha_siembra", r.FechaSiembra)
 	}
 	return v
 }
 
-// ReqDesdeQuery es la inversa de QueryPlan (con valores por defecto).
+// ReqDesdeQuery es la inversa de QueryPlan (con valores por defecto). Acepta también
+// "municipio" y "siembra" como alias.
 func ReqDesdeQuery(v url.Values) contract.PlanRequest {
+	uno := func(ks ...string) string {
+		for _, k := range ks {
+			if x := v.Get(k); x != "" {
+				return x
+			}
+		}
+		return ""
+	}
 	r := contract.PlanRequest{
-		MunicipioID: v.Get("municipio"), Cultivo: v.Get("cultivo"), Prioridad: v.Get("prioridad"),
-		Horizonte: v.Get("horizonte"), Idioma: v.Get("idioma"), FechaSiembra: v.Get("siembra"),
+		MunicipioID: uno("municipio_id", "municipio"), Cultivo: v.Get("cultivo"), Prioridad: v.Get("prioridad"),
+		Horizonte: v.Get("horizonte"), Idioma: v.Get("idioma"), FechaSiembra: uno("fecha_siembra", "siembra"),
 		AreaValor: 1, AreaUnidad: "manzana", ManoObra: "normal", SemillaCobertura: true,
+	}
+	if a, err := strconv.ParseFloat(v.Get("area_valor"), 64); err == nil && a > 0 {
+		r.AreaValor = a
+		if u := v.Get("area_unidad"); u != "" {
+			r.AreaUnidad = u
+		}
 	}
 	r.Riego, _ = strconv.ParseBool(v.Get("riego"))
 	r.Ganado, _ = strconv.ParseBool(v.Get("ganado"))
@@ -805,16 +836,18 @@ func base(p *contract.Plan) *contract.Estrategia {
 	return &p.Estrategias[0]
 }
 
-// riesgo X/10: mediana de temporadas perdidas de cada 10, redondeada.
-func riesgo(s *contract.Estrategia) int {
-	r := int(s.PerdidasDe10.P50 + 0.5)
-	if r < 0 {
-		r = 0
+// Riesgo X/10: temporadas perdidas de cada 10 (riesgo_de_10 del motor; si falta, la mediana).
+func Riesgo(s *contract.Estrategia) float64 {
+	r := s.RiesgoDe10
+	if r == 0 {
+		r = s.PerdidasDe10.P50
 	}
-	if r > 10 {
-		r = 10
-	}
-	return r
+	return max(0, min(10, r))
+}
+
+// RiesgoTexto: "3.3" o "1" (un decimal como el motor).
+func RiesgoTexto(s *contract.Estrategia) string {
+	return num(math.Round(Riesgo(s)*10) / 10)
 }
 
 func num(f float64) string {
@@ -840,6 +873,14 @@ func tituloCultivo(L, id string) string {
 	return id
 }
 
+// NombreFuente: "NASA POWER (T2M_MAX, …)" → "NASA POWER".
+func NombreFuente(d string) string {
+	if i := strings.Index(d, " ("); i > 0 {
+		return d[:i]
+	}
+	return d
+}
+
 // FuentesCortas: "NASA POWER (2001-2026) · GPM IMERG (…)" a partir de plan.Fuentes.
 func FuentesCortas(p *contract.Plan) string {
 	if p == nil {
@@ -852,7 +893,7 @@ func FuentesCortas(p *contract.Plan) string {
 			continue
 		}
 		seen[f.Dato] = true
-		s := f.Dato
+		s := NombreFuente(f.Dato)
 		if f.Periodo != "" {
 			s += " (" + f.Periodo + ")"
 		}

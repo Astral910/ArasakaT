@@ -27,7 +27,7 @@ func nuevoBot(t *testing.T) *bot.Bot {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &bot.Bot{Planner: &bot.FixturePlanner{Municipios: ix}, Municipios: ix, Subs: bot.NewMemSuscripciones(),
+	return &bot.Bot{Planner: &bot.FixturePlanner{Municipios: ix, Path: "../bot/testdata/plan_ejemplo.json"}, Municipios: ix, Subs: bot.NewMemSuscripciones(),
 		Sesiones: bot.NewStore(""), WebURL: "https://fs.example"}
 }
 
@@ -348,6 +348,15 @@ func TestWebChatYRouter(t *testing.T) {
 	out = chat(`{"session_id":"abc","boton_id":"seg:bien"}`)
 	if len(out) != 1 || !strings.Contains(out[0].Texto, "rastrojo") {
 		t.Fatalf("seguimiento: %+v", out)
+	}
+	// Formato de la web: "sesion", "boton", "idioma".
+	out = chat(`{"sesion":"web-xyz","texto":"hola","idioma":"en"}`)
+	if len(out) != 1 || !strings.Contains(out[0].Texto, "I help you plan") {
+		t.Fatalf("formato web: %+v", out)
+	}
+	chat(`{"sesion":"web-xyz","texto":"Jocotán"}`)
+	if out = chat(`{"sesion":"web-xyz","boton":"milpa"}`); len(out) != 1 || out[0].Tipo != "buttons" {
+		t.Fatalf("boton: %+v", out)
 	}
 	// Sin credenciales, un número real cae al simulador sin romper.
 	if err := s.Mensajero.EnviarTexto("50255550011", "hola"); err != nil {
