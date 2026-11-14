@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"log"
 	"time"
 
 	"fieldshift/internal/contract"
@@ -52,6 +53,8 @@ func parseGlobalID(id string) (float64, float64, bool) {
 }
 
 // GlobalPoint arma (o devuelve de la caché) el lugar para un punto cualquiera.
+var globalLocks sync.Map // id → *sync.Mutex
+
 func (e *Engine) GlobalPoint(lat, lon float64) (*geo.Municipio, error) {
 	lat, lon = math.Round(lat*100)/100, math.Round(lon*100)/100
 	id := GlobalID(lat, lon)
@@ -60,6 +63,16 @@ func (e *Engine) GlobalPoint(lat, lon float64) (*geo.Municipio, error) {
 		e.globals = map[string]*globalPoint{}
 	}
 	gp, ok := e.globals[id]
+	e.mu.Unlock()
+	if ok {
+		return gp.m, nil
+	}
+	// una sola descarga por punto: sitio, plan y simulaciones llegan juntos al elegir el lugar
+	lk, _ := globalLocks.LoadOrStore(id, &sync.Mutex{})
+	lk.(*sync.Mutex).Lock()
+	defer lk.(*sync.Mutex).Unlock()
+	e.mu.Lock()
+	gp, ok = e.globals[id]
 	e.mu.Unlock()
 	if ok {
 		return gp.m, nil
@@ -77,12 +90,33 @@ func (e *Engine) GlobalPoint(lat, lon float64) (*geo.Municipio, error) {
 		wg          sync.WaitGroup
 	)
 	go e.Pron(lat, lon) // el pronóstico se baja mientras llega NASA POWER
+	var tPow, tRev, tSoil, tRel time.Duration
+	medir := func(d *time.Duration, f func()) { t0 := time.Now(); f(); *d = time.Since(t0) }
 	wg.Add(4)
-	go func() { defer wg.Done(); cl, clErr = c.Power(lat, lon) }()
-	go func() { defer wg.Done(); lugar, lugErr = c.Reverse(lat, lon) }()
-	go func() { defer wg.Done(); soil, soilErr = c.Soil(lat, lon) }()
-	go func() { defer wg.Done(); elev, slope, relErr = c.ElevSlope(lat, lon) }()
+	go func() { defer wg.Done(); medir(&tPow, func() { cl, clErr = c.Power(lat, lon) }) }()
+	go func() { defer wg.Done(); medir(&tRev, func() { lugar, lugErr = c.Reverse(lat, lon) }) }()
+	go func() {
+		// SoilGrids a veces tarda casi un minuto (reintentos y vecinos): tope de 8 s y respaldo por textura del bioma;
+		// la descarga sigue y queda en la caché de disco para la próxima vez.
+		defer wg.Done()
+		type rs struct {
+			s   data.Soil
+			err error
+		}
+		ch := make(chan rs, 1)
+		t0 := time.Now()
+		go func() { s, err := c.Soil(lat, lon); ch <- rs{s, err} }()
+		select {
+		case r := <-ch:
+			soil, soilErr = r.s, r.err
+		case <-time.After(8 * time.Second):
+			soilErr = fmt.Errorf("SoilGrids tardó más de 8 s")
+		}
+		tSoil = time.Since(t0)
+	}()
+	go func() { defer wg.Done(); medir(&tRel, func() { elev, slope, relErr = c.ElevSlope(lat, lon) }) }()
 	wg.Wait()
+	log.Printf("motor global %s: NASA POWER %v · nombre %v · suelo %v · relieve %v", id, tPow.Round(time.Millisecond), tRev.Round(time.Millisecond), tSoil.Round(time.Millisecond), tRel.Round(time.Millisecond))
 	if clErr != nil {
 		return nil, fmt.Errorf("no hay datos de NASA POWER para %.2f, %.2f (¿sin conexión?): %v", lat, lon, clErr)
 	}

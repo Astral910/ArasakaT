@@ -100,7 +100,7 @@ export function municipioCercano(ms: Pick<Municipio, 'id' | 'nombre' | 'departam
 /** GET /api/sitio?lat&lon (MOTOR, ronda 3), tolerante con la forma; null si no hay servidor. */
 export async function cargarSitio(lat: number, lon: number): Promise<Sitio | null> {
   try {
-    const r: any = await api.get(`/api/sitio?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`)
+    const r: any = await api.get(`/api/sitio?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`, undefined, enGuatemala(lon, lat) ? undefined : 30_000)
     if (!r || typeof r !== 'object') return null
     const m = r.municipio ?? {}
     const riesgo = Number(r.riesgo ?? r.riesgo_10 ?? r.perdidas_de_10 ?? m.riesgo)

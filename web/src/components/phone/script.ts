@@ -6,11 +6,14 @@ import { avisoCanicula, fechaLarga } from '@/data/maquina'
 export interface Burbuja {
   id: number
   from: 'bot' | 'user'
-  tipo: 'text' | 'buttons' | 'location' | 'card' | 'alert' | 'location_request' | 'image' | 'list' | 'video'
+  tipo: 'text' | 'buttons' | 'location' | 'card' | 'alert' | 'location_request' | 'image' | 'list' | 'video' | 'document'
   texto: string
   botones?: { id: string; title: string }[]
   image_url?: string
   video_url?: string
+  doc_url?: string
+  doc_nombre?: string
+  link_url?: string
   hora?: string
 }
 export interface Paso { msg: Omit<Burbuja, 'id'>; wait: number }

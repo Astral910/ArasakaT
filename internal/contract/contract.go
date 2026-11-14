@@ -199,6 +199,10 @@ type MensajeChat struct {
 	ImageURL string  `json:"image_url,omitempty"`
 	// Agregado por video (14-nov): Tipo "video" → MP4 del sandbox 3D (GET /api/sim/video.mp4?…).
 	VideoURL string `json:"video_url,omitempty"`
+	// Agregado por integrador3 (14-nov): Tipo "document" → informe técnico PDF (GET /api/informe.pdf?…) + página web.
+	DocURL    string `json:"doc_url,omitempty"`
+	DocNombre string `json:"doc_nombre,omitempty"`
+	LinkURL   string `json:"link_url,omitempty"`
 }
 
 type Suscriptor struct {

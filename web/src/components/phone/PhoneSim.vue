@@ -2,7 +2,7 @@
 // Teléfono con WhatsApp simulado. Reproduce un guion de demo (números del plan) y, si el usuario escribe
 // o toca un botón, habla con el bot real por POST /api/chat. Si no hay backend, responde en modo demo.
 import { ref, nextTick, onMounted, onBeforeUnmount, watch, computed } from 'vue'
-import { ArrowLeft, Phone, Video, MoreVertical, Paperclip, Camera, Mic, SendHorizontal, MapPin, RotateCcw, CheckCheck } from 'lucide-vue-next'
+import { ArrowLeft, Phone, Video, MoreVertical, Paperclip, Camera, Mic, SendHorizontal, MapPin, RotateCcw, CheckCheck, FileText } from 'lucide-vue-next'
 import { guion, aviso, respuestaLocal, type Burbuja } from './script'
 import PlanCardMini from './PlanCardMini.vue'
 import BrandMark from '@/components/layout/BrandMark.vue'
@@ -74,7 +74,7 @@ function openAlert() {
 }
 
 function fromApi(m: MensajeChat): Omit<Burbuja, 'id'> {
-  return { from: m.from, tipo: (m.tipo as Burbuja['tipo']) || 'text', texto: m.texto, botones: m.botones, image_url: m.image_url, video_url: m.video_url }
+  return { from: m.from, tipo: (m.tipo as Burbuja['tipo']) || 'text', texto: m.texto, botones: m.botones, image_url: m.image_url, video_url: m.video_url, doc_url: m.doc_url, doc_nombre: m.doc_nombre, link_url: m.link_url }
 }
 async function enviar(texto: string, boton?: string, loc?: { lat: number; lon: number }) {
   run++
@@ -162,6 +162,11 @@ defineExpose({ play, openAlert })
                 <span v-if="m.texto" v-html="fmt(m.texto)" />
                 <span class="meta">{{ m.hora }}</span>
               </div>
+              <div v-else-if="m.tipo === 'document' && m.doc_url" class="bubble doc" data-testid="sim-informe">
+                <a class="pdf" :href="m.doc_url" target="_blank" rel="noopener"><FileText aria-hidden="true" /><span><b>{{ m.doc_nombre || 'informe.pdf' }}</b><small>PDF</small></span></a>
+                <span v-if="m.texto" v-html="fmt(m.texto)" />
+                <a v-if="m.link_url" class="web" :href="m.link_url" target="_blank" rel="noopener">{{ lang === 'en' ? 'Open the web report' : 'Abrir el informe web' }}</a>
+              </div>
               <div v-else class="bubble" :class="{ alert: m.tipo === 'alert' }">
                 <span v-html="fmt(m.texto)" />
                 <span class="meta">{{ m.hora }}<CheckCheck v-if="m.from === 'user'" class="tick" /></span>
@@ -230,6 +235,12 @@ defineExpose({ play, openAlert })
 .pin { width: 30px; height: 30px; color: #c4473a; fill: #f2c24f; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3)); }
 .loct { display: block; padding: 4px 4px 0; font-weight: 600; font-size: calc(13px * var(--s)); }
 .bubble.card { padding: calc(4px * var(--s)); width: 88%; }
+.bubble.doc { display: grid; gap: 6px; }
+.bubble.doc .pdf { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,.05); color: inherit; text-decoration: none; }
+.bubble.doc .pdf svg { width: 28px; height: 28px; color: #b5343c; flex: none; }
+.bubble.doc .pdf span { display: grid; line-height: 1.2; }
+.bubble.doc .pdf small { opacity: .6; }
+.bubble.doc .web { font-size: .85em; }
 .bubble.card img, .bubble.card video { border-radius: 8px; width: 100%; display: block; background: #000; }
 .dots { display: flex; gap: 4px; padding: 10px 12px; }
 .dots i { width: 7px; height: 7px; border-radius: 50%; background: #9a9187; animation: blink 1.2s infinite; }

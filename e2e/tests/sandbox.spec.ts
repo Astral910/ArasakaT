@@ -29,40 +29,100 @@ test('toma continua: mapa → terreno → maqueta 3D', async ({ page }) => {
   noErrors(errors)
 })
 
-test('sandbox: datos reales, línea de tiempo, evento, riego, comparar y exportar', async ({ page }) => {
+// Flujo ronda 3: lugar → 2 toques → guía (arranca sola, cámara centrada) → tarjeta final → informe web y PDF.
+async function landingAGuia(page: Page, texto: string, quiere: RegExp) {
+  await page.goto('/?lang=es')
+  await page.getByTestId('buscar-lugar').fill(texto)
+  const op = page.getByRole('option').filter({ hasText: quiere }).first()
+  await expect(op).toBeVisible({ timeout: 20_000 })
+  await op.click() // toque 1
+  await expect(page.getByTestId('lugar-elegido')).toBeVisible()
+  await page.getByTestId('ver-temporada').click() // toque 2
+  await expect(page).toHaveURL(/\/sandbox\?.*lat=.*lon=.*auto=1/)
+}
+
+async function guiaHastaFinal(page: Page, pre2: string) {
+  await expect(page.locator('canvas').first()).toBeVisible({ timeout: 60_000 })
+  await page.waitForTimeout(9000)
+  await snap(page, `${pre2}01-guia`)
+  // la guía corre sola (play/pausa + velocidad); se acelera a ×4 para llegar a la tarjeta final
+  const play = page.getByRole('button', { name: /^(Pause|Pausa)$/ })
+  await expect(play).toBeVisible({ timeout: 60_000 })
+  const ritmo = page.getByRole('button', { name: /×\d/ })
+  await ritmo.click(); await ritmo.click()
+  await snap(page, `${pre2}02-guia-corriendo`)
+  const final = page.locator('section.final')
+  await expect(final).toBeVisible({ timeout: 90_000 })
+  await expect(final).toContainText(/qq\/mz/)
+  await snap(page, `${pre2}03-tarjeta-final`)
+  return final
+}
+
+test('ronda 3: Jocotán → guía centrada → tarjeta final → informe web y PDF', async ({ page, request }) => {
+  test.skip(process.env.STATIC === '1', 'el PDF necesita el servidor')
+  const errors = watchErrors(page)
+  await landingAGuia(page, 'Jocotán', /Chiquimula|Guatemala/)
+  // nunca "ejemplo" con motor; la insignia de confianza dice el escenario con su probabilidad
+  await expect(page.locator('body')).not.toContainText(/Example data|Datos de ejemplo|Ejemplo ilustrativo/i)
+  const final = await guiaHastaFinal(page, 'jocotan-')
+  await expect(final).toContainText(/%/)
+  // Ajustar: riego alto recalcula; Exportar video está en el panel
+  await final.getByRole('button', { name: /Cerrar|Close/ }).click()
+  await page.getByRole('button', { name: /^(Ajustar|Adjust)$/ }).click()
+  await page.getByRole('button', { name: /Mucho|High/ }).first().click()
+  await page.waitForTimeout(2500)
+  await expect(page.getByRole('button', { name: /Export video|Exportar video/ }).first()).toBeVisible()
+  await snap(page, 'jocotan-04-ajustar-riego')
+  await page.getByRole('button', { name: /^(Ajustar|Adjust)$/ }).click()
+  // vuelve a la tarjeta final → informe técnico
+  await page.getByRole('button', { name: /Ver otra vez|Watch again|Pausa|Pause|Reproducir|Play/ }).first().click()
+  const f2 = await guiaHastaFinal(page, 'jocotan-b-')
+  await f2.getByRole('link', { name: /informe técnico|technical report/i }).click()
+  await expect(page).toHaveURL(/\/informe\?/)
+  await expect(page.locator('body')).toContainText(/Jocotán/, { timeout: 60_000 })
+  await expect(page.locator('body')).toContainText(/años|years/)
+  await page.waitForTimeout(2000)
+  await snap(page, 'jocotan-05-informe', true)
+  const q = new URL(page.url()).search
+  const pdf = await request.get(`/api/informe.pdf${q}`, { timeout: 170_000 })
+  expect(pdf.ok(), `pdf ${pdf.status()}`).toBeTruthy()
+  expect(pdf.headers()['content-type']).toContain('pdf')
+  const body = await pdf.body()
+  expect(body.length).toBeGreaterThan(100_000)
+  fs.writeFileSync(path.join(DIR, 'informe-jocotan.pdf'), body)
+  noErrors(errors)
+})
+
+test('ronda 3: punto fuera de Guatemala (Nairobi) → guía → informe y PDF', async ({ page, request }) => {
+  test.skip(process.env.STATIC === '1', 'el motor global necesita el servidor')
+  const errors = watchErrors(page)
+  await landingAGuia(page, 'Nairobi', /Kenya|Kenia/)
+  const final = await guiaHastaFinal(page, 'nairobi-')
+  await final.getByRole('link', { name: /informe técnico|technical report/i }).click()
+  await expect(page).toHaveURL(/\/informe\?/)
+  await expect(page.locator('body')).toContainText(/Nairobi/, { timeout: 90_000 })
+  await expect(page.locator('body')).toContainText(/sin validación local|no local validation/i)
+  await page.waitForTimeout(2000)
+  await snap(page, 'nairobi-05-informe', true)
+  const pdf = await request.get(`/api/informe.pdf${new URL(page.url()).search}`, { timeout: 170_000 })
+  expect(pdf.ok(), `pdf ${pdf.status()}`).toBeTruthy()
+  fs.writeFileSync(path.join(DIR, 'informe-nairobi.pdf'), await pdf.body())
+  noErrors(errors)
+})
+
+test('sandbox: comparar S0 | S2 se anima en las dos mitades', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/sandbox?m=jocotan-chiquimula&s=S2&intro=0')
   await expect(page.locator('canvas').first()).toBeVisible({ timeout: 40_000 })
   await page.waitForTimeout(4000)
-  // Nunca "ejemplo" cuando hay motor (API, WASM o estático).
   await expect(page.locator('body')).not.toContainText(/Example data|Datos de ejemplo/i)
-  await expect(page.locator('body')).toContainText(/NASA POWER/)
   await snap(page, '04-sandbox')
-  // Pausa y salto a un evento de tormenta.
-  await page.getByRole('button', { name: /^(Pause|Pausa)$/ }).click()
-  const storm = page.getByRole('button', { name: /Storm|Tormenta/ }).first()
-  await storm.click()
-  await page.waitForTimeout(2500)
-  await snap(page, '05-evento-tormenta')
-  const dry = page.getByRole('button', { name: /dry spell|racha seca/i }).first()
-  if (await dry.count()) { await dry.click(); await page.waitForTimeout(2500); await snap(page, '06-evento-sequia') }
-  // Riego: cambia y el motor recalcula.
-  await page.getByRole('button', { name: /High|Mucho/ }).first().click()
-  await page.waitForTimeout(2500)
-  await snap(page, '07-riego-alto')
-  // Exportar: abre el panel (no se graba aquí; el video lo prueba el servidor).
-  await page.getByRole('button', { name: /Export video|Exportar video/ }).click()
-  await page.waitForTimeout(1000)
-  await snap(page, '09-exportar')
-  await page.keyboard.press('Escape')
-  // Comparar S0 | S2.
+  await page.getByRole('button', { name: /^(Ajustar|Adjust)$/ }).click()
   await page.getByRole('button', { name: /Compare|Comparar/ }).click()
+  await page.getByRole('button', { name: /^(Ajustar|Adjust)$/ }).click()
   await page.waitForTimeout(5000)
   await snap(page, '08-comparar-S0-S2')
-  // La mitad S2 también se anima (antes quedaba congelada: autoRender ausente = false).
-  // Se lee el lienzo (sin el HUD encima) dos veces con la línea de tiempo corriendo.
   const derecha = page.locator('.panel-escena canvas').nth(1)
-  await page.getByRole('button', { name: /^(Play|Reproducir)$/ }).click()
   const leer = () => derecha.evaluate((c: HTMLCanvasElement) => c.toDataURL('image/jpeg', 0.6))
   const a = await leer()
   await page.waitForTimeout(1500)
@@ -98,10 +158,8 @@ test('simulador: VIDEO 🎬 devuelve el video de la milpa', async ({ page, reque
   const chat = (b: Record<string, unknown>) => request.post('/api/chat', { data: { session_id: s, ...b } }).then((r) => r.json())
   await chat({ texto: 'hola' })
   await chat({ lat: 14.82, lon: -89.39, tipo: 'location' })
-  for (const b of ['milpa', 'no', 'no']) await chat({ boton_id: b })
-  let m: any[] = await chat({ boton_id: 'comida' })
-  // Si el bot pregunta riego (nueva pregunta), contestar sin riego.
-  m = await chat({ texto: 'VIDEO' })
+  for (const b of ['milpa', 'm2', 'nada']) await chat({ boton_id: b })
+  const m: any[] = await chat({ texto: 'VIDEO' })
   const v = m.find((x) => x.tipo === 'video')
   expect(v?.video_url, JSON.stringify(m).slice(0, 400)).toBeTruthy()
   const t0 = Date.now()

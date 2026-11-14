@@ -55,9 +55,12 @@ export interface Plan {
 export interface Boton { id: string; title: string }
 export interface MensajeChat {
   from: 'bot' | 'user'
-  tipo: 'text' | 'buttons' | 'list' | 'image' | 'location_request' | 'alert' | 'location' | 'card' | 'video'
+  tipo: 'text' | 'buttons' | 'list' | 'image' | 'location_request' | 'alert' | 'location' | 'card' | 'video' | 'document'
   texto: string
   botones?: Boton[]
   image_url?: string
   video_url?: string // tipo video: MP4 del sandbox 3D (agente video)
+  doc_url?: string // tipo document: informe técnico PDF
+  doc_nombre?: string
+  link_url?: string // página web del informe
 }

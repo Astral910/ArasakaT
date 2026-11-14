@@ -73,6 +73,8 @@ async function porWasm(r: SimRequest): Promise<SimTimeline | null> {
 }
 
 const cache = new Map<string, ResSim>()
+/** espera del motor: un punto nuevo del mundo tarda 8–15 s (NASA POWER + suelo + pronóstico) la primera vez */
+const TOPE_SIM = 45_000
 
 export interface ResSim { tl: SimTimeline; origen: OrigenSim; /** escenario que realmente se usó (pronostico sin servidor → tipico) */ escenario: SimRequest['escenario'] }
 
@@ -82,14 +84,14 @@ export async function cargarSim(r0: SimRequest, plan?: Plan | null): Promise<Res
   if (c) return c
   let res: ResSim | null = null
   try {
-    const tl = await api.post<SimTimeline>('/api/simulate', r0)
+    const tl = await api.post<SimTimeline>('/api/simulate', r0, TOPE_SIM)
     if (valida(tl)) res = { tl, origen: 'api', escenario: r0.escenario }
   } catch { /* sigue */ }
   // el pronóstico necesita el servidor (16 días + estacional): sin él, el motor local corre el año típico
   const r: SimRequest = r0.escenario === 'pronostico' ? { ...r0, escenario: 'tipico', percentil: 'p50' } : r0
   if (!res && r !== r0) {
     try {
-      const tl = await api.post<SimTimeline>('/api/simulate', r)
+      const tl = await api.post<SimTimeline>('/api/simulate', r, TOPE_SIM)
       if (valida(tl)) res = { tl, origen: 'api', escenario: r.escenario }
     } catch { /* sigue */ }
   }

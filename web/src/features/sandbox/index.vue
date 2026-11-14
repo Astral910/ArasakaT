@@ -419,7 +419,7 @@ const conTope = <T,>(p: Promise<T>, ms: number, def: T) => Promise.race([p, new 
 /** Quién es el punto: /api/sitio (cualquier lugar del mundo) → municipio de Guatemala más cercano. */
 async function resolverSitio() {
   const [sitio] = await Promise.all([
-    hayLugar.value ? conTope(cargarSitio(lugar.lat, lugar.lon), 1800, null) : Promise.resolve(null),
+    hayLugar.value ? conTope(cargarSitio(lugar.lat, lugar.lon), enGuatemala(lugar.lon, lugar.lat) ? 1800 : 30000, null) : Promise.resolve(null),
     conTope(store.cargarMunicipios().catch(() => {}), 1800, undefined),
   ])
   if (sitio) {
@@ -453,7 +453,7 @@ onMounted(async () => {
   // plan del lugar (calendario, estrategia recomendada); con el motor global sirve para cualquier coordenada
   const p = store.plan
   if (!p || p.municipio.id !== lugar.id || !lugar.id) {
-    await conTope(store.calcular({ ...planRequest() }).catch(() => {}), 5000, undefined)
+    await conTope(store.calcular({ ...planRequest() }).catch(() => {}), lugar.pais === 'GT' ? 5000 : 45000, undefined)
   }
   const pm = store.plan?.municipio
   if (pm && pm.id === lugar.id) { lugar.nombre ||= pm.nombre; lugar.depto ||= pm.departamento }

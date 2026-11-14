@@ -12,9 +12,9 @@ export const BASE = (import.meta.env.BASE_URL as string | undefined) ?? '/'
 export const pub = (p: string) => BASE + p.replace(/^\//, '')
 const TIMEOUT = 3500
 
-async function getJSON<T>(url: string, init?: RequestInit): Promise<T> {
+async function getJSON<T>(url: string, init?: RequestInit, tope = TIMEOUT): Promise<T> {
   const ctl = new AbortController()
-  const timer = setTimeout(() => ctl.abort(), TIMEOUT)
+  const timer = setTimeout(() => ctl.abort(), tope)
   try {
     const r = await fetch(url, { ...init, signal: ctl.signal, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } })
     if (!r.ok) throw new Error(`${r.status} ${url}`)
@@ -29,16 +29,17 @@ async function getJSON<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
   base: API_BASE,
   /** Intenta la API; si falla (error, no-OK o no-JSON), el JSON estático (modo "link que nunca falla"). */
-  async get<T>(rutaApi: string, rutaEstatica?: string): Promise<T> {
+  async get<T>(rutaApi: string, rutaEstatica?: string, tope?: number): Promise<T> {
     try {
-      return await getJSON<T>(API_BASE + rutaApi)
+      return await getJSON<T>(API_BASE + rutaApi, undefined, tope)
     } catch (e) {
       if (!rutaEstatica) throw e
       return await getJSON<T>(pub(rutaEstatica))
     }
   },
-  post<T>(ruta: string, body: unknown): Promise<T> {
-    return getJSON<T>(API_BASE + ruta, { method: 'POST', body: JSON.stringify(body) })
+  /** tope: ms de espera (un punto nuevo del mundo tarda 8–15 s en bajar NASA POWER la primera vez). */
+  post<T>(ruta: string, body: unknown, tope?: number): Promise<T> {
+    return getJSON<T>(API_BASE + ruta, { method: 'POST', body: JSON.stringify(body) }, tope)
   },
 }
 
@@ -61,7 +62,8 @@ export function fixturePlan(r?: Partial<PlanRequest>): Plan {
 
 export async function fetchPlan(r: PlanRequest): Promise<{ plan: Plan; origen: Origen }> {
   try {
-    return { plan: await api.post<Plan>('/api/plan', r), origen: 'api' }
+    const nuevo = !r.municipio_id || r.municipio_id.startsWith('g_') // punto del mundo: el motor baja NASA POWER la 1.ª vez
+    return { plan: await api.post<Plan>('/api/plan', r, nuevo ? 45_000 : undefined), origen: 'api' }
   } catch { /* sigue */ }
   try {
     return { plan: await getJSON<Plan>(pub(planPath(r))), origen: 'static' }

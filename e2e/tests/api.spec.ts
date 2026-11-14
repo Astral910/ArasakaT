@@ -60,11 +60,13 @@ test('conversación completa en el simulador (ubicación → plan → tarjeta �
   m = await chat(request, s, { lat: 14.82, lon: -89.39 })
   expect(m.map((x) => x.texto).join(' ')).toContain('Jocotán')
   expect(ids(m)).toContain('milpa')
-  m = await chat(request, s, { boton: 'milpa' }) // ¿riego?
-  m = await chat(request, s, { boton: 'no' }) // ¿ganado?
-  m = await chat(request, s, { boton: 'no' }) // ¿prioridad?
-  expect(ids(m)).toContain('comida')
-  m = await chat(request, s, { boton: 'comida' })
+  m = await chat(request, s, { boton: 'milpa' }) // ¿tamaño?
+  expect(ids(m)).toContain('m2')
+  m = await chat(request, s, { boton: 'm2' }) // ¿riego?
+  expect(ids(m)).toContain('nada')
+  m = await chat(request, s, { boton: 'nada' }) // plan: resumen + tarjeta + video + informe + ¿te aviso?
+  expect(m.some((x) => x.tipo === 'video')).toBeTruthy()
+  expect(m.map((x) => x.texto).join(' ')).toMatch(/Informe técnico/)
   const img = m.find((x) => x.tipo === 'image')
   expect(img?.image_url).toBeTruthy()
   const card = await request.get(img!.image_url!.replace(/^https?:\/\/[^/]+/, ''))
@@ -82,14 +84,10 @@ test('aviso de canícula llega al simulador', async ({ request }) => {
   await chat(request, s, { texto: 'hola' })
   await chat(request, s, { lat: 14.82, lon: -89.39 })
   await chat(request, s, { boton: 'milpa' })
-  await chat(request, s, { boton: 'no' })
-  await chat(request, s, { boton: 'no' })
-  await chat(request, s, { boton: 'comida' })
-  let m = await chat(request, s, { boton: 'sub_si' })
-  expect(ids(m)).toContain('sembro_si')
-  await chat(request, s, { boton: 'sembro_si' })
-  m = await chat(request, s, { texto: '20/05' })
-  expect(m.map((x) => x.texto).join(' ')).toMatch(/Listo|avisar/i)
+  await chat(request, s, { boton: 'm2' })
+  await chat(request, s, { boton: 'nada' })
+  const m = await chat(request, s, { boton: 'sub_si' })
+  expect(m.map((x) => x.texto).join(' ')).toMatch(/Listo|aviso/i)
   // Fecha de la demo: el primer aviso de canícula acertado de la máquina del tiempo 2026 (jun–ago).
   const tl = await (await request.get('/api/alerts/timeline?municipio=jocotan-chiquimula&anio=2026')).json()
   const av = tl.alertas.find((x: any) => x.tipo === 'canicula' && x.fecha >= '2026-06-01' && x.fecha <= '2026-08-31' && x.verificacion === 'acierto')

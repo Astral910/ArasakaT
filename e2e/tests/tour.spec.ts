@@ -19,56 +19,67 @@ async function next(page: Page) {
 
 
 
-test('landing: titular, teléfono vivo y llamada a la acción', async ({ page }) => {
+test('landing: globo, pregunta del lugar y teléfono vivo', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/')
   await settle(page, 2500)
-  await expect(page.locator('h1').first()).toContainText(/milpa/i)
-  await expect(page.getByRole('link', { name: /Plan my milpa/i }).first()).toBeVisible()
-  await expect(page.getByRole('log')).toBeVisible() // chat del teléfono
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Where is your land\?|¿Dónde está tu terreno\?/)
+  await expect(page.getByTestId('buscar-lugar')).toBeVisible()
   await shot(page, `${pre}01-landing`)
-  // El aviso de canícula llega al teléfono de la landing (notificación animada).
-  const notif = page.locator('button.notif')
-  if (await notif.isVisible({ timeout: 15_000 }).catch(() => false)) {
-    await shot(page, `${pre}02-landing-aviso-canicula`)
-    await notif.click()
-    await page.waitForTimeout(800)
-    await shot(page, `${pre}03-landing-aviso-abierto`)
-  }
+  const log = page.getByRole('log')
+  await log.scrollIntoViewIfNeeded()
+  await expect(log).toBeVisible() // chat del teléfono (más abajo)
+  await page.waitForTimeout(1500)
+  await shot(page, `${pre}02-landing-telefono`)
   noErrors(errors)
 })
 
-test('simulador: conversación completa con el bot', async ({ page }) => {
+test('simulador: bot completo con video, informe PDF y PRUEBA ALERTA', async ({ page, request }) => {
   test.skip(process.env.STATIC === '1', 'modo estático: el simulador responde en modo demo')
-  await page.goto('/')
+  test.setTimeout(300_000)
+  await page.goto('/?lang=es')
   await settle(page, 1000)
-  const input = page.getByRole('textbox', { name: /Message|Mensaje/i })
+  const input = page.getByTestId('sim-input')
+  await input.scrollIntoViewIfNeeded()
   await expect(input).toBeEnabled({ timeout: 20_000 })
   const log = page.getByRole('log')
   const say = async (txt: string) => {
     await input.fill(txt)
-    await page.getByRole('button', { name: /^(Send|Enviar)$/i }).click()
+    await page.getByTestId('sim-enviar').click()
     await page.waitForTimeout(900)
   }
   const tap = async (re: RegExp) => {
     const b = log.getByRole('button', { name: re }).last()
-    await expect(b).toBeVisible({ timeout: 10_000 })
+    await expect(b).toBeVisible({ timeout: 20_000 })
     await b.click()
     await page.waitForTimeout(900)
   }
   await say('hola')
   await say('Jocotán')
   await expect(log).toContainText(/Jocotán/)
-  await tap(/Milpa/i)
-  await tap(/^(None|Nada)|rain only|solo lluvia|^No$/i) // riego
-  await tap(/^No$/i) // ganado
-  await tap(/comida|food/i)
-  await expect(log).toContainText(/1.*2.*3|recomendada|recommended/is, { timeout: 15_000 })
-  await expect(log.locator('img').last()).toBeVisible({ timeout: 15_000 }) // tarjeta del plan
+  await tap(/^Milpa/i)
+  await tap(/^2 manzanas/i)
+  await tap(/^Nada/i) // riego
+  await expect(log.locator('img').last()).toBeVisible({ timeout: 60_000 }) // tarjeta del plan
+  await expect(log).toContainText(/1️⃣|Mejor opción|recomendada/i, { timeout: 30_000 })
   await shot(page, `${pre}04-simulador-plan`)
-  await tap(/avis|alert/i) // suscripción: "Sí, avisame"
-  await page.waitForTimeout(500)
-  await shot(page, `${pre}05-simulador-suscripcion`)
+  // video 3D y el informe PDF en el chat
+  const video = log.getByTestId('sim-video').last()
+  await expect(video).toBeVisible({ timeout: 60_000 })
+  const doc = log.getByTestId('sim-informe').last()
+  await expect(doc).toBeVisible({ timeout: 60_000 })
+  await doc.scrollIntoViewIfNeeded()
+  await shot(page, `${pre}05-simulador-video-informe`)
+  const href = await doc.locator('a.pdf').getAttribute('href')
+  const pdf = await request.get(href!.replace(/^https?:\/\/[^/]+/, ''), { timeout: 170_000 })
+  expect(pdf.ok(), `pdf ${pdf.status()}`).toBeTruthy()
+  expect(pdf.headers()['content-type']).toContain('pdf')
+  await tap(/^S[ií]/i) // suscripción
+  await expect(log).toContainText(/Listo|aviso/i)
+  await say('PRUEBA ALERTA')
+  await expect(log).toContainText(/PRUEBA|prueba|alerta|aviso/i, { timeout: 60_000 })
+  await page.waitForTimeout(1500)
+  await shot(page, `${pre}06-simulador-prueba-alerta`)
 })
 
 test('asistente "Plan my milpa" en 4 pasos → Mi plan', async ({ page }) => {

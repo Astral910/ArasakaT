@@ -48,6 +48,13 @@ export function nombreEscenario(tl: SimTimeline, c: SimConfianza, idioma: 'es' |
   if (c.metodo === 'cmip6') return idioma === 'en' ? 'Climate 2040' : 'Clima 2040'
   if (c.metodo === 'observado') return idioma === 'en' ? 'Observed weather' : 'Clima observado'
   const nino = tl.anual[0]?.el_nino ?? false
+  // con la clase del motor, la probabilidad que sigue es la de esa clase de temporada (milpa de hoy, S0)
+  const clase = (c as SimConfianza & { clase?: string }).clase
+  if (clase === 'perdida' || clase === 'regular' || clase === 'buena') {
+    const es = { perdida: 'Temporada de pérdida', regular: 'Temporada regular', buena: 'Buena temporada' }[clase]
+    const en = { perdida: 'Crop-loss season', regular: 'Average season', buena: 'Good season' }[clase]
+    return idioma === 'en' ? en + (nino ? ' (El Niño)' : '') : es + (nino ? ' (El Niño)' : '')
+  }
   if (idioma === 'en') return nino ? 'El Niño scenario' : 'Neutral-year scenario'
   return nino ? 'Escenario El Niño' : 'Escenario año neutro'
 }
