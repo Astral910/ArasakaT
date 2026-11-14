@@ -1,6 +1,7 @@
 // Guion de demo del simulador (cuando no hay backend). Los números salen del plan (fixture o motor), nunca inventados aquí.
 import type { Plan } from '@/api/types'
 import type { Lang } from '@/i18n'
+import { avisoCanicula, fechaLarga } from '@/data/maquina'
 
 export interface Burbuja {
   id: number
@@ -24,7 +25,7 @@ export function guion(plan: Plan, lang: Lang): Paso[] {
   const es = lang === 'es'
   const s0 = plan.estrategias.find((e) => e.id === 'S0') ?? plan.estrategias[0]
   const rec = plan.estrategias.find((e) => e.recomendada) ?? plan.estrategias[plan.estrategias.length - 1]
-  const recName = es ? rec.nombre : ({ S0: 'Milpa as always', S1: 'Sorghum relay in Postrera', S2: 'Milpa with mucuna cover' } as Record<string, string>)[rec.id] ?? rec.nombre
+  const recName = rec.nombre
   const vp = plan.ventana_primera
   const m = `${plan.municipio.nombre}, ${plan.municipio.departamento}`
   return [
@@ -52,9 +53,11 @@ export function guion(plan: Plan, lang: Lang): Paso[] {
 
 /** El aviso que cae como notificación (texto de la nota 23; ejemplo de formato). */
 export function aviso(lang: Lang): Omit<Burbuja, 'id'> {
+  const a = avisoCanicula()
+  const f = fechaLarga(a.inicio, lang)
   return lang === 'es'
-    ? { from: 'bot', tipo: 'alert', texto: '🌵 *Aviso de canícula · Jocotán*\nSe espera una racha seca de unos *9 días* desde el *jue 9 de julio* (probable: 7 de cada 10 pronósticos).\nTu maíz va a estar en *floración*, la etapa que más agua necesita.\n✅ Dejá el rastrojo sobre el suelo\n✅ No abones esa semana\n✅ Si tenés cosecha de agua, guardala para esos días\nConsultá con tu extensionista.' }
-    : { from: 'bot', tipo: 'alert', texto: '🌵 *Canícula alert · Jocotán*\nA dry spell of about *9 days* is expected from *Thu July 9* (likely: 7 of 10 forecasts).\nYour maize will be *flowering*, the stage that needs water most.\n✅ Leave crop residue on the soil\n✅ Don\'t fertilize that week\n✅ If you harvest rainwater, save it for those days\nCheck with your extension agent.' }
+    ? { from: 'bot', tipo: 'alert', texto: `🌵 *Aviso de canícula · Jocotán*\nSe espera una racha seca de unos *${a.dias} días* desde el *${f}* (probable: ${a.prob10} de cada 10 pronósticos).\nTu maíz va a estar en *floración*, la etapa que más agua necesita.\n✅ Dejá el rastrojo sobre el suelo\n✅ No abones esa semana\n✅ Si tenés cosecha de agua, guardala para esos días\nConsultá con tu extensionista.` }
+    : { from: 'bot', tipo: 'alert', texto: `🌵 *Canícula alert · Jocotán*\nA dry spell of about *${a.dias} days* is expected from *${f}* (likely: ${a.prob10} of 10 forecasts).\nYour maize will be *flowering*, the stage that needs water most.\n✅ Leave crop residue on the soil\n✅ Don't fertilize that week\n✅ If you harvest rainwater, save it for those days\nCheck with your extension agent.` }
 }
 
 /** Respuesta local cuando el bot real no responde y el usuario escribe. */

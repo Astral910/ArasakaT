@@ -14,7 +14,7 @@ const uid = `cr${Math.random().toString(36).slice(2, 7)}`
 const EXTERIOR = new Set(['primera', 'postrera', 'suelo_desnudo'])
 const COLOR: Record<string, string> = {
   primera: 'var(--milpa)', postrera: 'var(--jade)', suelo_desnudo: `url(#${uid}-hatch)`,
-  canicula: 'var(--granada)', siembra: 'var(--maiz)', vulnerable: '#e07b39', helada: 'var(--anil)',
+  canicula: 'var(--granada)', siembra: 'var(--maiz)', vulnerable: '#e07b39', helada: 'var(--anil)', cobertura: '#8cbf5f',
 }
 
 function ang(day: number) { return (day / 365) * 2 * Math.PI - Math.PI / 2 }
@@ -30,14 +30,16 @@ const est = computed(() => props.estrategia ?? props.plan.estrategias.find((e) =
 const periodos = computed(() => {
   const list: Periodo[] = [...(est.value?.calendario ?? [])]
   const has = (tipo: string) => list.some((p) => p.tipo === tipo)
+  for (const p of (props.plan as { periodos?: Periodo[] }).periodos ?? []) if (!EXTERIOR.has(p.tipo) && !has(p.tipo)) list.push(p)
   if (!has('canicula') && props.plan.canicula_tipica?.inicio) list.push(props.plan.canicula_tipica)
   if (props.plan.ventana_primera?.inicio) list.push({ ...props.plan.ventana_primera, tipo: 'siembra' })
   if (props.plan.ventana_postrera?.inicio) list.push({ ...props.plan.ventana_postrera, tipo: 'siembra' })
   return list.map((p, i) => {
-    const ext = EXTERIOR.has(p.tipo)
-    const r = ext ? R_OUT : R_IN
+    const cob = p.tipo === 'cobertura'
+    const ext = EXTERIOR.has(p.tipo) || cob
+    const r = cob ? R_OUT + 19 : ext ? R_OUT : R_IN
     const d0 = diaDelAnio(p.inicio), d1 = diaDelAnio(p.fin) + 1
-    return { ...p, i, ext, d: arc(r, d0, d1), w: ext ? W_OUT : W_IN, color: COLOR[p.tipo] ?? 'var(--ink-3)', d0, d1 }
+    return { ...p, i, ext, d: arc(r, d0, d1), w: cob ? 8 : ext ? W_OUT : W_IN, color: COLOR[p.tipo] ?? 'var(--ink-3)', d0, d1 }
   })
 })
 const leyenda = computed(() => {
@@ -55,7 +57,7 @@ const siembra = computed(() => {
 const meses = computed(() => Array.from({ length: 12 }, (_, i) => {
   const acc = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334][i]
   const mid = acc + 15
-  const [x, y] = pt(R_OUT + 30, mid)
+  const [x, y] = pt(R_OUT + 38, mid)
   const [t0x, t0y] = pt(R_OUT + 15, acc), [t1x, t1y] = pt(R_IN - 10, acc)
   return { label: mes(i), x, y, tick: `M${t0x} ${t0y} L${t1x} ${t1y}` }
 }))
@@ -79,7 +81,7 @@ defineExpose({ replay })
 </script>
 
 <template>
-  <div class="ring-wrap" :class="{ drawn }">
+  <div class="ring-wrap" data-testid="anillo-calendario" :class="{ drawn }">
     <svg :width="size" :height="size" :viewBox="labels ? `0 0 ${VB} ${VB}` : `40 40 ${VB - 80} ${VB - 80}`" role="img" :aria-label="t('plan.ring.title')">
       <defs>
         <pattern :id="`${uid}-hatch`" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -136,7 +138,7 @@ svg { overflow: visible; max-width: 100%; height: auto; }
 .legend li { display: grid; grid-template-columns: 18px 1fr auto; gap: 0.55rem; align-items: center; }
 .sw { width: 18px; height: 12px; border-radius: 4px; }
 .sw.primera { background: var(--milpa); } .sw.postrera { background: var(--jade); } .sw.canicula { background: var(--granada); }
-.sw.siembra { background: var(--maiz); } .sw.vulnerable { background: #e07b39; } .sw.helada { background: var(--anil); }
+.sw.siembra { background: var(--maiz); } .sw.cobertura { background: #8cbf5f; } .sw.vulnerable { background: #e07b39; } .sw.helada { background: var(--anil); }
 .sw.suelo_desnudo { background: repeating-linear-gradient(45deg, var(--tierra) 0 3px, color-mix(in srgb, var(--tierra-2) 40%, transparent) 3px 6px); }
 .legend .num { font-size: 0.8rem; }
 </style>

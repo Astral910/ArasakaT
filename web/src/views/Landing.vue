@@ -7,14 +7,14 @@ import CropIllustration from '@/components/illus/CropIllustration.vue'
 import { FsButton, FsCard, HuipilBand, CountUp, StatusBadge, DataTag } from '@/components/ui'
 import { useUiStore } from '@/stores/ui'
 import { usePlanStore } from '@/stores/plan'
-import { fixturePlan } from '@/api/client'
+import { fixturePlan, pub } from '@/api/client'
 import { t, lang } from '@/i18n'
 import { nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo } from '@/components/plan/util'
 
 const ui = useUiStore()
 const store = usePlanStore()
 onMounted(() => { if (!store.plan) store.calcular() })
-const plan = computed(() => store.plan ?? fixturePlan())
+const plan = computed(() => store.plan ?? fixturePlan({ idioma: lang.value }))
 // posición de Jocotán sobre la imagen de relieve (calculada por scripts/relieve.py)
 const JOCOTAN = { x: 0.7003, y: 0.5579 }
 
@@ -33,7 +33,7 @@ const datos = [
     <section class="hero">
       <div class="sky" aria-hidden="true" />
       <div class="relief" aria-hidden="true">
-        <img src="/img/relieve-alto.webp" alt="" width="1565" height="1038" fetchpriority="high" />
+        <img :src="pub('img/relieve-alto.webp')" alt="" width="1565" height="1038" fetchpriority="high" />
         <span class="marker" :style="{ left: JOCOTAN.x * 100 + '%', top: JOCOTAN.y * 100 + '%' }"><i /><b>{{ t('hero.jocotan') }}</b></span>
       </div>
       <div class="container hero-grid">

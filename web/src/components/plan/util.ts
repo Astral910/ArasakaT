@@ -1,38 +1,30 @@
 import type { Estrategia, Plan } from '@/api/types'
 import type { Lang } from '@/i18n'
-import { t } from '@/i18n'
 
 export type Nivel = 'ok' | 'warn' | 'risk'
 
 /** Semáforo por temporadas perdidas de 10. */
 export function nivelRiesgo(perdidas: number): Nivel {
-  if (perdidas <= 3) return 'ok'
-  if (perdidas <= 5) return 'warn'
+  if (perdidas <= 2) return 'ok'
+  if (perdidas <= 4) return 'warn'
   return 'risk'
 }
 
-/** El texto del plan viene en el idioma pedido; si no coincide (fixture en español), usamos la traducción por id. */
-function textoPorIdioma(plan: Plan | null | undefined, lang: Lang) {
-  return !!plan && plan.request?.idioma === lang && plan.generado !== 'fixture'
+/** El motor devuelve los textos en el idioma pedido (planes estáticos -es/-en): se muestran tal cual. */
+export function nombreEstrategia(e: Estrategia, _lang?: Lang, _plan?: Plan | null) {
+  return e.nombre
 }
-export function nombreEstrategia(e: Estrategia, lang: Lang, plan?: Plan | null) {
-  if (lang === 'es' || textoPorIdioma(plan, lang)) return e.nombre
-  const k = `strat.${e.id}.name`
-  const v = t(k)
-  return v === k ? e.nombre : v
-}
-export function descEstrategia(e: Estrategia, lang: Lang, plan?: Plan | null) {
-  if (lang === 'es' || textoPorIdioma(plan, lang)) return e.descripcion
-  const k = `strat.${e.id}.desc`
-  const v = t(k)
-  return v === k ? e.descripcion : v
+export function descEstrategia(e: Estrategia, _lang?: Lang, _plan?: Plan | null) {
+  return e.descripcion
 }
 
 /** Cultivo principal para la ilustración de cada estrategia. */
 export function cultivoEstrategia(e: Estrategia): 'milpa' | 'sorgo' | 'mucuna' | 'maiz' | 'frijol' {
-  const s = (e.nombre + ' ' + e.secuencia.join(' ')).toLowerCase()
-  if (s.includes('mucuna') || s.includes('cobertura') || s.includes('canavalia')) return 'mucuna'
-  if (s.includes('sorgo') || s.includes('sorghum')) return 'sorgo'
+  const s = (e.nombre + ' ' + e.calendario.map((p) => p.tipo + ' ' + p.nombre).join(' ')).toLowerCase()
+  if (e.id === 'S0') return 'milpa'
+  if (/mucuna|canavalia|cobertura|cover/.test(s)) return 'mucuna'
+  if (/sorgo|sorghum|maicillo/.test(s)) return 'sorgo'
+  if (/frijol|bean/.test(e.nombre.toLowerCase())) return 'frijol'
   return 'milpa'
 }
 

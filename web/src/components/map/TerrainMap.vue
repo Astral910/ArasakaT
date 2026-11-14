@@ -5,6 +5,7 @@ import { onMounted, onBeforeUnmount, ref, watch, shallowRef } from 'vue'
 import type { Map as MlMap } from 'maplibre-gl'
 import { t } from '@/i18n'
 import { Skeleton } from '@/components/ui'
+import { pub } from '@/api/client'
 
 const props = withDefaults(defineProps<{ municipioId?: string; lon?: number; lat?: number; fly?: boolean; interactive?: boolean; duration?: number }>(), { fly: true, interactive: true, duration: 6500 })
 const emit = defineEmits<{ (e: 'ready'): void; (e: 'arrived'): void }>()
@@ -47,7 +48,7 @@ onMounted(async () => {
   const maplibregl = ((ml as any).default ?? ml) as typeof import('maplibre-gl')
   maplibregl.setWorkerUrl((wk as { default: string }).default)
   try {
-    geo = await fetch('/geo/municipios.geojson').then((r) => r.json())
+    geo = await fetch(pub('geo/municipios.geojson')).then((r) => r.json())
   } catch { geo = null }
   const m = new maplibregl.Map({
     container: el.value,
@@ -102,7 +103,7 @@ defineExpose({ flyTo, overview })
     <div ref="el" class="canvas" />
     <div v-if="estado === 'cargando'" class="cover"><Skeleton h="100%" r="0" /><span class="lbl">{{ t('map.loading') }}</span></div>
     <div v-if="estado === 'sin-webgl'" class="cover static">
-      <img src="/img/relieve-gt.webp" alt="" />
+      <img :src="pub('img/relieve-gt.webp')" alt="" />
       <span class="lbl">{{ t('map.fallback') }}</span>
     </div>
     <Transition name="fade"><span v-if="volando" class="flying">{{ t('map.flying') }}</span></Transition>

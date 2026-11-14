@@ -28,10 +28,10 @@ describe('componentes', () => {
     const w = mount(CalendarRing, { props: { plan, animate: false } })
     expect(w.findAll('path.seg').length).toBeGreaterThanOrEqual(4)
     expect(w.text()).toContain('Planting window')
-    expect(w.text()).toContain('May 15')
+    expect(w.text()).toContain(`Plant Primera`)
   })
   it('tarjeta abre la ficha de 5 puntos', async () => {
-    const e = plan.estrategias[2]
+    const e = plan.estrategias.find((x) => x.recomendada)!
     const w = mount(StrategyCard, { props: { e, plan } })
     expect(w.text()).toContain('Best fit for you')
     const btn = w.find('button.more')

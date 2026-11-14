@@ -23,7 +23,7 @@ const fid = `ficha-${props.e.id}-${Math.random().toString(36).slice(2, 6)}`
 </script>
 
 <template>
-  <article class="sc" :class="[nivel, { rec: e.recomendada, sel: selected }]" :style="{ animationDelay: delay + 'ms' }" @click="emit('select', e.id)">
+  <article class="sc" :data-testid="`estrategia-${e.id}`" :class="[nivel, { rec: e.recomendada, sel: selected }]" :style="{ animationDelay: delay + 'ms' }" @click="emit('select', e.id)">
     <div class="top">
       <div class="ill"><CropIllustration :crop="cultivoEstrategia(e)" :health="saludDeRiesgo(e.perdidas_de_10.p50)" :stage="3" :size="104" /></div>
       <div class="ttl">
@@ -42,7 +42,7 @@ const fid = `ficha-${props.e.id}-${Math.random().toString(36).slice(2, 6)}`
       <Gauge :value="e.perdidas_de_10.p50" :max="10" :p10="e.perdidas_de_10.p10" :p90="e.perdidas_de_10.p90" :level="nivel" :label="t('plan.risk')" :unit="t('plan.riskUnit')" :delay="delay" :size="84" />
       <Gauge :value="e.deficit_agua_mm.p50" :max="300" :p10="e.deficit_agua_mm.p10" :p90="e.deficit_agua_mm.p90" :level="aguaNivel" :label="t('plan.water')" unit="mm" :delay="delay + 80" :size="84" />
       <Gauge :value="Math.abs(suelo)" :max="40" :level="sueloNivel" :label="t('plan.soil')" unit="% MO" :prefix="suelo > 0 ? '+' : suelo < 0 ? '−' : ''" :delay="delay + 160" :size="84" />
-      <Gauge :value="e.rendimiento_qq_mz.p50" :max="40" :p10="e.rendimiento_qq_mz.p10" :p90="e.rendimiento_qq_mz.p90" level="anil" :label="t('plan.yield')" :unit="t('plan.yieldUnit')" :delay="delay + 240" :size="84" />
+      <Gauge :value="e.rendimiento_qq_mz.p50" :max="Math.max(60, e.rendimiento_qq_mz.p90)" :p10="e.rendimiento_qq_mz.p10" :p90="e.rendimiento_qq_mz.p90" level="anil" :label="t('plan.yield')" :unit="t('plan.yieldUnit')" :delay="delay + 240" :size="84" />
     </div>
 
     <div class="facts">

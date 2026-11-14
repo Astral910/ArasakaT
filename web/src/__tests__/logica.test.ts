@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mejorClave, planKey, fixturePlan, fetchPlan } from '@/api/client'
+import { planPath, planPathBase, fixturePlan, fetchPlan } from '@/api/client'
 import { nivelRiesgo, diaDelAnio, cambioSuelo, nombreEstrategia, cultivoEstrategia } from '@/components/plan/util'
 import { t, setLang, fechaCorta } from '@/i18n'
 import { guion, aviso } from '@/components/phone/script'
@@ -8,20 +8,16 @@ import { en } from '@/i18n/en'
 import { es } from '@/i18n/es'
 
 describe('cliente de datos', () => {
-  it('arma la clave estática del plan', () => {
-    expect(planKey(DEFAULT_REQUEST)).toBe('jocotan-chiquimula__milpa__0__comida__2026')
-  })
-  it('escoge la clave más parecida del mismo municipio y horizonte', () => {
-    const keys = ['jocotan-chiquimula__milpa__1__agua__2026', 'jocotan-chiquimula__milpa__0__suelo__2026', 'jocotan-chiquimula__milpa__0__comida__2040-ssp245', 'camotan-chiquimula__milpa__0__comida__2026']
-    expect(mejorClave(keys, DEFAULT_REQUEST)).toBe('jocotan-chiquimula__milpa__0__suelo__2026')
-    expect(mejorClave(keys, { ...DEFAULT_REQUEST, municipio_id: 'otro' })).toBeNull()
+  it('arma la ruta estática del motor', () => {
+    expect(planPath({ ...DEFAULT_REQUEST, idioma: 'es' })).toBe('static/planes/jocotan-chiquimula/milpa-0-comida-2026-es.json')
+    expect(planPath({ ...DEFAULT_REQUEST, cultivo: 'otro', riego: true, horizonte: '2040-ssp245' })).toBe('static/planes/jocotan-chiquimula/maiz-1-comida-2040-ssp245-en.json')
+    expect(planPathBase({ ...DEFAULT_REQUEST, municipio_id: 'camotan-chiquimula' })).toBe('static/planes/camotan-chiquimula/milpa-0-comida-2026-en.json')
   })
   it('cae al fixture si no hay API ni estático', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('sin red')))
     const r = await fetchPlan({ ...DEFAULT_REQUEST, horizonte: '2040-ssp245' })
-    expect(r.origen).toBe('fixture')
+    expect(r.origen).toBe('approx')
     expect(r.plan.estrategias.length).toBeGreaterThanOrEqual(3)
-    expect(r.plan.request.horizonte).toBe('2040-ssp245')
     vi.unstubAllGlobals()
   })
   it('usa la API cuando responde', async () => {
@@ -36,7 +32,7 @@ describe('cliente de datos', () => {
 
 describe('utilidades del plan', () => {
   it('semáforo por temporadas perdidas', () => {
-    expect(nivelRiesgo(2)).toBe('ok'); expect(nivelRiesgo(5)).toBe('warn'); expect(nivelRiesgo(7)).toBe('risk')
+    expect(nivelRiesgo(2)).toBe('ok'); expect(nivelRiesgo(3)).toBe('warn'); expect(nivelRiesgo(5)).toBe('risk')
   })
   it('día del año', () => {
     expect(diaDelAnio('01-01')).toBe(0); expect(diaDelAnio('05-15')).toBe(134); expect(diaDelAnio('12-31')).toBe(364)
@@ -44,15 +40,15 @@ describe('utilidades del plan', () => {
   it('cambio de materia orgánica a 5 años', () => {
     const p = fixturePlan()
     expect(cambioSuelo(p.estrategias[0])).toBeLessThan(0)
-    expect(cambioSuelo(p.estrategias[2])).toBeGreaterThan(0)
+    expect(cambioSuelo(p.estrategias[2])).toBeGreaterThan(cambioSuelo(p.estrategias[0]))
   })
   it('cultivo de la ilustración por estrategia', () => {
-    expect(fixturePlan().estrategias.map(cultivoEstrategia)).toEqual(['milpa', 'sorgo', 'mucuna'])
+    expect(fixturePlan().estrategias.map(cultivoEstrategia)).toEqual(['milpa', 'frijol', 'mucuna'])
   })
-  it('traduce nombres del fixture en inglés', () => {
-    const p = fixturePlan({ idioma: 'en' })
-    expect(nombreEstrategia(p.estrategias[0], 'en', p)).toBe('Milpa as always')
-    expect(nombreEstrategia(p.estrategias[0], 'es', p)).toBe('Milpa como siempre')
+  it('plan de respaldo en el idioma pedido', () => {
+    expect(nombreEstrategia(fixturePlan({ idioma: 'en' }).estrategias[2])).toMatch(/mucuna/i)
+    expect(fixturePlan({ idioma: 'es' }).request.idioma).toBe('es')
+    expect(fixturePlan({ idioma: 'es' }).estrategias[0].nombre).not.toBe(fixturePlan({ idioma: 'en' }).estrategias[0].nombre)
   })
   it('lee el plan desde la URL del bot', () => {
     expect(requestFromQuery({ m: 'camotan-chiquimula', riego: '1', horizonte: '2040-ssp245' })).toEqual({ municipio_id: 'camotan-chiquimula', riego: true, horizonte: '2040-ssp245' })

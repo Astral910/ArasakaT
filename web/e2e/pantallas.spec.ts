@@ -94,7 +94,7 @@ test('demo de 30 s', async ({ page }) => {
 test('rutas de webdatos tienen marcador o vista', async ({ page }) => {
   for (const r of ['/map', '/alerts', '/how']) {
     await page.goto(r)
-    await expect(page.locator('main')).not.toBeEmpty()
+    await expect(page.locator('#main')).not.toBeEmpty()
   }
   await page.goto('/how')
   await shot(page, 'how-marcador', false)

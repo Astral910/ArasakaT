@@ -1,10 +1,15 @@
 import type { Plan, PlanRequest, Municipio, MensajeChat } from './types'
-import fixture from '@/data/plan_fixture.json'
+import planEn from '@/data/plan_jocotan_en.json'
+import planEs from '@/data/plan_jocotan_es.json'
 
-/** Origen de un dato, para mostrarlo con honestidad en la UI. */
-export type Origen = 'api' | 'static' | 'fixture'
+/** Origen de un dato, para mostrarlo con honestidad en la UI.
+ *  api = cálculo en vivo · static = plan precalculado del motor · approx = plan precalculado más cercano · fixture = ejemplo de Jocotán. */
+export type Origen = 'api' | 'static' | 'approx' | 'fixture'
 
 const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
+/** Base pública (GitHub Pages: /repo/). Todo lo de public/ se pide relativo a esta base. */
+export const BASE = (import.meta.env.BASE_URL as string | undefined) ?? '/'
+export const pub = (p: string) => BASE + p.replace(/^\//, '')
 const TIMEOUT = 3500
 
 async function getJSON<T>(url: string, init?: RequestInit): Promise<T> {
@@ -23,13 +28,13 @@ async function getJSON<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   base: API_BASE,
-  /** Intenta la API; si falla, el JSON estático (modo "link que nunca falla"). */
+  /** Intenta la API; si falla (error, no-OK o no-JSON), el JSON estático (modo "link que nunca falla"). */
   async get<T>(rutaApi: string, rutaEstatica?: string): Promise<T> {
     try {
       return await getJSON<T>(API_BASE + rutaApi)
     } catch (e) {
       if (!rutaEstatica) throw e
-      return await getJSON<T>(rutaEstatica)
+      return await getJSON<T>(pub(rutaEstatica))
     }
   },
   post<T>(ruta: string, body: unknown): Promise<T> {
@@ -37,34 +42,19 @@ export const api = {
   },
 }
 
-export function planKey(r: PlanRequest) {
-  return `${r.municipio_id}__${r.cultivo}__${r.riego ? 1 : 0}__${r.prioridad}__${r.horizonte}`
+/** Ruta del plan estático del motor: planes/<municipio>/<cultivo>-<riego>-<prioridad>-<horizonte>-<idioma>.json */
+export function planPath(r: PlanRequest) {
+  const cultivo = r.cultivo === 'otro' ? 'maiz' : r.cultivo
+  return `static/planes/${r.municipio_id}/${cultivo}-${r.riego ? 1 : 0}-${r.prioridad}-${r.horizonte}-${r.idioma}.json`
+}
+export function planPathBase(r: PlanRequest) {
+  return `static/planes/${r.municipio_id}/milpa-0-comida-2026-${r.idioma}.json`
 }
 
-let indexCache: string[] | null = null
-async function staticIndex(): Promise<string[]> {
-  if (indexCache) return indexCache
-  try { indexCache = await getJSON<string[]>('/static/plans/index.json') } catch { indexCache = [] }
-  return indexCache
-}
-
-/** Escoge la clave estática más parecida: mismo municipio y horizonte, y luego cuantos más campos iguales mejor. */
-export function mejorClave(keys: string[], r: PlanRequest): string | null {
-  const want = planKey(r).split('__')
-  let best: string | null = null
-  let score = -1
-  for (const k of keys) {
-    const p = k.split('__')
-    if (p[0] !== want[0]) continue
-    let s = p[4] === want[4] ? 10 : 0
-    for (let i = 1; i < 4; i++) if (p[i] === want[i]) s += 4 - i
-    if (s > score) { score = s; best = k }
-  }
-  return best
-}
-
+/** Plan real de Jocotán (milpa, sin riego, comida, 2026) empaquetado: el respaldo final que nunca falla. */
 export function fixturePlan(r?: Partial<PlanRequest>): Plan {
-  const p = JSON.parse(JSON.stringify(fixture)) as Plan
+  const base = (r?.idioma ?? 'en') === 'es' ? planEs : planEn
+  const p = JSON.parse(JSON.stringify(base)) as Plan
   if (r) p.request = { ...p.request, ...r } as PlanRequest
   return p
 }
@@ -74,18 +64,22 @@ export async function fetchPlan(r: PlanRequest): Promise<{ plan: Plan; origen: O
     return { plan: await api.post<Plan>('/api/plan', r), origen: 'api' }
   } catch { /* sigue */ }
   try {
-    const k = mejorClave(await staticIndex(), r)
-    if (k) return { plan: await getJSON<Plan>(`/static/plans/${k}.json`), origen: 'static' }
+    return { plan: await getJSON<Plan>(pub(planPath(r))), origen: 'static' }
   } catch { /* sigue */ }
-  return { plan: fixturePlan(r), origen: 'fixture' }
+  try {
+    return { plan: await getJSON<Plan>(pub(planPathBase(r))), origen: 'approx' }
+  } catch { /* sigue */ }
+  const p = fixturePlan({ idioma: r.idioma })
+  const exacto = r.municipio_id === p.municipio.id && r.cultivo === 'milpa' && !r.riego && r.prioridad === 'comida' && r.horizonte === '2026'
+  return { plan: p, origen: exacto ? 'static' : r.municipio_id === p.municipio.id ? 'approx' : 'fixture' }
 }
 
 export async function fetchMunicipios(): Promise<Municipio[]> {
   try {
-    const m = await api.get<Municipio[]>('/api/municipios', '/static/municipios.json')
+    const m = await api.get<Municipio[]>('/api/municipios', 'static/municipios.json')
     if (Array.isArray(m) && m.length) return m
   } catch { /* sigue */ }
-  return getJSON<Municipio[]>('/geo/municipios.json')
+  return getJSON<Municipio[]>(pub('geo/municipios.json'))
 }
 
 export async function sendChat(body: { sesion: string; texto?: string; boton?: string; lat?: number; lon?: number; idioma: string }): Promise<MensajeChat[]> {
