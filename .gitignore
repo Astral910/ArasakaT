@@ -1,3 +1,13 @@
 ﻿data/raw/
 web/node_modules/
 .env
+cmd/server/webdist/*
+!cmd/server/webdist/_placeholder.html
+submission/video/*.mp4.tmp
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+*.db
+*.db-*
+/server.exe
+/fieldshift-server*
