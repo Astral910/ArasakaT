@@ -1,0 +1,12 @@
+# NASA Data
+
+| Dataset | What we use | What it is for |
+|---|---|---|
+| **NASA POWER** (Prediction Of Worldwide Energy Resources), Daily API, community AG · https://power.larc.nasa.gov/ | T2M_MAX, T2M_MIN, RH2M, WS2M, ALLSKY_SFC_SW_DWN, PRECTOTCORR, GWETROOT, daily, 2001–2026, on the POWER grid (33 cells covering Guatemala's 342 municipalities) | Core of the engine: FAO-56 Penman-Monteith ET₀, crop water balance, rainfall-onset and canícula detection, Monte Carlo of seasons, the 2001–2026 local climatology used as alert thresholds, and the "observed" side of the 2026 backtest. Root-zone wetness (GWETROOT) as a soil-moisture check. Rain only from 2001 on (source change in the series). |
+| **GPM IMERG** (Integrated Multi-satellitE Retrievals for GPM), daily · https://gpm.nasa.gov/data/imerg | Precipitation-rate imagery (IMERG layer through NASA GIBS) | "X-ray" rainfall layer of the map to compare years (e.g. 2023 vs 2026). The engine's rain comes from POWER PRECTOTCORR, which itself blends IMERG; ingesting IMERG daily at ~10 km is our next step. |
+| **MODIS Vegetation Indices** MOD13Q1 NDVI, 250 m, 16-day · https://lpdaac.usgs.gov/products/mod13q1v061/ | NDVI tiles through **NASA GIBS** (Global Imagery Browse Services) · https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api | "X-ray" map layer comparing vegetation in a normal year vs 2026, and a visual cross-check of drought years in validation. |
+| **NEX-GDDP-CMIP6** (NASA Earth Exchange Global Daily Downscaled Projections) · https://www.nccs.nasa.gov/services/data-collections/land-based-products/nex-gddp-cmip6 | Monthly temperature and precipitation deltas, 2038–2042 vs 2010–2014, SSP2-4.5 and SSP5-8.5, three models (ACCESS-CM2, MRI-ESM2-0, MPI-ESM1-2-HR), via NCCS THREDDS | The 2026 ↔ 2040 switch: the same plan recomputed under future climate. |
+| **SRTM** (Shuttle Radar Topography Mission) elevation, via AWS Terrain Tiles (terrarium) · https://registry.opendata.aws/terrain-tiles/ | Elevation and slope | 3D relief of the map; temperature correction by elevation; municipal mean slope for the erosion estimate. |
+| **NASA GIBS** · https://gibs.earthdata.nasa.gov/ | WMTS imagery tiles (MODIS NDVI, IMERG) | Fast satellite layers in the browser without downloading rasters. |
+
+All NASA data is open and used without login except where noted (Earthdata login for GES DISC products).

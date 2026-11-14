@@ -1,0 +1,35 @@
+{
+  "ejemplo": true,
+  "_aviso": "NÚMEROS DE EJEMPLO para el diseño del panel; ALERTAS los reemplaza con GET /api/admin/resumen.",
+  "suscriptores": [
+    { "municipio_id": "jocotan-chiquimula", "n": 48 },
+    { "municipio_id": "camotan-chiquimula", "n": 36 },
+    { "municipio_id": "olopa-chiquimula", "n": 22 },
+    { "municipio_id": "chiquimula-chiquimula", "n": 19 },
+    { "municipio_id": "san-juan-ermita-chiquimula", "n": 15 },
+    { "municipio_id": "la-union-zacapa", "n": 9 },
+    { "municipio_id": "todos-santos-cuchumatan-huehuetenango", "n": 7 }
+  ],
+  "alertas_activas": [
+    { "id": "a1", "municipio_id": "jocotan-chiquimula", "tipo": "canicula", "fecha_emision": "2026-07-12", "inicio": "2026-07-16", "dias": 7, "probabilidad": 0.67, "titulo": "", "texto": "", "acciones": [], "plantilla": "alerta_canicula", "vars": [] },
+    { "id": "a2", "municipio_id": "camotan-chiquimula", "tipo": "canicula", "fecha_emision": "2026-07-12", "inicio": "2026-07-16", "dias": 7, "probabilidad": 0.67, "titulo": "", "texto": "", "acciones": [], "plantilla": "alerta_canicula", "vars": [] },
+    { "id": "a3", "municipio_id": "olopa-chiquimula", "tipo": "canicula", "fecha_emision": "2026-07-12", "inicio": "2026-07-17", "dias": 7, "probabilidad": 0.5, "titulo": "", "texto": "", "acciones": [], "plantilla": "alerta_canicula", "vars": [] },
+    { "id": "a4", "municipio_id": "todos-santos-cuchumatan-huehuetenango", "tipo": "lluvia_fuerte", "fecha_emision": "2026-07-12", "inicio": "2026-07-14", "dias": 1, "probabilidad": 0.5, "titulo": "", "texto": "", "acciones": [], "plantilla": "alerta_lluvia_fuerte", "vars": ["45"] }
+  ],
+  "respuestas": [
+    { "municipio_id": "jocotan-chiquimula", "estado": "bien", "n": 21 },
+    { "municipio_id": "jocotan-chiquimula", "estado": "amarillas", "n": 9 },
+    { "municipio_id": "jocotan-chiquimula", "estado": "secando", "n": 6 },
+    { "municipio_id": "jocotan-chiquimula", "estado": "perdida", "n": 2 },
+    { "municipio_id": "camotan-chiquimula", "estado": "bien", "n": 11 },
+    { "municipio_id": "camotan-chiquimula", "estado": "amarillas", "n": 12 },
+    { "municipio_id": "camotan-chiquimula", "estado": "secando", "n": 7 },
+    { "municipio_id": "camotan-chiquimula", "estado": "perdida", "n": 1 },
+    { "municipio_id": "olopa-chiquimula", "estado": "bien", "n": 13 },
+    { "municipio_id": "olopa-chiquimula", "estado": "amarillas", "n": 4 },
+    { "municipio_id": "olopa-chiquimula", "estado": "secando", "n": 2 },
+    { "municipio_id": "chiquimula-chiquimula", "estado": "bien", "n": 10 },
+    { "municipio_id": "chiquimula-chiquimula", "estado": "amarillas", "n": 3 },
+    { "municipio_id": "chiquimula-chiquimula", "estado": "secando", "n": 3 }
+  ]
+}
