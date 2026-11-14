@@ -3,9 +3,11 @@ import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 const props = withDefaults(defineProps<{ variant?: 'primary' | 'secondary' | 'ghost' | 'whatsapp'; size?: 'md' | 'lg' | 'sm'; to?: string | object; href?: string; block?: boolean }>(), { variant: 'primary', size: 'md' })
 const tag = computed(() => (props.to ? RouterLink : props.href ? 'a' : 'button'))
+// Solo los atributos de cada caso: un href=undefined sobre RouterLink le borra el enlace (sin teclado ni rol de link).
+const attrs = computed(() => (props.to ? { to: props.to } : props.href ? { href: props.href, target: '_blank', rel: 'noopener' } : { type: 'button' }))
 </script>
 <template>
-  <component :is="tag" :to="to" :href="href" :target="href ? '_blank' : undefined" :rel="href ? 'noopener' : undefined" class="fs-btn" :class="[`v-${variant}`, `s-${size}`, { block }]">
+  <component :is="tag" v-bind="attrs" class="fs-btn" :class="[`v-${variant}`, `s-${size}`, { block }]">
     <slot name="icon" />
     <span><slot /></span>
   </component>
