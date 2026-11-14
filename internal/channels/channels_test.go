@@ -2,6 +2,7 @@ package channels
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -71,6 +72,7 @@ type graphFalso struct {
 	mu    sync.Mutex
 	msgs  []map[string]any
 	media int
+	tipos []string // Content-Type de cada archivo subido
 }
 
 func (g *graphFalso) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -92,10 +94,12 @@ func (g *graphFalso) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		b, _ := io.ReadAll(f)
-		if !bytes.HasPrefix(b, []byte("\x89PNG")) {
-			http.Error(w, "no png", 400)
+		esMP4 := len(b) > 8 && string(b[4:8]) == "ftyp" && r.FormValue("type") == "video/mp4"
+		if !bytes.HasPrefix(b, []byte("\x89PNG")) && !esMP4 {
+			http.Error(w, "ni png ni mp4", 400)
 			return
 		}
+		g.tipos = append(g.tipos, r.FormValue("type"))
 		g.media++
 		fmt.Fprintf(w, `{"id":"media-%d"}`, g.media)
 	case strings.HasSuffix(r.URL.Path, "/v21.0/PNID/messages"):
@@ -160,10 +164,10 @@ func TestCloudConversacionPuntaAPunta(t *testing.T) {
 	}
 	post(`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"milpa","title":"Milpa"}}`, false)
 	ms = g.tomar()
-	if ms[0]["interactive"].(map[string]any)["type"] != "button" {
-		t.Fatalf("riego con botones: %v", ms)
+	if ms[0]["interactive"].(map[string]any)["type"] != "list" {
+		t.Fatalf("riego con lista (nada/poco/medio/mucho): %v", ms)
 	}
-	post(`"type":"interactive","interactive":{"type":"button_reply","button_reply":{"id":"no","title":"No"}}`, false)
+	post(`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"nada","title":"Nada"}}`, false)
 	g.tomar()
 	post(`"type":"interactive","interactive":{"type":"button_reply","button_reply":{"id":"si","title":"Sí"}}`, false)
 	g.tomar()
@@ -173,7 +177,7 @@ func TestCloudConversacionPuntaAPunta(t *testing.T) {
 	for _, m := range ms {
 		tipos = append(tipos, m["type"].(string))
 	}
-	if strings.Join(tipos, ",") != "text,image,text,interactive" || g.media != 1 {
+	if strings.Join(tipos, ",") != "text,image,text,interactive,interactive" || g.media != 1 {
 		t.Fatalf("plan: tipos %v media %d", tipos, g.media)
 	}
 	if ms[1]["image"].(map[string]any)["id"] != "media-1" {
@@ -365,11 +369,135 @@ func TestWebChatYRouter(t *testing.T) {
 		t.Fatalf("formato web: %+v", out)
 	}
 	chat(`{"sesion":"web-xyz","texto":"Jocotán"}`)
-	if out = chat(`{"sesion":"web-xyz","boton":"milpa"}`); len(out) != 1 || out[0].Tipo != "buttons" {
+	if out = chat(`{"sesion":"web-xyz","boton":"milpa"}`); len(out) != 1 || out[0].Tipo != "list" {
 		t.Fatalf("boton: %+v", out)
 	}
 	// Sin credenciales, un número real cae al simulador sin romper.
 	if err := s.Mensajero.EnviarTexto("50255550011", "hola"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// videoFalso: FuenteVideo de prueba (un "MP4" mínimo con caja ftyp).
+type videoFalso struct {
+	mu  sync.Mutex
+	qs  []url.Values
+	err error
+}
+
+func (v *videoFalso) Bytes(_ context.Context, q url.Values) ([]byte, string, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.qs = append(v.qs, q)
+	if v.err != nil {
+		return nil, "", v.err
+	}
+	return append([]byte("\x00\x00\x00\x18ftypmp42"), make([]byte, 2048)...), "cache", nil
+}
+
+func planListoCloud(c *Cloud, g *graphFalso, tel string) func(string) {
+	n := 0
+	post := func(cuerpo string) {
+		n++
+		body := mensajeCloud(fmt.Sprintf("wamid.v%s.%d", tel, n), tel, cuerpo)
+		req := httptest.NewRequest("POST", "/webhook/whatsapp", bytes.NewReader(body))
+		req.Header.Set("X-Hub-Signature-256", firmar("sec", body))
+		c.ServeHTTP(httptest.NewRecorder(), req)
+	}
+	for _, m := range []string{
+		`"type":"text","text":{"body":"hola"}`,
+		`"type":"text","text":{"body":"Camotán"}`,
+		`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"milpa","title":"Milpa"}}`,
+		`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"poco","title":"Poco"}}`,
+		`"type":"interactive","interactive":{"type":"button_reply","button_reply":{"id":"no","title":"No"}}`,
+		`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"comida","title":"Comida"}}`,
+	} {
+		post(m)
+	}
+	g.tomar()
+	return post
+}
+
+func TestCloudVideo(t *testing.T) {
+	g := &graphFalso{}
+	srv := httptest.NewServer(g)
+	defer srv.Close()
+	vf := &videoFalso{}
+	c := NewCloud(CloudConfig{Token: "tok", PhoneNumberID: "PNID", AppSecret: "sec", APIBase: srv.URL}, nuevoBot(t))
+	c.Sync, c.Videos, c.PublicURL = true, vf, "https://api.fs.example"
+	post := planListoCloud(c, g, "50255550033")
+
+	// botón "🎬 Ver mi milpa 3D" del plan
+	post(`"type":"interactive","interactive":{"type":"button_reply","button_reply":{"id":"video","title":"Ver"}}`)
+	ms := g.tomar()
+	var tipos []string
+	for _, m := range ms {
+		tipos = append(tipos, m["type"].(string))
+	}
+	if strings.Join(tipos, ",") != "text,video,text" {
+		t.Fatalf("tipos %v: %v", tipos, ms)
+	}
+	v := ms[1]["video"].(map[string]any)
+	if !strings.HasPrefix(v["id"].(string), "media-") || !strings.Contains(v["caption"].(string), "Camotán") {
+		t.Fatalf("video: %v", v)
+	}
+	if len(g.tipos) == 0 || g.tipos[len(g.tipos)-1] != "video/mp4" {
+		t.Fatalf("subida: %v", g.tipos)
+	}
+	q := vf.qs[0]
+	if q.Get("municipio_id") != "camotan-chiquimula" || q.Get("riego_mm_semana") != "10" || q.Get("estrategia") == "" {
+		t.Fatalf("consulta: %v", q)
+	}
+
+	// si el video falla, sale el link
+	vf.err = fmt.Errorf("sin chrome")
+	post(`"type":"text","text":{"body":"VIDEO"}`)
+	ms = g.tomar()
+	if len(ms) != 3 || ms[1]["type"] != "text" || !strings.Contains(fmt.Sprint(ms[1]), "https://api.fs.example/api/sim/video.mp4?") {
+		t.Fatalf("respaldo: %v", ms)
+	}
+}
+
+func TestTwilioYWebVideo(t *testing.T) {
+	tw := NewTwilio(TwilioConfig{}, nuevoBot(t), "https://api.fs.example", NewMediaStore())
+	post := func(body string) string {
+		f := url.Values{"Body": {body}, "From": {"whatsapp:+50255550044"}, "MessageSid": {"SM" + body}}
+		req := httptest.NewRequest("POST", "/webhook/twilio", strings.NewReader(f.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rr := httptest.NewRecorder()
+		tw.ServeHTTP(rr, req)
+		return rr.Body.String()
+	}
+	for _, b := range []string{"hola", "Jocotan", "1", "Nada", "No", "2"} {
+		post(b)
+	}
+	x := post("video")
+	if !strings.Contains(x, "/api/sim/video.mp4?") || !strings.Contains(x, "<Media>") || !strings.Contains(x, "Tu milpa en 3D") {
+		t.Fatalf("twilio video: %s", x)
+	}
+
+	// simulador web: mensaje tipo video con la URL del MP4
+	mux := http.NewServeMux()
+	Routes(mux, Deps{Bot: nuevoBot(t), Videos: &videoFalso{}})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	var out []contract.MensajeChat
+	for _, b := range []string{`"texto":"hola"`, `"texto":"Jocotán"`, `"boton":"milpa"`, `"boton":"mucho"`, `"boton":"no"`, `"boton":"comida"`, `"boton":"video"`} {
+		res, err := http.Post(srv.URL+"/api/chat", "application/json", strings.NewReader(`{"sesion":"v1",`+b+`}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out = nil
+		_ = json.NewDecoder(res.Body).Decode(&out)
+		res.Body.Close()
+	}
+	ok := false
+	for _, m := range out {
+		if m.Tipo == "video" && strings.HasPrefix(m.VideoURL, "/api/sim/video.mp4?") && strings.Contains(m.VideoURL, "riego_mm_semana=35") {
+			ok = true
+		}
+	}
+	if !ok {
+		t.Fatalf("simulador sin video: %+v", out)
 	}
 }

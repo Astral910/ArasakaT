@@ -66,8 +66,11 @@ func TestConversacionCompletaConUbicacion(t *testing.T) {
 	out = say(Entrada{Tipo: "location", Lat: f64(m.Lat), Lon: f64(m.Lon)})
 	debe(t, out, "Jocotán, Chiquimula ✅", "¿Qué sembrás?", "[milpa]")
 	out = say(Entrada{Tipo: "interactive", BotonID: "milpa"})
-	debe(t, out, "¿Tenés riego?", "[si] Sí")
-	out = say(Entrada{Tipo: "interactive", BotonID: "no"})
+	debe(t, out, "¿Cuánto regás", "[nada] Nada", "[mucho] Mucho · ~35 mm/semana")
+	if out[0].Tipo != "list" {
+		t.Fatalf("riego debe ser lista (4 opciones): %s", out[0].Tipo)
+	}
+	out = say(Entrada{Tipo: "interactive", BotonID: "nada"})
 	debe(t, out, "ganado")
 	out = say(Entrada{Texto: "no"})
 	debe(t, out, "¿Qué te importa más", "[comida]")
@@ -167,7 +170,7 @@ func TestTextoLibreYEntradasRaras(t *testing.T) {
 	say(Entrada{Texto: "hola"})
 	say(Entrada{Texto: "Jocotan"})
 	debe(t, say(Entrada{Texto: "banano"}), "No te entendí", "¿Qué sembrás?")
-	debe(t, say(Entrada{Texto: "maíz"}), "riego")
+	debe(t, say(Entrada{Texto: "maíz"}), "regás")
 	debe(t, say(Entrada{Tipo: "audio"}), "notas de voz")
 	debe(t, say(Entrada{Texto: "sí"}), "ganado")
 	debe(t, say(Entrada{Texto: "yes"}), "importa")
@@ -200,7 +203,7 @@ func TestEnglishFlow(t *testing.T) {
 	say(Entrada{BotonID: "si"})
 	say(Entrada{BotonID: "si"})
 	out := say(Entrada{BotonID: "agua"})
-	debe(t, out, "Plant Primera May 15–Jun 5", "Best option", "Reply *1*, *2* or *3*", "Yes, alert me")
+	debe(t, out, "Plant Primera May 15–Jun 5", "Best option", "Reply *1*, *2* or *3*", "Yes, alert me", "[video] 🎬 See my milpa 3D", "irrigation 20 mm/week")
 	if p := out[1].Plan; p == nil || p.Request.Idioma != "en" || !p.Request.Riego || !p.Request.Ganado || p.Request.Prioridad != "agua" {
 		t.Fatalf("request mal armado: %+v", p.Request)
 	}
@@ -254,5 +257,72 @@ func TestQueryIdaYVuelta(t *testing.T) {
 	}
 	if Enmascarar("50255551234") != "5025****1234" {
 		t.Fatal(Enmascarar("50255551234"))
+	}
+}
+
+func TestRiegoNivelesYVideo(t *testing.T) {
+	b, _ := nuevoBot(t)
+	tel := "50255550077"
+	say := func(e Entrada) []Salida { e.Tel = tel; return b.Responder(e) }
+	// VIDEO sin plan: pide empezar
+	debe(t, say(Entrada{Texto: "video"}), "Todavía no tenemos tu plan")
+	say(Entrada{Texto: "hola"})
+	say(Entrada{Texto: "Camotán"})
+	say(Entrada{BotonID: "milpa"})
+	debe(t, say(Entrada{Texto: "4"}), "ganado") // 4 = mucho, por número
+	se := b.Sesiones.Get(tel)
+	if se.RiegoNivel != "mucho" || se.Req.RiegoMMSemana == nil || *se.Req.RiegoMMSemana != 35 || !se.Req.Riego {
+		t.Fatalf("riego mal guardado: %+v", se.Req)
+	}
+	say(Entrada{Texto: "no"})
+	out := say(Entrada{BotonID: "comida"})
+	debe(t, out, "riego 35 mm/semana", "[video] 🎬 Ver mi milpa 3D", "VIDEO")
+	if p := out[1].Plan; p == nil || p.Request.RiegoMMSemana == nil || *p.Request.RiegoMMSemana != 35 {
+		t.Fatalf("el plan no recibió riego_mm_semana: %+v", p)
+	}
+	// el botón del plan manda el video de la recomendada
+	out = say(Entrada{Tipo: "interactive", BotonID: "video"})
+	var v *Salida
+	for i := range out {
+		if out[i].Tipo == "video" {
+			v = &out[i]
+		}
+	}
+	if v == nil {
+		t.Fatalf("falta el video: %s", todo(out))
+	}
+	for _, f := range []string{"/api/sim/video.mp4?", "municipio_id=camotan-chiquimula", "estrategia=S2", "riego_mm_semana=35", "escenario=tipico", "idioma=es"} {
+		if !strings.Contains(v.VideoURL, f) {
+			t.Fatalf("falta %q en %s", f, v.VideoURL)
+		}
+	}
+	debe(t, out, "Preparando el video", "Tu milpa en 3D · Camotán", "https://fieldshift.example/sandbox?")
+	// después de ver el detalle de la opción 1, VIDEO usa esa estrategia
+	say(Entrada{Texto: "1"})
+	out = say(Entrada{Texto: "Video 🎬"})
+	ok := false
+	for _, s := range out {
+		ok = ok || (s.Tipo == "video" && strings.Contains(s.VideoURL, "estrategia=S0"))
+	}
+	if !ok {
+		t.Fatalf("VIDEO tras el detalle 1 debía ser S0: %s", todo(out))
+	}
+	// en inglés
+	say(Entrada{Texto: "EN"})
+	debe(t, say(Entrada{Texto: "3D"}), "Your milpa in 3D", "Preparing")
+}
+
+func TestRiegoTextoLibre(t *testing.T) {
+	for in, want := range map[string]string{"nada": "nada", "poco": "poco", "medio": "medio", "mucho": "mucho", "sí": "medio", "no": "nada", "2": "poco"} {
+		b, _ := nuevoBot(t)
+		tel := "502" + in
+		say := func(e Entrada) []Salida { e.Tel = tel; return b.Responder(e) }
+		say(Entrada{Texto: "hola"})
+		say(Entrada{Texto: "Jocotan"})
+		say(Entrada{BotonID: "maiz"})
+		debe(t, say(Entrada{Texto: in}), "ganado")
+		if got := b.Sesiones.Get(tel).RiegoNivel; got != want {
+			t.Fatalf("%q → %q, quería %q", in, got, want)
+		}
 	}
 }

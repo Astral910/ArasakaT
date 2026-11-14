@@ -102,6 +102,9 @@ func (wb *Web) mensaje(s bot.Salida) contract.MensajeChat {
 	if s.Tipo == "image" {
 		m.ImageURL = wb.PublicURL + s.ImageURL
 	}
+	if s.Tipo == "video" {
+		m.VideoURL = wb.PublicURL + s.VideoURL
+	}
 	return m
 }
 
@@ -155,7 +158,13 @@ func (wb *Web) EnviarPlantilla(tel, plantilla, idioma string, vars []string) err
 	return wb.poner(tel, contract.MensajeChat{From: "bot", Tipo: "alert", Texto: strings.Join(vars, "\n")})
 }
 
+// EnviarVideo: en el simulador el video va por URL (el navegador lo pide a /api/sim/video.mp4).
+func (wb *Web) EnviarVideo(tel string, s bot.Salida) error {
+	return wb.poner(tel, contract.MensajeChat{From: "bot", Tipo: "video", Texto: s.Texto, VideoURL: wb.PublicURL + s.VideoURL})
+}
+
 var _ Canal = (*Web)(nil)
+var _ CanalVideo = (*Web)(nil)
 
 func escribirJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

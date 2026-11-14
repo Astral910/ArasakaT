@@ -12,6 +12,7 @@ import (
 	"fieldshift/internal/cards"
 	"fieldshift/internal/contract"
 	"fieldshift/internal/geo"
+	"fieldshift/internal/simvideo"
 )
 
 // Deps para montar el bot. Todo es opcional: sin Planner usa el fixture, sin Subs usa memoria,
@@ -27,6 +28,10 @@ type Deps struct {
 	PublicURL    string // PUBLIC_URL: base pública de la API (imágenes para Twilio)
 	Cloud        CloudConfig
 	Twilio       TwilioConfig
+	// Videos: MP4 del sandbox (VIDEO 🎬). Nil = se arma simvideo desde el entorno y se monta
+	// GET /api/sim/video.mp4 (ver docs/video.md). SinVideo = no montar nada.
+	Videos   FuenteVideo
+	SinVideo bool
 }
 
 // DepsDesdeEnv lee la configuración de variables de entorno (ver docs/whatsapp-setup.md).
@@ -105,6 +110,15 @@ func Routes(mux *http.ServeMux, d Deps) *Servicio {
 		Media:  media,
 	}
 	s.Mensajero = &router{s: s}
+
+	// VIDEO 🎬: /api/sim/video.mp4 (caché + render headless + precalculados).
+	if d.Videos == nil && !d.SinVideo {
+		vs := simvideo.Nuevo(simvideo.ConfigDesdeEnv())
+		simvideo.Routes(mux, vs)
+		d.Videos = vs
+		log.Printf("channels: video 3D en /api/sim/video.mp4 (render=%v, precalculados=%q)", vs.Render != nil, vs.Cfg.PrecalcDir)
+	}
+	s.Cloud.Videos, s.Cloud.PublicURL = d.Videos, d.PublicURL
 
 	mux.Handle("/api/chat", s.Web)
 	mux.Handle("/webhook/whatsapp", s.Cloud)

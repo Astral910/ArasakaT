@@ -23,9 +23,12 @@ var textos = map[string][2]string{
 	},
 	"municipio_cual": {"¿Cuál de estos es? 👇", "Which one is it? 👇"},
 	"cultivo":        {"¿Qué sembrás? 🌽", "What do you grow? 🌽"},
-	"riego":          {"¿Tenés riego? 💧", "Do you have irrigation? 💧"},
-	"ganado":         {"¿Tenés ganado que necesite pasto o rastrojo? 🐄", "Do you have livestock that needs fodder? 🐄"},
-	"prioridad":      {"¿Qué te importa más este año?", "What matters most to you this year?"},
+	"riego": {
+		"¿Cuánto regás tu milpa? 💧 (si no regás, elegí *Nada*)",
+		"How much do you irrigate? 💧 (if you don't, pick *None*)",
+	},
+	"ganado":    {"¿Tenés ganado que necesite pasto o rastrojo? 🐄", "Do you have livestock that needs fodder? 🐄"},
+	"prioridad": {"¿Qué te importa más este año?", "What matters most to you this year?"},
 	"calculando": {
 		"Listo 🙌 Estoy comparando 25 temporadas de datos NASA para tu lugar…",
 		"Great 🙌 Comparing 25 seasons of NASA data for your place…",
@@ -65,8 +68,8 @@ var textos = map[string][2]string{
 		"Done, no more alerts 👋 Your alert data was deactivated. Type HI whenever you want to come back.",
 	},
 	"ayuda": {
-		"Así me usás 👇\n• *MENU*: ver tu plan otra vez\n• *CAMBIAR*: empezar con otros datos\n• *1, 2, 3*: detalle de cada opción\n• *AVISAME*: recibir avisos de clima\n• *BAJA*: dejar de recibir avisos\n• *EN*: English\nLos datos vienen de satélites de la NASA. Consultá siempre con tu extensionista 🤝",
-		"How to use me 👇\n• *MENU*: see your plan again\n• *CHANGE*: start over with new answers\n• *1, 2, 3*: details of each option\n• *ALERTS*: get weather alerts\n• *STOP*: stop alerts\n• *ES*: Español\nData comes from NASA satellites. Always check with your local extension agent 🤝",
+		"Así me usás 👇\n• *MENU*: ver tu plan otra vez\n• *CAMBIAR*: empezar con otros datos\n• *1, 2, 3*: detalle de cada opción\n• *AVISAME*: recibir avisos de clima\n• *VIDEO*: ver tu milpa en 3D 🎬\n• *BAJA*: dejar de recibir avisos\n• *EN*: English\nLos datos vienen de satélites de la NASA. Consultá siempre con tu extensionista 🤝",
+		"How to use me 👇\n• *MENU*: see your plan again\n• *CHANGE*: start over with new answers\n• *1, 2, 3*: details of each option\n• *ALERTS*: get weather alerts\n• *VIDEO*: see your milpa in 3D 🎬\n• *STOP*: stop alerts\n• *ES*: Español\nData comes from NASA satellites. Always check with your local extension agent 🤝",
 	},
 	"cambiar":   {"Empecemos de nuevo 🔄", "Let's start over 🔄"},
 	"idioma_ok": {"Listo, seguimos en español 🇬🇹", "Okay, switching to English 🇬🇧"},
@@ -93,10 +96,23 @@ var textos = map[string][2]string{
 		"I'm very sorry 😔 If there's still time, a Postrera with sorghum or beans can save part of the year. Talk to your extension agent; type MENU to see your plan.",
 	},
 	"detalle_pie": {
-		"Consultá con tu extensionista antes de decidir 🤝\nRespondé 1, 2 o 3 para comparar · MENU para el resumen",
-		"Check with your extension agent before deciding 🤝\nReply 1, 2 or 3 to compare · MENU for the summary",
+		"Consultá con tu extensionista antes de decidir 🤝\nRespondé 1, 2 o 3 para comparar · MENU para el resumen · VIDEO para ver esta opción en 3D 🎬",
+		"Check with your extension agent before deciding 🤝\nReply 1, 2 or 3 to compare · MENU for the summary · VIDEO to see this option in 3D 🎬",
 	},
-	"ejemplo": {"⚠️ Datos de ejemplo (motor en preparación).", "⚠️ Sample data (engine in progress)."},
+	"video_ofrecer": {
+		"🎬 ¿Querés ver tu milpa en 3D? Te mando un video de cómo le iría día a día con el clima real de la NASA. Tocá el botón o escribí *VIDEO*.",
+		"🎬 Want to see your milpa in 3D? I'll send a video of how it would do day by day with real NASA weather. Tap the button or type *VIDEO*.",
+	},
+	"video_preparando": {
+		"🎬 Preparando el video de tu milpa en 3D… (puede tardar un minuto)",
+		"🎬 Preparing the 3D video of your milpa… (it can take a minute)",
+	},
+	"video_caption": {
+		"🎬 Tu milpa en 3D · %s\n%s\nSimulación con datos NASA: los números son del motor; la escena es ilustrativa.",
+		"🎬 Your milpa in 3D · %s\n%s\nSimulation with NASA data: numbers come from the engine; the scene is illustrative.",
+	},
+	"video_web": {"Movela y cambiá el riego o el año en la web 👉 %s", "Explore it and change irrigation or year on the web 👉 %s"},
+	"ejemplo":   {"⚠️ Datos de ejemplo (motor en preparación).", "⚠️ Sample data (engine in progress)."},
 }
 
 func t(idioma, clave string, args ...any) string {
@@ -139,6 +155,16 @@ var (
 	opcSiNo = []opcion{
 		{"si", "Sí", "Yes"},
 		{"no", "No", "No"},
+	}
+	// Riego en mm por semana (mismos niveles que el motor: sim.IrrigLevels). Filas de lista ≤ 24.
+	opcRiego = []opcion{
+		{"nada", "Nada · solo lluvia", "None · rain only"},
+		{"poco", "Poco · ~10 mm/semana", "A little · ~10 mm/week"},
+		{"medio", "Medio · ~20 mm/semana", "Medium · ~20 mm/week"},
+		{"mucho", "Mucho · ~35 mm/semana", "A lot · ~35 mm/week"},
+	}
+	opcVideo = []opcion{
+		{"video", "🎬 Ver mi milpa 3D", "🎬 See my milpa 3D"},
 	}
 	opcPrioridad = []opcion{
 		{"comida", "Comida para la casa", "Food for my family"},

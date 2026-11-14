@@ -3,7 +3,9 @@
 package channels
 
 import (
+	"context"
 	"log"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +23,31 @@ type Canal interface {
 	PedirUbicacion(tel, texto string) error
 }
 
+// FuenteVideo entrega el MP4 del sandbox para una consulta (lo cumple simvideo.Servicio).
+type FuenteVideo interface {
+	Bytes(ctx context.Context, q url.Values) ([]byte, string, error)
+}
+
+// CanalVideo: canales que mandan el video 🎬 (si no, sale como texto con el link).
+type CanalVideo interface {
+	EnviarVideo(tel string, s bot.Salida) error
+}
+
+// queryVideo: la consulta de una salida de video (/api/sim/video.mp4?...).
+func queryVideo(s bot.Salida) url.Values {
+	_, q, _ := strings.Cut(s.VideoURL, "?")
+	v, _ := url.ParseQuery(q)
+	return v
+}
+
+// textoConLink: respaldo cuando no se puede mandar el video como archivo.
+func textoConLink(s bot.Salida, publicURL string) string {
+	if publicURL == "" || s.VideoURL == "" {
+		return s.Texto
+	}
+	return s.Texto + "\n👉 " + strings.TrimRight(publicURL, "/") + s.VideoURL
+}
+
 // Entregar manda las salidas del bot por un canal, en orden.
 func Entregar(c Canal, tel string, salidas []bot.Salida) {
 	for _, s := range salidas {
@@ -32,6 +59,12 @@ func Entregar(c Canal, tel string, salidas []bot.Salida) {
 			err = c.EnviarLista(tel, s.Texto, s.Botones)
 		case "location_request":
 			err = c.PedirUbicacion(tel, s.Texto)
+		case "video":
+			if cv, ok := c.(CanalVideo); ok {
+				err = cv.EnviarVideo(tel, s)
+			} else {
+				err = c.EnviarTexto(tel, s.Texto)
+			}
 		case "image":
 			var png []byte
 			if s.Plan != nil {
