@@ -12,13 +12,14 @@ import CropIllustration from '@/components/illus/CropIllustration.vue'
 import BrandMark from '@/components/layout/BrandMark.vue'
 import { Gauge, HuipilBand, StatusBadge } from '@/components/ui'
 import { usePlanStore } from '@/stores/plan'
-import { fixturePlan } from '@/api/client'
+import { fixturePlan, pub } from '@/api/client'
+import { maquina, avisoCanicula } from '@/data/maquina'
 import { t, lang } from '@/i18n'
 import { descEstrategia, nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo, cambioSuelo } from '@/components/plan/util'
 
 const route = useRoute()
 const store = usePlanStore()
-const plan = computed(() => store.plan ?? fixturePlan())
+const plan = computed(() => store.plan ?? fixturePlan({ idioma: lang.value }))
 const escena = ref(-1) // -1 = portada, 0..5 escenas
 const elapsed = ref(0)
 const scale = ref(1)
@@ -29,14 +30,24 @@ const endRef = ref<HTMLElement | null>(null)
 const TOTAL = 30
 // marcas de tiempo (s) del guion de la nota 20
 const CORTES = [0, 4, 9, 15, 21, 25]
-const subt = computed(() => [t('demo.c1'), t('demo.c2'), t('demo.c3'), t('demo.c4'), t('demo.c5'), ''][Math.max(0, escena.value)])
+const subt = computed(() => [t('demo.c1'), t('demo.c2'), t('demo.c3'), t('demo.c4'), t('demo.c5', { n: tm.value.n }), ''][Math.max(0, escena.value)])
 
-// Línea de tiempo de ejemplo para la escena del aviso (se reemplaza por la de ALERTAS cuando exista).
-const lluvia = Array.from({ length: 62 }, (_, i) => {
-  const d = i // 15 jun .. 15 ago
-  const seca = d >= 24 && d <= 33
-  return seca ? 0.4 : 4 + 10 * Math.abs(Math.sin(i * 1.7)) + (i % 5 === 0 ? 9 : 0)
+// Máquina del tiempo 2026: lluvia real y aviso del backtest (WEBDATOS/ALERTAS); si no hay datos, ejemplo marcado.
+const av = avisoCanicula()
+const T0 = new Date('2026-06-15T12:00:00').getTime()
+const idx = (iso: string) => Math.round((new Date(iso + 'T12:00:00').getTime() - T0) / 86400000)
+const lluvia = computed(() => {
+  const dias = maquina?.dias ?? []
+  const serie = Array.from({ length: 62 }, (_, i) => {
+    const f = new Date(T0 + i * 86400000).toISOString().slice(0, 10)
+    return dias.find((d) => d.fecha === f)?.lluvia_mm
+  })
+  if (serie.some((v) => v !== undefined)) return serie.map((v) => v ?? 0)
+  return Array.from({ length: 62 }, (_, i) => (i >= 31 && i <= 40 ? 0.4 : 4 + 10 * Math.abs(Math.sin(i * 1.7))))
 })
+const escalaLluvia = computed(() => 230 / Math.max(10, ...lluvia.value))
+const tm = computed(() => ({ c0: idx(av.eventoInicio), dias: av.dias, emision: idx(av.emision), n: av.anticipacion, ejemplo: av.ejemplo || !!maquina?.preliminar }))
+const rec = !!route.query.rec
 
 let timers: number[] = []
 let raf = 0
@@ -71,16 +82,16 @@ onMounted(() => {
   fit()
   window.addEventListener('resize', fit)
   if (!store.plan) store.calcular()
-  if (route.query.autostart) setTimeout(start, 1500)
+  if (route.query.autostart || rec) setTimeout(start, 1500)
 })
 onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 </script>
 
 <template>
-  <div class="demo-root">
+  <div class="demo-root" :class="{ rec }">
     <div class="stage" :style="{ transform: `translate(-50%, -50%) scale(${scale})` }">
       <div class="bg" :class="'e' + escena" />
-      <img class="relief" src="/img/relieve-gt.webp" alt="" :class="{ dim: escena >= 2 }" />
+      <img class="relief" :src="pub('img/relieve-gt.webp')" alt="" :class="{ dim: escena >= 2 }" />
 
       <header class="top">
         <BrandMark :size="48" /><span>Field Shift</span>
@@ -116,21 +127,21 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 
       <!-- escena 4: máquina del tiempo -->
       <div class="panel tm-panel" :class="{ show: escena === 4 }">
-        <h2>{{ t('demo.c5') }}</h2>
+        <h2>{{ t('demo.c5', { n: tm.n }) }}</h2>
         <svg viewBox="0 0 1000 340" class="tm">
-          <rect :x="24 * 16 + 20" y="20" :width="10 * 16" height="260" fill="var(--granada)" opacity="0.14" rx="8" />
-          <text :x="24 * 16 + 20 + 80" y="50" text-anchor="middle" class="tm-l granada">{{ t('plan.legend.canicula') }}</text>
-          <rect v-for="(v, i) in lluvia" :key="i" :x="20 + i * 16" :y="280 - v * 9" width="11" :height="v * 9" rx="4" fill="var(--anil)" opacity="0.75" class="bar" :style="{ animationDelay: i * 18 + 'ms' }" />
+          <rect :x="tm.c0 * 16 + 20" y="20" :width="tm.dias * 16" height="260" fill="var(--granada)" opacity="0.14" rx="8" />
+          <text :x="tm.c0 * 16 + 20 + tm.dias * 8" y="50" text-anchor="middle" class="tm-l granada">{{ t('plan.legend.canicula') }}</text>
+          <rect v-for="(v, i) in lluvia" :key="i" :x="20 + i * 16" :y="280 - v * escalaLluvia" width="11" :height="Math.max(2, v * escalaLluvia)" rx="4" fill="var(--anil)" opacity="0.75" class="bar" :style="{ animationDelay: i * 18 + 'ms' }" />
           <line x1="20" y1="280" x2="1000" y2="280" stroke="var(--line-2)" />
           <g class="bubble-in">
-            <line :x1="19 * 16 + 26" y1="90" :x2="19 * 16 + 26" y2="280" stroke="#1f8f6e" stroke-width="3" stroke-dasharray="6 5" />
-            <rect :x="19 * 16 - 104" y="40" width="260" height="56" rx="16" fill="#d6f5c9" />
-            <text :x="19 * 16 + 26" y="75" text-anchor="middle" class="tm-b">🌵 {{ lang === 'es' ? 'Aviso · 5 días antes' : 'Alert · 5 days ahead' }}</text>
+            <line :x1="tm.emision * 16 + 26" y1="136" :x2="tm.emision * 16 + 26" y2="280" stroke="#1f8f6e" stroke-width="3" stroke-dasharray="6 5" />
+            <rect :x="tm.emision * 16 - 104" y="80" width="260" height="56" rx="16" fill="#d6f5c9" />
+            <text :x="tm.emision * 16 + 26" y="115" text-anchor="middle" class="tm-b">🌵 {{ t('demo.alertAhead', { n: tm.n }) }}</text>
           </g>
           <text x="20" y="315" class="tm-l">{{ lang === 'es' ? '15 jun' : 'Jun 15' }}</text>
           <text x="1000" y="315" text-anchor="end" class="tm-l">{{ lang === 'es' ? '15 ago 2026' : 'Aug 15, 2026' }}</text>
         </svg>
-        <p class="note">{{ t('demo.backtestNote') }} · {{ t('demo.example') }}</p>
+        <p class="note">{{ t('demo.backtestNote') }}<template v-if="tm.ejemplo"> · {{ t('demo.preliminar') }}</template></p>
       </div>
 
       <!-- escena 5: cierre -->
@@ -144,10 +155,10 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
       <!-- subtítulos -->
       <div class="subs" :class="{ show: !!subt && escena >= 0 }"><span>{{ subt }}</span></div>
       <div class="progress"><i :style="{ width: (elapsed / TOTAL) * 100 + '%' }" /></div>
-      <p v-if="store.origen === 'fixture'" class="fixture-note">{{ t('demo.example') }}</p>
+      <p v-if="store.origen === 'fixture' && !rec" class="fixture-note">{{ t('demo.example') }}</p>
 
       <!-- portada -->
-      <div v-if="escena === -1 || (!corriendo && escena === 5 && elapsed >= TOTAL)" class="cover" :class="{ ended: escena === 5 }">
+      <div v-if="!rec && (escena === -1 || (!corriendo && escena === 5 && elapsed >= TOTAL))" class="cover" :class="{ ended: escena === 5 }">
         <template v-if="escena === -1">
           <h1>{{ t('demo.title') }}</h1>
           <button type="button" class="go" @click="start"><Play /> {{ t('demo.start') }}</button>
@@ -160,6 +171,8 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 
 <style scoped>
 .demo-root { position: fixed; inset: 0; background: #0f0c09; overflow: hidden; }
+.demo-root.rec, .demo-root.rec * { cursor: none !important; }
+.rec .progress { display: none; }
 .stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center; overflow: hidden; background: var(--bg); color: var(--ink); }
 .bg { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--sky-top) 60%, var(--bg)), var(--bg) 70%); transition: background 1s; }
 .bg.e4 { background: linear-gradient(180deg, #fff1d6, var(--bg) 70%); }
@@ -204,7 +217,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 .big { font-family: var(--font-display); font-size: 110px; font-weight: 650; line-height: 1; letter-spacing: -0.02em; }
 .mid { font-size: 48px; font-weight: 600; max-width: 1300px; }
 .small { font-size: 26px; opacity: 0.8; }
-.subs { position: absolute; left: 0; right: 0; bottom: 70px; display: flex; justify-content: center; z-index: 6; opacity: 0; transition: opacity 400ms; }
+.subs { position: absolute; left: 640px; right: 40px; bottom: 70px; display: flex; justify-content: center; z-index: 6; opacity: 0; transition: opacity 400ms; }
 .subs.show { opacity: 1; }
 .subs span { background: rgba(15, 12, 9, 0.78); color: #fff; font-size: 34px; font-weight: 650; padding: 12px 30px; border-radius: 16px; }
 .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: rgba(0, 0, 0, 0.08); z-index: 6; }

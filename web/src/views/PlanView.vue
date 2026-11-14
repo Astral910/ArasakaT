@@ -9,7 +9,7 @@ import { FsButton, FsCard, Chip, Skeleton, HuipilBand, CountUp, DataTag } from '
 import { usePlanStore, requestFromQuery } from '@/stores/plan'
 import { cardUrl } from '@/api/client'
 import { drawCard } from '@/components/plan/card'
-import { t, lang, fechaCorta } from '@/i18n'
+import { t, lang, fechaCorta, setLang } from '@/i18n'
 import { nombreEstrategia } from '@/components/plan/util'
 
 const store = usePlanStore()
@@ -18,6 +18,8 @@ const bajando = ref(false)
 
 onMounted(async () => {
   store.cargarMunicipios()
+  const idioma = route.query.idioma ?? route.query.lang
+  if (idioma === 'es' || idioma === 'en') setLang(idioma)
   const q = requestFromQuery(route.query as Record<string, unknown>)
   const cambia = Object.entries(q).some(([k, v]) => (store.request as unknown as Record<string, unknown>)[k] !== v)
   if (!store.plan || cambia) await store.calcular(q)
@@ -25,7 +27,7 @@ onMounted(async () => {
 
 const plan = computed(() => store.plan)
 const nombreMuni = computed(() => plan.value ? `${plan.value.municipio.nombre}, ${plan.value.municipio.departamento}` : '')
-const origenTono = computed(() => (store.origen === 'api' ? 'ok' : store.origen === 'static' ? 'anil' : 'warn'))
+const origenTono = computed(() => (store.origen === 'api' || store.origen === 'static' ? 'ok' : store.origen === 'approx' ? 'anil' : 'warn'))
 const ordenadas = computed(() => plan.value?.estrategias ?? [])
 
 function linkPlan() {

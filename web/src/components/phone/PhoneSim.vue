@@ -6,9 +6,11 @@ import { ArrowLeft, Phone, Video, MoreVertical, Paperclip, Camera, Mic, SendHori
 import { guion, aviso, respuestaLocal, type Burbuja } from './script'
 import PlanCardMini from './PlanCardMini.vue'
 import BrandMark from '@/components/layout/BrandMark.vue'
-import { fixturePlan, sendChat } from '@/api/client'
+import { fixturePlan, sendChat, pub } from '@/api/client'
 import type { Plan, MensajeChat } from '@/api/types'
 import { lang, t } from '@/i18n'
+import { avisoCanicula, fechaLarga } from '@/data/maquina'
+const av = avisoCanicula()
 
 const props = withDefaults(defineProps<{ plan?: Plan | null; autoplay?: boolean; interactive?: boolean; notifDelay?: number; scale?: number; speed?: number; autoOpen?: number }>(), { autoplay: true, interactive: true, notifDelay: 1600, scale: 1, speed: 1, autoOpen: 3600 })
 const emit = defineEmits<{ (e: 'step', i: number): void; (e: 'done'): void; (e: 'alert'): void }>()
@@ -19,7 +21,7 @@ const notif = ref(false)
 const live = ref<boolean | null>(null)
 const draft = ref('')
 const scroller = ref<HTMLElement | null>(null)
-const plan = computed(() => props.plan ?? fixturePlan())
+const plan = computed(() => props.plan ?? fixturePlan({ idioma: lang.value }))
 const sesion = `web-${Math.random().toString(36).slice(2, 10)}`
 let seq = 0
 let timers: number[] = []
@@ -118,7 +120,7 @@ defineExpose({ play, openAlert })
 </script>
 
 <template>
-  <div class="phone" :style="{ '--s': scale }">
+  <div class="phone" data-testid="simulador" :style="{ '--s': scale }">
     <div class="frame">
       <div class="screen">
         <div class="status"><span class="num">9:41</span><span class="island" /><span class="sig"><i /><i /><i /><i /></span></div>
@@ -127,7 +129,7 @@ defineExpose({ play, openAlert })
           <button v-if="notif" class="notif" type="button" @click="openAlert">
             <span class="napp"><BrandMark :size="22" /> WhatsApp · Field Shift <em>{{ t('phone.alertNow') }}</em></span>
             <strong>{{ t('phone.notifTitle') }}</strong>
-            <span>{{ t('phone.notifBody') }}</span>
+            <span>{{ t('phone.notifBody', { d: av.dias, f: fechaLarga(av.inicio, lang), p: av.prob10 }) }}</span>
           </button>
         </Transition>
 
@@ -142,7 +144,7 @@ defineExpose({ play, openAlert })
           <TransitionGroup name="msg">
             <div v-for="m in msgs" :key="m.id" class="row" :class="m.from">
               <div v-if="m.tipo === 'location'" class="bubble loc">
-                <div class="map"><MapPin class="pin" aria-hidden="true" /></div>
+                <div class="map" :style="{ backgroundImage: `url(${pub('img/relieve-gt.webp')})` }"><MapPin class="pin" aria-hidden="true" /></div>
                 <span class="loct">📍 {{ m.texto }}</span>
                 <span class="meta">{{ m.hora }} <CheckCheck class="tick" /></span>
               </div>
@@ -159,7 +161,7 @@ defineExpose({ play, openAlert })
                 <span v-html="fmt(m.texto)" />
                 <span class="meta">{{ m.hora }}<CheckCheck v-if="m.from === 'user'" class="tick" /></span>
                 <div v-if="m.botones?.length" class="btns">
-                  <button v-for="b in m.botones" :key="b.id" type="button" @click="tapBoton(b)">{{ b.title }}</button>
+                  <button v-for="b in m.botones" :key="b.id" type="button" data-testid="sim-boton" @click="tapBoton(b)">{{ b.title }}</button>
                 </div>
                 <button v-if="m.tipo === 'location_request'" type="button" class="locbtn" @click="shareLocation"><MapPin aria-hidden="true" /> {{ t('phone.location') }}</button>
               </div>
@@ -170,10 +172,10 @@ defineExpose({ play, openAlert })
 
         <form class="composer" @submit.prevent="submit">
           <div class="field">
-            <input v-model="draft" :placeholder="t('phone.placeholder')" :aria-label="t('phone.placeholder')" :disabled="!interactive" />
+            <input v-model="draft" data-testid="sim-input" :placeholder="t('phone.placeholder')" :aria-label="t('phone.placeholder')" :disabled="!interactive" />
             <Paperclip class="ic sm" aria-hidden="true" /><Camera class="ic sm" aria-hidden="true" />
           </div>
-          <button class="send" type="submit" :aria-label="t('phone.send')">
+          <button class="send" type="submit" data-testid="sim-enviar" :aria-label="t('phone.send')">
             <SendHorizontal v-if="draft" aria-hidden="true" /><Mic v-else aria-hidden="true" />
           </button>
         </form>
@@ -219,7 +221,7 @@ defineExpose({ play, openAlert })
 .locbtn { display: flex; align-items: center; justify-content: center; gap: 4px; width: calc(100% + 18px * var(--s)); margin: calc(6px * var(--s)) calc(-9px * var(--s)) calc(-5px * var(--s)); border-radius: 0 0 10px 10px; }
 .locbtn svg { width: 16px; height: 16px; }
 .bubble.loc { padding: calc(4px * var(--s)); width: 70%; }
-.map { height: calc(92px * var(--s)); border-radius: 8px; background: url('/img/relieve-gt.webp') 72% 82% / 360% auto, #b9c9a6; display: grid; place-items: center; }
+.map { height: calc(92px * var(--s)); border-radius: 8px; background-color: #b9c9a6; background-position: 72% 82%; background-size: 360% auto; display: grid; place-items: center; }
 .pin { width: 30px; height: 30px; color: #c4473a; fill: #f2c24f; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3)); }
 .loct { display: block; padding: 4px 4px 0; font-weight: 600; font-size: calc(13px * var(--s)); }
 .bubble.card { padding: calc(4px * var(--s)); width: 88%; }
@@ -245,7 +247,7 @@ defineExpose({ play, openAlert })
 .msg-enter-from { opacity: 0; transform: translateY(10px) scale(0.97); }
 .row.user.msg-enter-from { transform: translateX(10px) scale(0.97); }
 .under { display: flex; align-items: center; gap: 0.75rem; font-size: 0.82rem; color: var(--ink-3); }
-.mode { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+.mode { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600; white-space: nowrap; }
 .mode i { width: 8px; height: 8px; border-radius: 50%; background: var(--maiz); }
 .mode.on i { background: var(--jade); box-shadow: 0 0 0 3px color-mix(in srgb, var(--jade) 25%, transparent); }
 .replay { display: inline-flex; align-items: center; gap: 0.3rem; border: 1px solid var(--line-2); background: var(--surface); border-radius: 99px; padding: 0.3rem 0.7rem; cursor: pointer; font-weight: 650; color: var(--ink-2); font-size: 0.82rem; min-height: 32px; }
