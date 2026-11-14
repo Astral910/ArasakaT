@@ -3,7 +3,7 @@
 For the team to rehearse, and to reuse in the project page if a judge comments. Numbers match `portal_page.md`.
 
 **1. How accurate is it, really?**
-At the municipality level, not the plot. The engine flagged 5 of 8 documented droughts in Jocotán (2001–2025) with 4 false alarms. In the real 2026 season, 5 of 6 dry-spell alerts were confirmed, with no false alarms, but only 3 of 7 dry spells were warned in advance, and heavy-rain alerts were right only 3 times out of 14. That is why every result is a range and every alert carries a probability. We publish the misses on the *How do we know?* page.
+At the municipality level, not the plot. The engine flagged 5 of 8 documented droughts in Jocotán (2001–2025) with 4 false alarms. In the real 2026 season, 5 of 6 dry-spell alerts were confirmed, with no false alarms, but only 3 of 7 dry spells were warned in advance, and heavy-rain alerts were right only 3 times out of 14. We also tested the seasonal forecast over 25 past seasons: it picks the right rain tercile 65 % of the time in Chiquimula (chance is 33 %) but only 40 % nationwide, which is not distinguishable from chance. So we shrink its probabilities toward climatology and the badge tells each place whether the method beats chance there. That is why every result is a range and every alert carries a probability. We publish the misses on the *How do we know?* page.
 
 **2. You can't forecast a whole season day by day. Isn't the 3D video fake?**
 The first 16 days are a real forecast (ECMWF/GFS). After that we don't pretend: we replay the real NASA POWER weather of the past year that best matches the ECMWF SEAS5 seasonal outlook and the forecast El Niño, and the video says which year it is and how many similar years ended the same way (e.g. 8 of 24). It is one plausible season with its odds, not a prophecy.
@@ -30,4 +30,4 @@ FAO-33 yield response to water stress, applied to approximate unstressed referen
 They shouldn't take it blindly, and we say so: every plan and alert ends with "check with your extension agent", and the five-point sheet lists missing information and risks that need local review (seed, slope, land tenure, pests). The plan is meant to be discussed with the extension agent, with the report in hand.
 
 **10. What happens after the hackathon?**
-A pilot with MAGA extension agents in Chiquimula, an official WhatsApp Business number, recalibration with the weekly "How is your milpa?" reports, and voice notes in Ch'orti', K'iche' and Q'eqchi' with native speakers. Everything is open data and open code, so an institution can run it.
+A pilot with MAGA extension agents in Chiquimula, an official WhatsApp Business number, recalibration with the weekly "How is your milpa?" reports, and Ch'orti', K'iche' and Q'eqchi' (text and voice notes, which already work in Spanish) with native speakers. Everything is open data and open code, so an institution can run it.
