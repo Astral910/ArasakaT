@@ -2,6 +2,7 @@ package channels
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -40,6 +42,9 @@ type Cloud struct {
 	// Sync procesa el mensaje antes de responder 200 (tests). En producción se responde ya
 	// y se procesa en segundo plano para no pasar de los 3 s que espera Meta.
 	Sync bool
+	// Videos genera o toma de caché el MP4 del sandbox (VIDEO 🎬); PublicURL para el link de respaldo.
+	Videos    FuenteVideo
+	PublicURL string
 
 	vistos *dedup
 }
@@ -263,6 +268,37 @@ func (c *Cloud) EnviarImagen(tel string, png []byte, caption string) error {
 	return c.enviar(tel, "image", map[string]string{"id": id, "caption": recortar(caption, 1024)})
 }
 
+// EnviarVideo: genera (o toma de caché) el MP4, lo sube a /media y lo manda por id (máx. 16 MB).
+// Si falla, manda el texto con el link al video.
+func (c *Cloud) EnviarVideo(tel string, s bot.Salida) error {
+	err := c.enviarVideo(tel, s)
+	if err != nil {
+		log.Printf("channels: video a %s: %v → texto con link", bot.Enmascarar(tel), err)
+		return c.EnviarTexto(tel, textoConLink(s, c.PublicURL))
+	}
+	return nil
+}
+
+func (c *Cloud) enviarVideo(tel string, s bot.Salida) error {
+	if c.Videos == nil {
+		return errors.New("sin servicio de video")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	mp4, _, err := c.Videos.Bytes(ctx, queryVideo(s))
+	if err != nil {
+		return err
+	}
+	if len(mp4) > 16<<20 {
+		return fmt.Errorf("video de %d bytes > 16 MB", len(mp4))
+	}
+	id, err := c.subirMedia(mp4, "video/mp4", "milpa-3d.mp4")
+	if err != nil {
+		return err
+	}
+	return c.enviar(tel, "video", map[string]string{"id": id, "caption": recortar(s.Texto, 1024)})
+}
+
 // EnviarPlantilla: plantilla aprobada (Utility) con variables del cuerpo {{1}}, {{2}}…
 func (c *Cloud) EnviarPlantilla(tel, plantilla, idioma string, vars []string) error {
 	var params []map[string]string
@@ -347,3 +383,4 @@ func (c *Cloud) hacer(req *http.Request, out any) error {
 }
 
 var _ Canal = (*Cloud)(nil)
+var _ CanalVideo = (*Cloud)(nil)

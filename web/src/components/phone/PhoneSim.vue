@@ -74,7 +74,7 @@ function openAlert() {
 }
 
 function fromApi(m: MensajeChat): Omit<Burbuja, 'id'> {
-  return { from: m.from, tipo: (m.tipo as Burbuja['tipo']) || 'text', texto: m.texto, botones: m.botones, image_url: m.image_url }
+  return { from: m.from, tipo: (m.tipo as Burbuja['tipo']) || 'text', texto: m.texto, botones: m.botones, image_url: m.image_url, video_url: m.video_url }
 }
 async function enviar(texto: string, boton?: string, loc?: { lat: number; lon: number }) {
   run++
@@ -110,7 +110,7 @@ function shareLocation() {
 // *negrita* de WhatsApp → <strong>, con escape de HTML
 function fmt(s: string) {
   const esc = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  return esc.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>').replace(/_([^_\n]+)_/g, '<em>$1</em>').replace(/\n/g, '<br>')
+  return esc.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>').replace(/(^|[\s(])_([^_\n]+)_(?=$|[\s).,!?])/g, '$1<em>$2</em>') /* _cursiva_ como WhatsApp, sin romper URLs con municipio_id */.replace(/\n/g, '<br>')
 }
 
 onMounted(() => { if (props.autoplay) play() })
@@ -154,6 +154,11 @@ defineExpose({ play, openAlert })
               </div>
               <div v-else-if="m.tipo === 'image' && m.image_url" class="bubble card">
                 <img :src="m.image_url" alt="" />
+                <span v-if="m.texto" v-html="fmt(m.texto)" />
+                <span class="meta">{{ m.hora }}</span>
+              </div>
+              <div v-else-if="m.tipo === 'video' && m.video_url" class="bubble card" data-testid="sim-video">
+                <video :src="m.video_url" controls playsinline muted preload="metadata" />
                 <span v-if="m.texto" v-html="fmt(m.texto)" />
                 <span class="meta">{{ m.hora }}</span>
               </div>
@@ -225,7 +230,7 @@ defineExpose({ play, openAlert })
 .pin { width: 30px; height: 30px; color: #c4473a; fill: #f2c24f; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3)); }
 .loct { display: block; padding: 4px 4px 0; font-weight: 600; font-size: calc(13px * var(--s)); }
 .bubble.card { padding: calc(4px * var(--s)); width: 88%; }
-.bubble.card img { border-radius: 8px; width: 100%; }
+.bubble.card img, .bubble.card video { border-radius: 8px; width: 100%; display: block; background: #000; }
 .dots { display: flex; gap: 4px; padding: 10px 12px; }
 .dots i { width: 7px; height: 7px; border-radius: 50%; background: #9a9187; animation: blink 1.2s infinite; }
 .dots i:nth-child(2) { animation-delay: 0.2s; } .dots i:nth-child(3) { animation-delay: 0.4s; }

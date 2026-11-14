@@ -1,6 +1,7 @@
 // Package bot: conversación del agricultor, independiente del canal (WhatsApp Cloud, Twilio, simulador web).
-// Saludo → ubicación/municipio → cultivo → riego → ganado → prioridad → plan (resumen + tarjeta + 1/2/3)
-// → suscripción a alertas (fecha de siembra). Comandos MENU, CAMBIAR, EN/ES, AYUDA, BAJA, AVISAME.
+// Saludo → ubicación/municipio → cultivo → riego (nada/poco/medio/mucho) → ganado → prioridad → plan
+// (resumen + tarjeta + 1/2/3 + VIDEO 🎬) → suscripción a alertas (fecha de siembra).
+// Comandos MENU, CAMBIAR, EN/ES, AYUDA, BAJA, AVISAME, VIDEO.
 package bot
 
 import (
@@ -18,6 +19,7 @@ import (
 
 	"fieldshift/internal/contract"
 	"fieldshift/internal/geo"
+	"fieldshift/internal/simvideo"
 )
 
 // Entrada: un mensaje del usuario, ya traducido por el canal.
@@ -32,12 +34,13 @@ type Entrada struct {
 
 // Salida: un mensaje del bot, que cada canal dibuja a su manera.
 type Salida struct {
-	Tipo     string // text | buttons | list | image | location_request
+	Tipo     string // text | buttons | list | image | location_request | video
 	Texto    string
 	Botones  []contract.Boton
 	Plan     *contract.Plan // para Tipo image: la tarjeta se dibuja con este plan
 	ImageURL string         // ruta relativa de la tarjeta (/api/cards/plan.png?...)
 	Idioma   string         // es | en (para dibujar la tarjeta)
+	VideoURL string         // Tipo video: ruta relativa del MP4 (/api/sim/video.mp4?...)
 }
 
 // Bot es la máquina de estados. Seguro para uso concurrente.
@@ -113,6 +116,11 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 		return b.ubicacion(se, *e.Lat, *e.Lon)
 	}
 
+	// Video 3D del plan: botón o comando en cualquier momento.
+	if e.BotonID == "video" || comandosVideo[cmd] {
+		return b.video(se)
+	}
+
 	switch cmd {
 	case "AYUDA", "HELP":
 		return txt(t(L, "ayuda"))
@@ -183,11 +191,17 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 		se.Req.Cultivo = id
 		return b.preguntar(se, PasoRiego)
 	case PasoRiego:
-		id, ok := elegirSiNo(e)
+		id, ok := elegir(e, opcRiego)
+		if !ok {
+			// "sí" sin cantidad = riego medio; "no" = nada
+			if sn, ok2 := elegirSiNo(e); ok2 {
+				id, ok = map[string]string{"si": "medio", "no": "nada"}[sn], true
+			}
+		}
 		if !ok {
 			return append(txt(t(L, "no_entendi")), b.preguntar(se, PasoRiego)...)
 		}
-		se.Req.Riego = id == "si"
+		fijarRiego(se, id)
 		return b.preguntar(se, PasoGanado)
 	case PasoGanado:
 		id, ok := elegirSiNo(e)
@@ -348,7 +362,9 @@ func (b *Bot) preguntar(se *Sesion, paso string) []Salida {
 	switch paso {
 	case PasoCultivo:
 		ops, tipo = opcCultivo, "list"
-	case PasoRiego, PasoGanado:
+	case PasoRiego:
+		ops, tipo = opcRiego, "list"
+	case PasoGanado:
 		ops = opcSiNo
 	case PasoPrioridad:
 		ops, tipo = opcPrioridad, "list"
@@ -394,7 +410,7 @@ func (b *Bot) calcularPlan(se *Sesion) []Salida {
 func (b *Bot) resumen(se *Sesion, conSuscripcion bool) []Salida {
 	L, p := se.Idioma, se.Plan
 	rec, base := recomendada(p), base(p)
-	riego := map[bool][2]string{true: {"con riego", "irrigated"}, false: {"sin riego", "rain-fed"}}[se.Req.Riego]
+	riego := textoRiego(se)
 	lineas := []string{
 		fmt.Sprintf("📍 *%s* · %s · %s", nombreMunicipio(se, p), tituloCultivo(L, se.Req.Cultivo), pick(L, riego)),
 		pick(L, [2]string{
@@ -448,6 +464,7 @@ func (b *Bot) resumen(se *Sesion, conSuscripcion bool) []Salida {
 		det += "\n\n" + t(L, "ver_web", b.LinkWeb(req))
 	}
 	out = append(out, Salida{Tipo: "text", Texto: det})
+	out = append(out, Salida{Tipo: "buttons", Texto: t(L, "video_ofrecer"), Botones: botones(L, opcVideo)})
 	if conSuscripcion && !se.Suscrito {
 		se.Ofrecidas = []string{"sub_si", "sub_no"}
 		out = append(out, Salida{Tipo: "buttons", Texto: t(L, "suscribir_pregunta"), Botones: botones(L, opcSuscribir)})
@@ -609,6 +626,101 @@ func seguimientoTexto(s string) string {
 	return ""
 }
 
+// ---------- video 3D (agente video) ----------
+
+var comandosVideo = map[string]bool{"VIDEO": true, "VIDEOS": true, "3D": true, "VER3D": true, "VIDEO3D": true, "VERMIMILPA3D": true, "SEEMYMILPA3D": true}
+
+// fijarRiego guarda el nivel y lo pasa al plan en mm por semana (motor: riego_mm_semana).
+func fijarRiego(se *Sesion, nivel string) {
+	mm, ok := simvideo.NivelesRiego[nivel]
+	if !ok {
+		nivel, mm = "nada", 0
+	}
+	se.RiegoNivel = nivel
+	se.Req.Riego = mm > 0
+	se.Req.RiegoMMSemana = nil
+	if mm > 0 {
+		se.Req.RiegoMMSemana = &mm
+	}
+}
+
+// riegoMM: mm/semana de la sesión (sesiones viejas: Riego=true → medio).
+func riegoMM(se *Sesion) float64 {
+	if se.Req.RiegoMMSemana != nil {
+		return *se.Req.RiegoMMSemana
+	}
+	if se.Req.Riego {
+		return simvideo.NivelesRiego["medio"]
+	}
+	return 0
+}
+
+func textoRiego(se *Sesion) [2]string {
+	mm := riegoMM(se)
+	if mm <= 0 {
+		return [2]string{"sin riego", "rain-fed"}
+	}
+	return [2]string{fmt.Sprintf("riego %s mm/semana", entero(mm)), fmt.Sprintf("irrigation %s mm/week", entero(mm))}
+}
+
+// ConsultaVideo arma la consulta del MP4 a partir del plan de la sesión: la estrategia que
+// miró en detalle (o la recomendada), su riego, el idioma y el horizonte.
+func ConsultaVideo(se *Sesion) simvideo.Consulta {
+	c := simvideo.Consulta{MunicipioID: se.Req.MunicipioID, Cultivo: se.Req.Cultivo, RiegoMM: riegoMM(se), Escenario: "tipico", Idioma: se.Idioma}
+	if se.Plan != nil {
+		if c.MunicipioID == "" {
+			c.MunicipioID = se.Plan.Municipio.ID
+		}
+		if r := recomendada(se.Plan); r != nil {
+			c.Estrategia = r.ID
+		}
+	}
+	if se.Estrategia != "" {
+		c.Estrategia = se.Estrategia
+	}
+	if h := se.Req.Horizonte; strings.HasPrefix(h, "2040") {
+		c.Escenario = h
+	} else if se.Req.ElNino != nil && *se.Req.ElNino {
+		c.Escenario = "nino"
+	}
+	return c.Normalizar()
+}
+
+// video: "preparando…" + el MP4 (el canal lo genera o lo toma de caché) + link al sandbox en la web.
+func (b *Bot) video(se *Sesion) []Salida {
+	L := se.Idioma
+	if se.Plan == nil {
+		return append(txt(t(L, "sin_plan")), b.saludo(se)...)
+	}
+	if se.Paso == PasoPlan {
+		se.Paso = PasoListo
+	}
+	c := ConsultaVideo(se)
+	nombre := c.Estrategia
+	for _, s := range se.Plan.Estrategias {
+		if s.ID == c.Estrategia {
+			nombre = s.Nombre
+		}
+	}
+	esc := map[string][2]string{"tipico": {"año típico", "typical year"}, "nino": {"año El Niño", "El Niño year"},
+		"2040-ssp245": {"clima 2040", "2040 climate"}, "2040-ssp585": {"clima 2040 (alto)", "2040 climate (high)"}}[c.Escenario]
+	linea := nombre + " · " + pick(L, textoRiego(se))
+	if esc[0] != "" {
+		linea += " · " + pick(L, esc)
+	}
+	out := []Salida{
+		{Tipo: "text", Texto: t(L, "video_preparando")},
+		{Tipo: "video", Texto: t(L, "video_caption", nombreMunicipio(se, se.Plan), linea), VideoURL: "/api/sim/video.mp4?" + c.Query().Encode(), Idioma: L},
+	}
+	if b.WebURL != "" {
+		q := c.Query()
+		q.Del("calidad")
+		q.Del("vertical")
+		out = append(out, Salida{Tipo: "text", Texto: t(L, "video_web", strings.TrimRight(b.WebURL, "/")+"/sandbox?"+q.Encode())})
+	}
+	return out
+}
+
 // ---------- utilidades ----------
 
 // LinkWeb: link a la web con el plan cargado.
@@ -623,6 +735,9 @@ func QueryPlan(r contract.PlanRequest) url.Values {
 	v.Set("municipio_id", r.MunicipioID)
 	v.Set("cultivo", r.Cultivo)
 	v.Set("riego", strconv.FormatBool(r.Riego))
+	if r.RiegoMMSemana != nil && *r.RiegoMMSemana > 0 {
+		v.Set("riego_mm_semana", strconv.FormatFloat(*r.RiegoMMSemana, 'f', -1, 64))
+	}
 	v.Set("ganado", strconv.FormatBool(r.Ganado))
 	v.Set("prioridad", r.Prioridad)
 	if r.Horizonte != "" {
@@ -660,6 +775,9 @@ func ReqDesdeQuery(v url.Values) contract.PlanRequest {
 		}
 	}
 	r.Riego, _ = strconv.ParseBool(v.Get("riego"))
+	if mm, err := strconv.ParseFloat(v.Get("riego_mm_semana"), 64); err == nil && mm > 0 {
+		r.RiegoMMSemana, r.Riego = &mm, true
+	}
 	r.Ganado, _ = strconv.ParseBool(v.Get("ganado"))
 	if r.MunicipioID == "" {
 		r.MunicipioID = "jocotan-chiquimula"

@@ -19,6 +19,8 @@ type PlanRequest struct {
 	Horizonte        string   `json:"horizonte"`               // 2026 | 2040-ssp245 | 2040-ssp585
 	ElNino           *bool    `json:"el_nino,omitempty"`       // nil = según ONI actual
 	Idioma           string   `json:"idioma"`                  // es | en
+	// Agregado por el motor (14-nov, sandbox): riego en mm por semana; si viene > 0 reemplaza a Riego (auxilio).
+	RiegoMMSemana *float64 `json:"riego_mm_semana,omitempty"`
 }
 
 type Rango struct {
@@ -191,6 +193,8 @@ type MensajeChat struct {
 	Texto    string  `json:"texto"`
 	Botones  []Boton `json:"botones,omitempty"`
 	ImageURL string  `json:"image_url,omitempty"`
+	// Agregado por video (14-nov): Tipo "video" → MP4 del sandbox 3D (GET /api/sim/video.mp4?…).
+	VideoURL string `json:"video_url,omitempty"`
 }
 
 type Suscriptor struct {

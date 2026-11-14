@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Banco de video · sandbox</title>
+    <style>
+      body { margin: 0; background: #15110d; color: #f5efe4; font-family: system-ui, sans-serif; }
+      canvas { width: 100%; max-width: 960px; display: block; }
+      #barra { padding: 8px; display: flex; gap: 12px; align-items: center; }
+      video { max-width: 960px; width: 100%; }
+    </style>
+  </head>
+  <body>
+    <canvas id="escena" width="1280" height="720"></canvas>
+    <div id="barra"><button id="exportar">Exportar video</button><span id="estado">cargando…</span></div>
+    <video id="previa" controls muted playsinline></video>
+    <script type="module" src="./banco.ts"></script>
+  </body>
+</html>

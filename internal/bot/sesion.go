@@ -35,7 +35,8 @@ type Sesion struct {
 	Candidatos  []string             `json:"candidatos,omitempty"`
 	Ofrecidas   []string             `json:"ofrecidas,omitempty"` // ids de las opciones mostradas (para responder con número)
 	Plan        *contract.Plan       `json:"plan,omitempty"`
-	Estrategia  string               `json:"estrategia,omitempty"` // la última que miró en detalle
+	Estrategia  string               `json:"estrategia,omitempty"`  // la última que miró en detalle
+	RiegoNivel  string               `json:"riego_nivel,omitempty"` // nada | poco | medio | mucho
 	Suscrito    bool                 `json:"suscrito"`
 	Actualizado time.Time            `json:"actualizado"`
 }

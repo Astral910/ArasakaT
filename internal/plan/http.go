@@ -18,6 +18,7 @@ func (e *Engine) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/plan", e.handlePlan)
 	mux.HandleFunc("/api/municipios", e.handleMunicipios)
 	mux.HandleFunc("/api/riesgo", e.handleRiesgo)
+	mux.HandleFunc("/api/simulate", e.handleSimulate)
 }
 
 // Routes para el integrador: carga dataDir (DATA_DIR) y monta las rutas. staticDir (STATIC_DIR, opcional)
