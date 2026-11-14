@@ -25,11 +25,12 @@ const Version = "fieldshift-motor 1.0 (FAO-56 + FAO-33 + Monte Carlo 2001–2025
 
 // Engine carga los datos una vez y calcula planes.
 type Engine struct {
-	Dir   string
-	Muni  *geo.Index
-	soils map[string]data.Soil
-	ONI   data.ONI
-	CMIP  *data.CMIP6Deltas
+	Dir       string
+	StaticDir string // opcional: riesgo_*.json precalculados
+	Muni      *geo.Index
+	soils     map[string]data.Soil
+	ONI       data.ONI
+	CMIP      *data.CMIP6Deltas
 
 	mu      sync.Mutex
 	climate map[string]*data.Climate
