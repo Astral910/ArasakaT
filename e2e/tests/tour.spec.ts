@@ -60,7 +60,7 @@ test('simulador: conversación completa con el bot', async ({ page }) => {
   await say('Jocotán')
   await expect(log).toContainText(/Jocotán/)
   await tap(/Milpa/i)
-  await tap(/^No$/i) // riego
+  await tap(/^(None|Nada)|rain only|solo lluvia|^No$/i) // riego
   await tap(/^No$/i) // ganado
   await tap(/comida|food/i)
   await expect(log).toContainText(/1.*2.*3|recomendada|recommended/is, { timeout: 15_000 })

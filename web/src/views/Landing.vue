@@ -60,7 +60,7 @@ const datos = [
     <section class="stats">
       <div class="container stats-grid">
         <div class="stat"><strong><CountUp :value="25" /></strong><span>{{ t('stats.seasons') }}</span></div>
-        <div class="stat"><strong><CountUp :value="340" /></strong><span>{{ t('stats.municipios') }}</span></div>
+        <div class="stat"><strong><CountUp :value="342" /></strong><span>{{ t('stats.municipios') }}</span></div>
         <div class="stat"><strong><CountUp :value="3" /></strong><span>{{ t('stats.strategies') }}</span></div>
         <div class="stat"><strong><CountUp :value="3.4" :decimals="1" />M</strong><span>{{ t('stats.hunger') }} <DataTag :source="t('stats.hungerSrc')" /></span></div>
       </div>
