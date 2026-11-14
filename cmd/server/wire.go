@@ -16,6 +16,7 @@ import (
 	"fieldshift/internal/channels"
 	"fieldshift/internal/contract"
 	"fieldshift/internal/geo"
+	"fieldshift/internal/informe"
 	"fieldshift/internal/plan"
 )
 
@@ -101,6 +102,9 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 	a.comp.Bot = "real"
 	a.comp.WhatsApp = activo(d.Cloud.Activo())
 	a.comp.Twilio = activo(d.Twilio.Activo())
+
+	// INFORME (internal/informe): GET /api/informe.pdf (Chromium imprime /informe?print=1)
+	informe.Routes(mux, informe.Nuevo(informe.ConfigDesdeEnv()))
 
 	return a
 }

@@ -1,0 +1,300 @@
+// Textos fijos del informe (ES/EN). Los textos del plan (fichas, nombres, notas) vienen del motor en el idioma pedido.
+import { lang } from '@/i18n'
+
+const ES = {
+  marca: 'Field Shift · Informe técnico',
+  titulo: 'Plan de siembra para {lugar}',
+  sub: 'Qué conviene sembrar la próxima temporada, con qué riesgo y por qué. Todo sale del motor Field Shift con datos de NASA.',
+  generado: 'Generado el {fecha}',
+  descargar: 'Descargar PDF',
+  imprimir: 'Imprimir',
+  volver: 'Volver a la guía',
+  cargando: 'Armando el informe con el motor…',
+  cargandoSub: 'Clima 2001–2025, pronóstico, tres estrategias, riego y 2040.',
+  error: 'No se pudo armar el informe.',
+  reintentar: 'Reintentar',
+  cultivo: 'Cultivo', area: 'Área', riego: 'Riego', prioridad: 'Prioridad', coords: 'Coordenadas',
+  riegoNada: 'sin riego (temporal)', mmSem: 'mm/semana',
+  origen_api: 'Cálculo en vivo del motor',
+  origen_static: 'Plan precalculado del motor (la API no respondió)',
+  origen_approx: 'Plan precalculado más cercano (la API no respondió): los números son de otra combinación',
+  origen_fixture: 'Plan de ejemplo de Jocotán (la API no respondió): no corresponde a este lugar',
+  sinVivo: 'Sin conexión con el motor: esta sección necesita el cálculo en vivo.',
+  indice: 'Contenido',
+
+  s1: 'Resumen ejecutivo',
+  s2: 'Ubicación, clima 2001–2025 y temporadas',
+  s3: 'Escenario predicho y confianza',
+  s4: 'Calendario de siembra y canícula',
+  s5: 'Tres estrategias: S0, S1 y S2',
+  s6: 'Efecto del riego',
+  s7: '2040 con cambio climático (CMIP6)',
+  s8: 'Alertas activas y qué hacer',
+  s9: 'Incertidumbre: IA contra estadística',
+  s10: 'Metodología',
+  s11: 'Validación',
+  s12: 'Fuentes',
+  s13: 'Limitaciones',
+
+  r_rec: 'Conviene {id} · {nombre}: se pierden {r} de cada 10 temporadas, contra {r0} con la forma de hoy.',
+  r_cosecha: 'Cosecha típica {p50} qq/mz (de {p10} a {p90} en 8 de cada 10 años); para tu área, unos {tot} qq de grano.',
+  r_conf: 'Temporada que viene: {texto}',
+  r_enso: 'El Niño hoy: {estado} (ONI {oni}, {tri}). En años El Niño la forma de hoy pierde {rn} de cada 10 temporadas; en los demás, {ro}.',
+  r_siembra: 'Sembrá la Primera entre el {a} y el {b} (lo más común desde el {c}); la canícula típica va del {d} al {e}.',
+  r_suelo: 'Suelo: {id} deja {e} t/ha/año de erosión contra {e0} hoy, y el suelo queda desnudo {d} días contra {d0}.',
+  kpiRiesgo: 'temporadas perdidas de cada 10', kpiCosecha: 'qq/mz, cosecha típica', kpiErosion: 't/ha/año de erosión',
+  hoy: 'hoy',
+  recomendada: 'Recomendada',
+
+  zona: 'Zona de datos', suelo: 'Suelo', arena: 'arena', arcilla: 'arcilla', mo: 'materia orgánica', prof: 'profundidad',
+  climaFig: 'Lluvia mensual (mediana y rango P10–P90) y evapotranspiración de referencia ET0, 2001–2025',
+  lluvia: 'Lluvia', et0: 'ET0', tmin: 'Tmín',
+  falsoInicio: 'años con falso inicio de lluvias, de cada 10',
+  canDias: 'días de racha seca más larga jun–ago (P10–P50–P90)',
+  helada: 'años con Tmín ≤ 3 °C, de cada 10',
+  mesTabla: 'Mes', lluviaP50: 'Lluvia P50 (mm)', lluviaRango: 'P10–P90 (mm)', et0mm: 'ET0 (mm)', tminC: 'Tmín (°C)',
+
+  metodo: 'Método', analogos: 'Años análogos', parecidos: 'Años parecidos', probEsc: 'Probabilidad del escenario',
+  probPerd: 'Probabilidad de perder la cosecha', cosechaRango: 'Cosecha P10 / P50 / P90', habilidad: 'Habilidad (validación)', nivel: 'Nivel de confianza',
+  deBase: 'de {n}', qqmz: 'qq/mz',
+  metodo_analogo_pronostico: 'Pronóstico de 16 días (ECMWF/GFS) + años análogos al pronóstico estacional y al ONI',
+  'metodo_remuestreo-enso': 'Remuestreo de años reales según El Niño',
+  metodo_observado: 'Temporada observada',
+  metodo_cmip6: 'Años reales con cambios CMIP6',
+  sinConfianza: 'El motor todavía no publica la confianza del pronóstico para este lugar: los campos quedan en "—". Abajo, lo que ya dice el historial.',
+  escTipico: 'El motor todavía no tiene el escenario "pronóstico": se muestra la temporada típica (año real mediano) y se dice así.',
+  escPron: 'Temporada que viene simulada con el escenario "pronóstico" del motor.',
+  simTabla: 'Temporada simulada por estrategia',
+  anioReal: 'Clima del año real', grano: 'Grano (qq/mz)', perdida: '¿Se pierde?', si: 'sí', no: 'no',
+  historial: 'Lo que dice el historial {r}',
+  hPerdidas: 'De {n} temporadas reales, con la forma de hoy se perdieron {k}.',
+  hNino: 'En años El Niño ({anios}) se pierden {rn} de cada 10; en los demás, {ro}.',
+
+  calFig: 'Calendario del año: ventanas de siembra, canícula, etapa sensible y uso del suelo de cada estrategia',
+  ventanaPrimera: 'Siembra de Primera', ventanaPostrera: 'Siembra de Postrera', comun: 'Calendario común',
+  siembraAqui: 'inicio de lluvias más común',
+
+  rangoFig: 'Cosecha por manzana (P10–P50–P90) y temporadas perdidas de cada 10',
+  aniosFig: 'Cosecha en cada año real {r} · rojo = temporada perdida · ◆ = El Niño',
+  sueloFig: 'Materia orgánica del suelo a 5 años (banda P10–P90)',
+  erosionFig: 'Erosión (t/ha/año) y días de suelo desnudo',
+  porQue: 'Por qué', evidencia: 'Evidencia', beneficios: 'Beneficios', infoFaltante: 'Información que falta', riesgos: 'Riesgos (revisar en campo)',
+  cosecha: 'Cosecha', perdidas: 'Pérdidas', deficit: 'Déficit de agua', ingreso: 'Ingreso', erosion: 'Erosión', desnudo: 'Suelo desnudo', moA5: 'MO a 5 años',
+  postrera: 'Postrera', escorrentia: 'Escorrentía', vulnerable: 'Etapa sensible', total: 'Total para tu área',
+  dias: 'días', de10: 'de 10', thaano: 't/ha/año', qmz: 'Q/mz', mm: 'mm', anios: 'años',
+  secuencia: 'Secuencia', advertencias: 'Advertencias',
+  analogoMarca: 'año análogo',
+
+  riegoFig: 'Cosecha típica (P50, con rango P10–P90) según el riego, por estrategia',
+  riegoNota: 'Riego en mm por semana: 0 = temporal, 10 = poco, 20 = medio, 35 = mucho (≈ la demanda del maíz en floración), repartido en 2 riegos y limitado a lo que cabe en el suelo.',
+  riegoTabla: 'Temporadas perdidas de cada 10 según el riego',
+  tuRiego: 'tu riego',
+
+  f2040Nota: 'Clima 2001–2025 con los cambios mensuales de 3 modelos NASA NEX-GDDP-CMIP6 (2038–2042 contra 2010–2014). Escenario, no pronóstico.',
+  f2040Fig: 'Temporadas perdidas de cada 10: hoy contra 2040',
+  hoy2026: 'Hoy (2001–2025)', ssp245: '2040 · SSP2-4.5', ssp585: '2040 · SSP5-8.5',
+  cosecha2040: 'Cosecha típica (qq/mz)',
+
+  alertasHay: 'Alertas emitidas para {lugar} con el pronóstico de los modelos ({fuente}).',
+  alertasActivas: 'Activas ahora', alertasRecientes: 'Últimas alertas', alertasNinguna: 'No hay alertas activas hoy para este lugar.',
+  alertasSin: 'Este lugar todavía no tiene seguimiento diario de alertas. Suscribite por WhatsApp para recibirlas cuando se active.',
+  alertasComo: 'Cómo recibirlas: escribí "hola" al número de WhatsApp de Field Shift y respondé ALERTAS. Cada aviso dice qué tan seguro es y qué hacer.',
+  desde: 'desde', prob: 'probabilidad', pronosticos: '{m} de {t} pronósticos',
+  backtest: 'Así le fue a las alertas en 2026 (contra lo observado)',
+  bt_tipo: 'Tipo', bt_eventos: 'Eventos', bt_avisados: 'Avisados', bt_alertas: 'Alertas', bt_aciertos: 'Aciertos', bt_falsas: 'Falsas alarmas',
+  tipo_canicula: 'Racha seca', tipo_inicio_lluvias: 'Inicio de lluvias', tipo_lluvia_fuerte: 'Lluvia fuerte', tipo_perspectiva: 'Perspectiva', tipo_helada: 'Helada', tipo_falso_inicio: 'Falso inicio',
+
+  iaFig: 'Probabilidad de perder la próxima Primera y error de Brier (menor es mejor)',
+  ia: 'IA (regresión logística)', est: 'Estadística (frecuencia)', probPerder: 'Probabilidad de pérdida', brier: 'Error de Brier',
+
+  valFig: 'Sequías documentadas 2001–2025 (FEWS NET, MAGA, SESAN, PMA) y si el motor las detectó',
+  valDet: 'El motor detectó {d} de {t} sequías documentadas.',
+  documentada: 'sequía documentada', detectada: 'detectada', noDetectada: 'no detectada', falsa: 'pérdida simulada sin sequía documentada',
+
+  fDato: 'Dato', fOrigen: 'Origen', fPeriodo: 'Periodo', fUso: 'Uso',
+  fuentesConf: 'Fuentes del pronóstico', fuentesAlertas: 'Fuentes de las alertas',
+
+  lim1: 'Los datos son de una zona de ~50 km (NASA POWER), no de tu parcela exacta. Los suelos son de SoilGrids o típicos de la zona: confirmalos en campo.',
+  lim2: 'Los rendimientos son aproximados (FAO-33 con referencias MAGA/ICTA): sirven para comparar opciones, no prometen quintales.',
+  lim3: 'El pronóstico estacional tiene acierto moderado; 2040 es un escenario, no un pronóstico.',
+  lim4: 'Precios, mano de obra, plagas y enfermedades no están en el modelo.',
+  extensionista: 'Este informe apoya, no reemplaza, al extensionista. Revisá cada decisión con tu técnico del MAGA, la cooperativa o la ONG que te acompaña.',
+  motorV: 'Motor',
+  probPerdCorta: 'Prob. de pérdida', claseTemp: 'Clase de temporada mostrada', clase_perdida: 'pérdida', clase_regular: 'regular', clase_buena: 'buena',
+  oniPron: 'ONI pronosticado', pron16: 'Pronóstico de 16 días', corrida: 'corrida del', probClases: 'Probabilidad de cada clase (años parecidos al pronóstico)', regla: 'Cómo se decide el nivel',
+  escRemuestreo: 'Sin conexión al pronóstico: el motor armó la temporada remuestreando años según El Niño (lo dice el método).',
+  bioma: 'Bioma', lluviaAnual: 'de lluvia al año', tmedia: 'temperatura media', mesesSecos: 'meses secos', temporadas: 'Temporadas de lluvia',
+  bioma_tropical_humedo: 'tropical húmedo', 'bioma_tropical-humedo': 'tropical húmedo', 'bioma_corredor-seco': 'corredor seco', bioma_altiplano: 'altiplano', bioma_templado: 'templado', bioma_arido: 'árido', bioma_sabana: 'sabana',
+  m_analogos: 'Análogos', m_analogosTxt: 'Escenario "pronóstico" (temporada que viene): los primeros días salen del pronóstico de 16 días (Open-Meteo: ECMWF/GFS) y el resto de la temporada se arma con años reales 2001–2025 elegidos por parecido al pronóstico estacional (Open-Meteo Seasonal / ECMWF SEAS5) y al ONI pronosticado. "Años parecidos" = de los años base, cuántos tuvieron un resultado de la misma clase que el mostrado.',
+  m_clima: 'Clima', m_agua: 'Agua · FAO-56', m_rendimiento: 'Rendimiento · FAO-33', m_calendario: 'Calendario', m_montecarlo: 'Monte Carlo', m_suelo: 'Suelo · RUSLE', m_2040: '2040 · CMIP6', m_ia: 'IA vs estadística', m_validacion: 'Validación', m_riego: 'Riego', m_sandbox: 'Sandbox 3D', m_limites: 'Límites',
+  fueraGT: 'Lugar fuera de Guatemala: el motor bajó NASA POWER para este punto; la validación con sequías documentadas es de Guatemala y aquí no aplica.',
+}
+
+type Clave = keyof typeof ES
+const EN: Record<Clave, string> = {
+  marca: 'Field Shift · Technical report',
+  titulo: 'Planting plan for {lugar}',
+  sub: 'What to plant next season, with what risk and why. Everything comes from the Field Shift engine with NASA data.',
+  generado: 'Generated {fecha}',
+  descargar: 'Download PDF',
+  imprimir: 'Print',
+  volver: 'Back to the guide',
+  cargando: 'Building the report with the engine…',
+  cargandoSub: 'Climate 2001–2025, forecast, three strategies, irrigation and 2040.',
+  error: 'The report could not be built.',
+  reintentar: 'Retry',
+  cultivo: 'Crop', area: 'Area', riego: 'Irrigation', prioridad: 'Priority', coords: 'Coordinates',
+  riegoNada: 'rain-fed (no irrigation)', mmSem: 'mm/week',
+  origen_api: 'Live engine calculation',
+  origen_static: 'Engine precomputed plan (the API did not answer)',
+  origen_approx: 'Closest precomputed plan (the API did not answer): numbers are from another combination',
+  origen_fixture: 'Jocotán example plan (the API did not answer): it does not match this place',
+  sinVivo: 'No connection to the engine: this section needs the live calculation.',
+  indice: 'Contents',
+
+  s1: 'Executive summary',
+  s2: 'Location, climate 2001–2025 and seasons',
+  s3: 'Predicted scenario and confidence',
+  s4: 'Planting calendar and midsummer drought',
+  s5: 'Three strategies: S0, S1 and S2',
+  s6: 'Effect of irrigation',
+  s7: '2040 under climate change (CMIP6)',
+  s8: 'Active alerts and what to do',
+  s9: 'Uncertainty: AI versus statistics',
+  s10: 'Methodology',
+  s11: 'Validation',
+  s12: 'Sources',
+  s13: 'Limitations',
+
+  r_rec: 'Best option: {id} · {nombre}: {r} of every 10 seasons are lost, versus {r0} with today\'s practice.',
+  r_cosecha: 'Typical harvest {p50} qq/mz ({p10} to {p90} in 8 of 10 years); for your area, about {tot} qq of grain.',
+  r_conf: 'Coming season: {texto}',
+  r_enso: 'El Niño now: {estado} (ONI {oni}, {tri}). In El Niño years today\'s practice loses {rn} of every 10 seasons; in other years, {ro}.',
+  r_siembra: 'Plant the Primera between {a} and {b} (most often from {c}); the typical midsummer drought runs {d} to {e}.',
+  r_suelo: 'Soil: {id} leaves {e} t/ha/yr of erosion versus {e0} today, and bare soil {d} days versus {d0}.',
+  kpiRiesgo: 'lost seasons out of 10', kpiCosecha: 'qq/mz, typical harvest', kpiErosion: 't/ha/yr erosion',
+  hoy: 'today',
+  recomendada: 'Recommended',
+
+  zona: 'Data zone', suelo: 'Soil', arena: 'sand', arcilla: 'clay', mo: 'organic matter', prof: 'depth',
+  climaFig: 'Monthly rainfall (median and P10–P90 range) and reference evapotranspiration ET0, 2001–2025',
+  lluvia: 'Rain', et0: 'ET0', tmin: 'Tmin',
+  falsoInicio: 'years with a false start of the rains, out of 10',
+  canDias: 'days of the longest Jun–Aug dry spell (P10–P50–P90)',
+  helada: 'years with Tmin ≤ 3 °C, out of 10',
+  mesTabla: 'Month', lluviaP50: 'Rain P50 (mm)', lluviaRango: 'P10–P90 (mm)', et0mm: 'ET0 (mm)', tminC: 'Tmin (°C)',
+
+  metodo: 'Method', analogos: 'Analog years', parecidos: 'Similar years', probEsc: 'Scenario probability',
+  probPerd: 'Probability of losing the harvest', cosechaRango: 'Harvest P10 / P50 / P90', habilidad: 'Skill (validation)', nivel: 'Confidence level',
+  deBase: 'of {n}', qqmz: 'qq/mz',
+  metodo_analogo_pronostico: '16-day forecast (ECMWF/GFS) + analog years matched to the seasonal forecast and ONI',
+  'metodo_remuestreo-enso': 'Resampling of real years by El Niño state',
+  metodo_observado: 'Observed season',
+  metodo_cmip6: 'Real years with CMIP6 changes',
+  sinConfianza: 'The engine does not publish forecast confidence for this place yet: fields show "—". Below, what the record already says.',
+  escTipico: 'The engine does not have the "forecast" scenario yet: the typical season (median real year) is shown, and labelled as such.',
+  escPron: 'Coming season simulated with the engine\'s "forecast" scenario.',
+  simTabla: 'Simulated season by strategy',
+  anioReal: 'Weather of real year', grano: 'Grain (qq/mz)', perdida: 'Lost?', si: 'yes', no: 'no',
+  historial: 'What the {r} record says',
+  hPerdidas: 'Out of {n} real seasons, today\'s practice lost {k}.',
+  hNino: 'In El Niño years ({anios}) {rn} of every 10 are lost; in other years, {ro}.',
+
+  calFig: 'Year calendar: planting windows, midsummer drought, sensitive stage and land use of each strategy',
+  ventanaPrimera: 'Primera planting', ventanaPostrera: 'Postrera planting', comun: 'Common calendar',
+  siembraAqui: 'most common rain onset',
+
+  rangoFig: 'Harvest per manzana (P10–P50–P90) and lost seasons out of 10',
+  aniosFig: 'Harvest in each real year {r} · red = lost season · ◆ = El Niño',
+  sueloFig: 'Soil organic matter over 5 years (P10–P90 band)',
+  erosionFig: 'Erosion (t/ha/yr) and bare-soil days',
+  porQue: 'Why', evidencia: 'Evidence', beneficios: 'Benefits', infoFaltante: 'Missing information', riesgos: 'Risks (check in the field)',
+  cosecha: 'Harvest', perdidas: 'Losses', deficit: 'Water deficit', ingreso: 'Income', erosion: 'Erosion', desnudo: 'Bare soil', moA5: 'OM at 5 years',
+  postrera: 'Postrera', escorrentia: 'Runoff', vulnerable: 'Sensitive stage', total: 'Total for your area',
+  dias: 'days', de10: 'of 10', thaano: 't/ha/yr', qmz: 'Q/mz', mm: 'mm', anios: 'years',
+  secuencia: 'Sequence', advertencias: 'Warnings',
+  analogoMarca: 'analog year',
+
+  riegoFig: 'Typical harvest (P50, with P10–P90 range) by irrigation, per strategy',
+  riegoNota: 'Irrigation in mm per week: 0 = rain-fed, 10 = little, 20 = medium, 35 = a lot (≈ maize demand at flowering), split in 2 waterings and capped by what the soil holds.',
+  riegoTabla: 'Lost seasons out of 10 by irrigation',
+  tuRiego: 'your irrigation',
+
+  f2040Nota: '2001–2025 weather with monthly changes from 3 NASA NEX-GDDP-CMIP6 models (2038–2042 vs 2010–2014). A scenario, not a forecast.',
+  f2040Fig: 'Lost seasons out of 10: today versus 2040',
+  hoy2026: 'Today (2001–2025)', ssp245: '2040 · SSP2-4.5', ssp585: '2040 · SSP5-8.5',
+  cosecha2040: 'Typical harvest (qq/mz)',
+
+  alertasHay: 'Alerts issued for {lugar} from the weather models ({fuente}).',
+  alertasActivas: 'Active now', alertasRecientes: 'Latest alerts', alertasNinguna: 'No active alerts today for this place.',
+  alertasSin: 'This place has no daily alert tracking yet. Subscribe on WhatsApp to get them when it is switched on.',
+  alertasComo: 'How to get them: send "hi" to the Field Shift WhatsApp number and reply ALERTS. Every alert says how sure it is and what to do.',
+  desde: 'from', prob: 'probability', pronosticos: '{m} of {t} forecasts',
+  backtest: 'How the alerts did in 2026 (against observations)',
+  bt_tipo: 'Type', bt_eventos: 'Events', bt_avisados: 'Warned', bt_alertas: 'Alerts', bt_aciertos: 'Hits', bt_falsas: 'False alarms',
+  tipo_canicula: 'Dry spell', tipo_inicio_lluvias: 'Rain onset', tipo_lluvia_fuerte: 'Heavy rain', tipo_perspectiva: 'Outlook', tipo_helada: 'Frost', tipo_falso_inicio: 'False start',
+
+  iaFig: 'Probability of losing the next Primera and Brier error (lower is better)',
+  ia: 'AI (logistic regression)', est: 'Statistics (frequency)', probPerder: 'Loss probability', brier: 'Brier error',
+
+  valFig: 'Documented droughts 2001–2025 (FEWS NET, MAGA, SESAN, WFP) and whether the engine detected them',
+  valDet: 'The engine detected {d} of {t} documented droughts.',
+  documentada: 'documented drought', detectada: 'detected', noDetectada: 'not detected', falsa: 'simulated loss without documented drought',
+
+  fDato: 'Data', fOrigen: 'Origin', fPeriodo: 'Period', fUso: 'Use',
+  fuentesConf: 'Forecast sources', fuentesAlertas: 'Alert sources',
+
+  lim1: 'Data are for a ~50 km zone (NASA POWER), not your exact plot. Soils come from SoilGrids or are typical of the zone: confirm them in the field.',
+  lim2: 'Yields are approximate (FAO-33 with MAGA/ICTA references): use them to compare options, not as a promise of quintals.',
+  lim3: 'Seasonal forecasts have moderate skill; 2040 is a scenario, not a forecast.',
+  lim4: 'Prices, labour, pests and diseases are not in the model.',
+  extensionista: 'This report supports, and does not replace, the extension agent. Check every decision with your MAGA technician, cooperative or NGO.',
+  motorV: 'Engine',
+  probPerdCorta: 'Loss prob.', claseTemp: 'Class of the season shown', clase_perdida: 'loss', clase_regular: 'fair', clase_buena: 'good',
+  oniPron: 'Forecast ONI', pron16: '16-day forecast', corrida: 'run of', probClases: 'Probability of each class (years similar to the forecast)', regla: 'How the level is decided',
+  escRemuestreo: 'No connection to the forecast: the engine built the season by resampling years by El Niño state (the method says so).',
+  bioma: 'Biome', lluviaAnual: 'rain per year', tmedia: 'mean temperature', mesesSecos: 'dry months', temporadas: 'Rainy seasons',
+  bioma_tropical_humedo: 'humid tropical', 'bioma_tropical-humedo': 'humid tropical', 'bioma_corredor-seco': 'dry corridor', bioma_altiplano: 'highlands', bioma_templado: 'temperate', bioma_arido: 'arid', bioma_sabana: 'savanna',
+  m_analogos: 'Analogs', m_analogosTxt: '"Forecast" scenario (coming season): the first days come from the 16-day forecast (Open-Meteo: ECMWF/GFS) and the rest of the season is built from real 2001–2025 years chosen by similarity to the seasonal forecast (Open-Meteo Seasonal / ECMWF SEAS5) and the forecast ONI. "Similar years" = out of the base years, how many had an outcome of the same class as the one shown.',
+  m_clima: 'Climate', m_agua: 'Water · FAO-56', m_rendimiento: 'Yield · FAO-33', m_calendario: 'Calendar', m_montecarlo: 'Monte Carlo', m_suelo: 'Soil · RUSLE', m_2040: '2040 · CMIP6', m_ia: 'AI vs statistics', m_validacion: 'Validation', m_riego: 'Irrigation', m_sandbox: '3D sandbox', m_limites: 'Limits',
+  fueraGT: 'Place outside Guatemala: the engine downloaded NASA POWER for this point; validation against documented droughts is for Guatemala and does not apply here.',
+}
+
+/** Texto fijo del informe; {var} se reemplaza. */
+export function tx(k: Clave | string, vars?: Record<string, string | number>): string {
+  let s = (lang.value === 'en' ? EN : ES)[k as Clave] ?? ES[k as Clave] ?? k
+  if (vars) for (const v in vars) s = s.split(`{${v}}`).join(String(vars[v]))
+  return s
+}
+
+const MESES = {
+  es: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'],
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+}
+export const mesCorto = (m: number) => MESES[lang.value][m - 1] ?? ''
+/** "05-14" → "14 may" / "May 14" */
+export function fecha(mmdd?: string): string {
+  if (!mmdd || !/^\d\d-\d\d$/.test(mmdd)) return '—'
+  const [m, d] = mmdd.split('-').map(Number)
+  return lang.value === 'es' ? `${d} ${MESES.es[m - 1]}` : `${MESES.en[m - 1]} ${d}`
+}
+/** "2026-10-31" → "31 oct 2026" */
+export function fechaISO(iso?: string): string {
+  if (!iso || !/^\d{4}-\d\d-\d\d/.test(iso)) return '—'
+  return `${fecha(iso.slice(5, 10))} ${iso.slice(0, 4)}`
+}
+
+export const NOMBRE_CULTIVO: Record<string, [string, string]> = {
+  milpa: ['milpa (maíz + frijol)', 'milpa (maize + beans)'], maiz: ['maíz', 'maize'], frijol: ['frijol', 'beans'], sorgo: ['maicillo (sorgo)', 'sorghum'], otro: ['otro cultivo', 'other crop'],
+}
+export const NOMBRE_UNIDAD: Record<string, [string, string, string, string]> = {
+  cuerda: ['cuerda', 'cuerdas', 'cuerda', 'cuerdas'], manzana: ['manzana', 'manzanas', 'manzana', 'manzanas'], ha: ['ha', 'ha', 'ha', 'ha'],
+}
+export const NOMBRE_PRIORIDAD: Record<string, [string, string]> = {
+  comida: ['comida', 'food'], agua: ['agua', 'water'], suelo: ['suelo', 'soil'], ingreso: ['ingreso', 'income'],
+}
+export const ENSO_ESTADO: Record<string, [string, string]> = {
+  nino: ['El Niño activo', 'El Niño active'], nina: ['La Niña activa', 'La Niña active'], neutral: ['neutral', 'neutral'],
+}
+export const NIVEL: Record<string, [string, string]> = { alta: ['alta', 'high'], media: ['media', 'medium'], baja: ['baja', 'low'] }
+export const elegir = (par?: [string, string] | string[]) => (par ? (lang.value === 'en' ? par[1] ?? par[0] : par[0]) : '')

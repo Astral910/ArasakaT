@@ -3,7 +3,7 @@ import Landing from './views/Landing.vue'
 
 // Las vistas de WEBDATOS se montan solas cuando existe src/features/<nombre>/index.vue.
 const features = import.meta.glob('./features/*/index.vue')
-function feature(nombre: 'mapa' | 'alertas' | 'how' | 'sandbox'): () => Promise<RouteComponent> {
+function feature(nombre: 'mapa' | 'alertas' | 'how' | 'sandbox' | 'informe'): () => Promise<RouteComponent> {
   const f = features[`./features/${nombre}/index.vue`]
   return (f as () => Promise<RouteComponent>) ?? (() => import('./views/Placeholder.vue'))
 }
@@ -17,6 +17,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/alerts', name: 'alerts', component: feature('alertas'), meta: { feature: 'alerts' } },
   { path: '/how', name: 'how', component: feature('how'), meta: { feature: 'how' } },
   { path: '/sandbox', name: 'sandbox', component: feature('sandbox'), meta: { feature: 'sandbox', bare: true } },
+  { path: '/informe', name: 'informe', component: feature('informe'), meta: { feature: 'informe', bare: true } },
   { path: '/:pathMatch(.*)*', name: 'notfound', component: () => import('./views/NotFound.vue') },
 ]
 
