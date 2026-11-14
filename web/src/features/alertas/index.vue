@@ -59,6 +59,12 @@ const textoSel = computed(() => {
   const l = lang.value as Idioma
   return redactar({ ...a, texto: textoDe(a, l), dias: a.dias ?? (a.tipo === 'canicula' ? 7 : 1) }, m.value.municipio.nombre, l)
 })
+// Resultado honesto de la lluvia fuerte (precisión contra el azar y temporales de varios días).
+const lluviaRes = computed(() => {
+  const s = m.value.stats?.find((x) => x.tipo === 'lluvia_fuerte')
+  if (!s || !s.emitidas || s.episodios_observados == null) return null
+  return { a: s.aciertos, n: s.emitidas, p: Math.round((s.aciertos / s.emitidas) * 100), z: Math.round((s.precision_por_azar ?? 0) * 100), e: s.episodios_detectados ?? 0, o: s.episodios_observados }
+})
 const filas = computed(() =>
   Object.entries(m.value.resumen).filter(([, r]) => r.alertas > 0 || r.eventos > 0).map(([tipo, r]) => ({ tipo, ...r })),
 )
@@ -111,11 +117,9 @@ const estadoSel = computed(() => (alertaSel.value ? verificacion(alertaSel.value
           </table>
         </div>
         <ul class="reglas">
-          <template v-if="lang === 'es' && m.notas?.length"><li v-for="(n, i) in m.notas" :key="i">{{ n }}</li></template>
-          <template v-else>
-            <li>{{ t('regla.canicula', { r: m.umbrales?.racha_dias ?? 7, s: m.umbrales?.seco_observado_mm ?? 1 }) }}</li>
-            <li>{{ t('regla.lluvia', { u: m.umbral_lluvia_fuerte_mm ?? 50 }) }}</li>
-          </template>
+          <li>{{ t('regla.canicula', { r: m.umbrales?.racha_dias ?? 7, s: m.umbrales?.seco_observado_mm ?? 1 }) }}</li>
+          <li>{{ t('regla.lluvia', { u: m.umbral_lluvia_fuerte_mm ?? 50 }) }}</li>
+          <li v-if="lluviaRes"><strong>{{ t('regla.lluviaRes', lluviaRes) }}</strong></li>
         </ul>
         <p class="honesto"><ShieldCheck :size="18" /> <span>{{ t('honesto') }}</span></p>
       </article>
@@ -173,6 +177,13 @@ tbody th { font-weight: 700; white-space: nowrap; }
 .munis button.on { background: var(--surface, #fffaf2); color: var(--ink); box-shadow: var(--shadow-1); }
 .sinv { display: block; font-size: 0.72rem; color: var(--ink-3); margin-top: 3px; }
 .num { font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  table { min-width: 0; font-size: 0.8rem; }
+  th, td { padding: 8px 4px; }
+  thead th { font-size: 0.62rem; letter-spacing: 0.02em; }
+  tbody th { white-space: normal; }
+  .pill { padding: 2px 7px; }
+}
 @media (min-width: 900px) {
   .dos { grid-template-columns: 1.35fr 1fr; }
 }

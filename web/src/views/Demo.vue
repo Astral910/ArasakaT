@@ -34,7 +34,8 @@ const subt = computed(() => [t('demo.c1'), t('demo.c2'), t('demo.c3'), t('demo.c
 
 // Máquina del tiempo 2026: lluvia real y aviso del backtest (WEBDATOS/ALERTAS); si no hay datos, ejemplo marcado.
 const av = avisoCanicula()
-const T0 = new Date('2026-06-15T12:00:00').getTime()
+// Ventana de 62 días que deja el aviso a un tercio: se ven la lluvia antes, el aviso y la racha seca real.
+const T0 = new Date(av.emision + 'T12:00:00').getTime() - 22 * 86400000
 const idx = (iso: string) => Math.round((new Date(iso + 'T12:00:00').getTime() - T0) / 86400000)
 const lluvia = computed(() => {
   const dias = maquina?.dias ?? []
@@ -47,6 +48,7 @@ const lluvia = computed(() => {
 })
 const escalaLluvia = computed(() => 230 / Math.max(10, ...lluvia.value))
 const tm = computed(() => ({ c0: idx(av.eventoInicio), dias: av.dias, emision: idx(av.emision), n: av.anticipacion, ejemplo: av.ejemplo || !!maquina?.preliminar }))
+const fechaEje = (i: number) => new Date(T0 + i * 86400000).toLocaleDateString(lang.value === 'es' ? 'es-GT' : 'en-US', { day: 'numeric', month: 'short' })
 const rec = !!route.query.rec
 
 let timers: number[] = []
@@ -130,7 +132,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
         <h2>{{ t('demo.c5', { n: tm.n }) }}</h2>
         <svg viewBox="0 0 1000 340" class="tm">
           <rect :x="tm.c0 * 16 + 20" y="20" :width="tm.dias * 16" height="260" fill="var(--granada)" opacity="0.14" rx="8" />
-          <text :x="tm.c0 * 16 + 20 + tm.dias * 8" y="50" text-anchor="middle" class="tm-l granada">{{ t('plan.legend.canicula') }}</text>
+          <text :x="tm.c0 * 16 + 20 + tm.dias * 8" y="50" text-anchor="middle" class="tm-l granada">{{ lang === 'es' ? `Racha seca real · ${tm.dias} días` : `Real dry spell · ${tm.dias} days` }}</text>
           <rect v-for="(v, i) in lluvia" :key="i" :x="20 + i * 16" :y="280 - v * escalaLluvia" width="11" :height="Math.max(2, v * escalaLluvia)" rx="4" fill="var(--anil)" opacity="0.75" class="bar" :style="{ animationDelay: i * 18 + 'ms' }" />
           <line x1="20" y1="280" x2="1000" y2="280" stroke="var(--line-2)" />
           <g class="bubble-in">
@@ -138,8 +140,8 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
             <rect :x="tm.emision * 16 - 104" y="80" width="260" height="56" rx="16" fill="#d6f5c9" />
             <text :x="tm.emision * 16 + 26" y="115" text-anchor="middle" class="tm-b">🌵 {{ t('demo.alertAhead', { n: tm.n }) }}</text>
           </g>
-          <text x="20" y="315" class="tm-l">{{ lang === 'es' ? '15 jun' : 'Jun 15' }}</text>
-          <text x="1000" y="315" text-anchor="end" class="tm-l">{{ lang === 'es' ? '15 ago 2026' : 'Aug 15, 2026' }}</text>
+          <text x="20" y="315" class="tm-l">{{ fechaEje(0) }}</text>
+          <text x="1000" y="315" text-anchor="end" class="tm-l">{{ fechaEje(61) }} 2026</text>
         </svg>
         <p class="note">{{ t('demo.backtestNote') }}<template v-if="tm.ejemplo"> · {{ t('demo.preliminar') }}</template></p>
       </div>

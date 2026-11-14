@@ -32,8 +32,8 @@ The same bot runs in a **phone simulator on the website**, so judges can try the
 
 ### 3. Alerts all season
 Every day at 06:00 Guatemala time an alert engine runs for each subscriber, idempotently (never the same alert twice):
-- 🌵 **Dry spell / canícula**: a 16-day ensemble forecast with ≥ 7 consecutive days below 1 mm starting within 10 days → alert with a **probability** (share of ensemble members).
-- 🌧 **Heavy rain**: a forecast day above the local 95th percentile of daily rain (from the NASA 2001–2026 climatology) or above 50 mm → erosion and landslide warning.
+- 🌵 **Dry spell / canícula**: the 16-day forecast shows ≥ 7 consecutive dry days starting within 10 days in at least half of the models/members → alert with a **probability** (share that agree). Each model's dry-day threshold (1–5 mm) is calibrated so its dry-day frequency matches NASA POWER 2001–2025, because forecast models drizzle almost every day in the tropics.
+- 🌧 **Heavy rain**: a forecast day above each model's calibrated threshold (as frequent as NASA POWER exceeding its local 95th percentile, 22 mm in Jocotán) in the next 7 days → erosion and landslide warning. Without an archive to calibrate: a day above the local 99th percentile (capped at 50 mm) or 3 days above the 95th.
 - 🌱 **Rain onset / planting window**, and **false onset** when a dry spell follows.
 - ☀️ **Seasonal outlook** from the ENSO state and analogue years in the NASA record.
 - ❄️ **Frost** (highlands): forecast minimum ≤ 3 °C.
@@ -68,7 +68,7 @@ A 3D relief map (SRTM terrain, Sentinel-2 cloudless imagery) of Guatemala's 342 
 - Yields have ±30–50 % uncertainty; we show ranges and direction ("S2 lowers the deficit by X mm"), not promises.
 
 ## Validation
-We checked whether the engine flags the drought years documented by FEWS NET, MAGA and SESAN between 2001 and 2026: **detected 4 of 8** in Jocotán (2001, 2015, 2018, 2019 detected; 2009, 2012, 2014, 2023 missed), with 3 false alarms (2003, 2004, 2025). The full year-by-year table is on the *How do we know?* page. POWER's ~50 km cells smooth out local rain; adding GPM IMERG at ~10 km is our first improvement. The 2026 time machine validates the alerts separately (hits, false alarms, lead time).
+We checked whether the engine flags the drought years documented by FEWS NET, MAGA and SESAN between 2001 and 2025: **detected 5 of 8** in Jocotán (2001, 2014, 2015, 2018, 2019 detected; 2009, 2012, 2023 missed), with 4 false alarms (2003, 2004, 2024, 2025). In Camotán: 4 of 8. As an independent check, MODIS NDVI (Aug–Sep) was low in 2 of the 8 documented years. The full year-by-year table is on the *How do we know?* page. POWER's ~50 km cells smooth out local rain; adding GPM IMERG at ~10 km is our first improvement. The 2026 time machine validates the alerts separately (hits, false alarms, lead time).
 
 ## AI vs statistics
 The challenge asks to compare an AI approach with a statistical one. We trained a logistic regression on four inputs known at planting time (ONI for April–June, standardised rain from 15 April to 31 May, NASA POWER root-zone wetness GWETROOT in May, and April–May maximum temperature), using 825 seasons (33 NASA POWER zones × 2001–2025), and compared it with the plain statistical approach (loss frequency by zone and El Niño state). With leave-one-year-out validation the Brier error is 0.155 for the AI model and 0.160 for statistics: the AI is slightly better, but the difference is small, so the engine keeps the transparent statistical estimate and shows both. The web explains both in plain language. Large language models are **optional** and switched off by default: if enabled, they only interpret free text and phrase answers using the engine's numbers. **No number comes from an LLM**; the bot works end to end without one.

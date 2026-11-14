@@ -60,3 +60,18 @@ describe('panel del extensionista', () => {
     expect(p.ejemplo).toBe(true)
   })
 })
+
+import { agrupar, filasSinSolape } from './maquina'
+describe('burbujas y etiquetas sin solape', () => {
+  it('agrupa avisos cercanos y prefiere el titular o un acierto', () => {
+    const al = [{ acierto: false }, { acierto: true }, { acierto: false }, {}] as never[]
+    const g = agrupar([10, 30, 200, 40], al, 50)
+    expect(g.length).toBe(2)
+    expect(g[0].idx).toEqual([0, 1, 3])
+    expect(g[0].rep).toBe(1)
+    expect(agrupar([10, 30], al, 50, 0)[0].rep).toBe(0)
+  })
+  it('reparte etiquetas solapadas en filas distintas', () => {
+    expect(filasSinSolape([{ x0: 0, x1: 100 }, { x0: 50, x1: 150 }, { x0: 160, x1: 200 }])).toEqual([0, 1, 0])
+  })
+})

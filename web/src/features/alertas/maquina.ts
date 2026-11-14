@@ -38,6 +38,7 @@ export interface Maquina {
   eventos: Evento[]
   alertas: AlertaSim[]
   resumen: Record<string, Resumen>
+  stats?: { tipo: string; emitidas: number; aciertos: number; precision_por_azar?: number; episodios_observados?: number; episodios_detectados?: number }[]
 }
 
 /** Alerta del contrato (contract.Alerta), la que manda el motor de alertas. */
@@ -169,4 +170,35 @@ export function respuestasPorMunicipio(p: PanelResumen) {
 
 export function totalSuscriptores(p: PanelResumen) {
   return p.suscriptores.reduce((s, x) => s + x.n, 0)
+}
+
+export interface Grupo { idx: number[]; x: number; rep: number }
+
+/**
+ * Agrupa avisos cuyas posiciones x (ya en píxeles del SVG) caen a menos de `sep` del grupo anterior,
+ * para que las burbujas no se amontonen. `rep` es el aviso que representa al grupo: el del titular si
+ * está dentro, si no el primer acierto, si no el primero.
+ */
+export function agrupar(xs: number[], alertas: AlertaSim[], sep: number, preferido?: number): Grupo[] {
+  const orden = xs.map((x, i) => i).sort((a, b) => xs[a] - xs[b])
+  const grupos: { idx: number[]; xs: number[] }[] = []
+  for (const i of orden) {
+    const g = grupos[grupos.length - 1]
+    if (g && xs[i] - g.xs[0] < sep) { g.idx.push(i); g.xs.push(xs[i]) } else grupos.push({ idx: [i], xs: [xs[i]] })
+  }
+  return grupos.map((g) => {
+    const rep = preferido != null && g.idx.includes(preferido) ? preferido : g.idx.find((i) => alertas[i].acierto === true) ?? g.idx[0]
+    return { idx: g.idx, x: g.xs[0], rep }
+  })
+}
+
+/** Reparte etiquetas [x0,x1] en filas sin solaparse (primera fila libre). Devuelve la fila de cada una. */
+export function filasSinSolape(cajas: { x0: number; x1: number }[], hueco = 6): number[] {
+  const finDeFila: number[] = []
+  return cajas.map((c) => {
+    let f = finDeFila.findIndex((fin) => c.x0 >= fin + hueco)
+    if (f < 0) { f = finDeFila.length; finDeFila.push(0) }
+    finDeFila[f] = c.x1
+    return f
+  })
 }

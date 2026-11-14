@@ -74,7 +74,7 @@ export const es: Record<string, string> = {
   'phone.demo': 'Conversación de demo (sin conexión)',
   'phone.live': 'Bot en vivo',
   'phone.alertNow': 'ahora',
-  'phone.notifTitle': '🌵 Aviso de canícula · Jocotán',
+  'phone.notifTitle': '🌵 Aviso de racha seca · Jocotán',
   'phone.notifBody': 'Se espera una racha seca de unos {d} días desde el {f} ({p} de cada 10 pronósticos).',
 
   'wiz.title': 'Planear mi milpa',
@@ -215,7 +215,7 @@ export const es: Record<string, string> = {
   'strat.S2.desc': 'Milpa y mucuna como abono verde que cubre el suelo.',
 
   'ph.soon': 'Llega en la próxima versión',
-  'ph.map': 'Mapa de riesgo para extensionistas: 340 municipios, capas de NDVI y lluvia.',
+  'ph.map': 'Mapa de riesgo para extensionistas: 342 municipios, capas de NDVI y lluvia.',
   'ph.alerts': 'Máquina del tiempo 2026: cuándo habría avisado el sistema, sobre la lluvia real.',
   'ph.how': 'Fuentes de datos, validación, IA vs estadística y limitaciones.',
 
@@ -226,7 +226,7 @@ export const es: Record<string, string> = {
   'demo.c2': 'La tarjeta del plan llega en segundos',
   'demo.c3': 'Terreno y clima de la NASA para su zona',
   'demo.c4': 'Tres opciones comparadas, y el suelo en 5 años',
-  'demo.c5': 'En 2026 el sistema habría avisado {n} días antes de la canícula',
+  'demo.c5': 'En 2026 el sistema habría avisado {n} días antes de una racha seca real',
   'demo.alertAhead': 'Aviso · {n} días antes',
   'demo.preliminar': 'backtest preliminar',
   'demo.end1': 'Gratis · en WhatsApp',

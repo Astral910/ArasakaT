@@ -10,7 +10,7 @@ export function validacionDesdePlan(v?: { detectadas: number; total: number; det
   if (!v?.detalle?.length || !v.total) return null
   return {
     municipio: 'jocotan-chiquimula',
-    fuente: 'Field Shift engine · FAO-56 with NASA POWER 2001–2026 · FEWS NET, MAGA, SESAN',
+    fuente: 'Field Shift engine · FAO-56 with NASA POWER 2001–2025 · FEWS NET, MAGA, SESAN',
     regla: 'engine water-balance simulation (S0) flags the season as lost',
     preliminar: false,
     detectadas: v.detectadas,

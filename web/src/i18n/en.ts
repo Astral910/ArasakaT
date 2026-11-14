@@ -74,7 +74,7 @@ export const en: Record<string, string> = {
   'phone.demo': 'Demo conversation (offline)',
   'phone.live': 'Live bot',
   'phone.alertNow': 'now',
-  'phone.notifTitle': '🌵 Canícula alert · Jocotán',
+  'phone.notifTitle': '🌵 Dry-spell alert · Jocotán',
   'phone.notifBody': 'Dry spell of ~{d} days expected from {f} ({p} of 10 forecasts).',
 
   'wiz.title': 'Plan my milpa',
@@ -215,7 +215,7 @@ export const en: Record<string, string> = {
   'strat.S2.desc': 'Milpa plus mucuna as green manure covering the soil.',
 
   'ph.soon': 'Coming in the next build',
-  'ph.map': 'Risk map for extension agents: 340 municipalities, NDVI and rainfall layers.',
+  'ph.map': 'Risk map for extension agents: 342 municipalities, NDVI and rainfall layers.',
   'ph.alerts': '2026 time machine: when the system would have warned, on top of real rainfall.',
   'ph.how': 'Data sources, validation, AI vs statistics and limitations.',
 
@@ -226,7 +226,7 @@ export const en: Record<string, string> = {
   'demo.c2': 'The plan card arrives in seconds',
   'demo.c3': 'NASA terrain and climate data for the area',
   'demo.c4': 'Three options compared, and the soil in 5 years',
-  'demo.c5': 'In 2026 the system would have warned {n} days before the canícula',
+  'demo.c5': 'In 2026 the system would have warned {n} days before a real dry spell',
   'demo.alertAhead': 'Alert · {n} days ahead',
   'demo.preliminar': 'preliminary backtest',
   'demo.end1': 'Free · on WhatsApp',
