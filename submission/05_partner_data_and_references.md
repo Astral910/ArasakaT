@@ -23,7 +23,8 @@
 
 ## Drought and food-security sources (validation and context)
 - FEWS NET Guatemala food security outlooks. https://fews.net/latin-america-and-caribbean/guatemala
-- SESAN / IPC Guatemala Acute Food Insecurity Analysis, May 2025–April 2026. https://portal.sesan.gob.gt/
+- IPC / SESAN Guatemala Acute Food Insecurity Analysis, May 2025–April 2026 (3.4 million people in Phase 3+ in May–Aug 2025). https://www.ipcinfo.org/ipc-country-analysis/details-map/en/c/1159721/
+- CIF / SESAN Guatemala 2026–2027 analysis (3.2 million people in Phase 3+ projected for Jul–Sep 2026). https://portal.siinsan.gob.gt/wp-content/uploads/20260812-CIF-2026-2027.pdf
 - MAGA Guatemala (Ministry of Agriculture) drought and crop-loss reports. https://www.maga.gob.gt/
 - Oxfam (2026). *Informe Centroamérica: Fenómeno de El Niño*. https://lac.oxfam.org/
 - Infobae (2026-09-02). *El Niño 2026 en Guatemala: canículas largas, maíz perdido…* https://www.infobae.com/guatemala/

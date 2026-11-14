@@ -77,7 +77,7 @@ The challenge asks to compare an AI approach with a statistical one. We trained 
 Every plan and every alert ends with "check with your extension agent". The five-point sheet lists the missing information and the risks that require local review (seed availability, slope, land tenure, pests).
 
 ## Why it matters
-⟦TBD: verified figure from the IPC Guatemala analysis (SESAN, May 2025–Apr 2026)⟧ people in Guatemala face acute food insecurity, and El Niño 2026 brought long dry spells to the Dry Corridor. A free WhatsApp number that knows the local climate, warns before the dry spell and suggests a soil-friendly rotation can reach farmers that no app reaches.
+3.4 million people in Guatemala (19 % of the population) faced acute food insecurity (IPC Phase 3 or above) in May–August 2025, and 3.2 million are projected for July–September 2026 (IPC/SESAN), and El Niño 2026 brought long dry spells to the Dry Corridor. A free WhatsApp number that knows the local climate, warns before the dry spell and suggests a soil-friendly rotation can reach farmers that no app reaches.
 
 ## What works today and next steps
 - **Today**: web (English/Spanish) with static fallback so the public link never fails; Go backend with the WhatsApp Cloud API test number (up to 5 registered phones, as Meta allows for testing), the Twilio sandbox and the web simulator; alert engine with the 2026 backtest.

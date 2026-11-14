@@ -141,7 +141,7 @@ test('How do we know?', async ({ page }) => {
   await page.goto('/how')
   await settle(page, 2000)
   await expect(page.locator('h1').first()).toBeVisible()
-  await expect(page.locator('main')).toContainText(/NASA POWER/)
+  await expect(page.locator('#main')).toContainText(/NASA POWER/)
   await shot(page, `${pre}18-how`)
   await shot(page, `${pre}19-how-completo`, true)
   noErrors(errors)

@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const outDir = path.resolve(here, '..', 'submission', 'video')
 const args = process.argv.slice(2).filter((a) => !a.startsWith('--'))
-const burnSubs = process.argv.includes('--sub') // /demo ya trae sus propios subtítulos: por defecto no se queman otros
+const burnSubs = process.argv.includes('--sub')
+const skip = Number((process.argv.find((a) => a.startsWith('--skip=')) || '--skip=0').slice(7)) // segundos a recortar al inicio // /demo ya trae sus propios subtítulos: por defecto no se queman otros
 const url = args[0] || 'http://127.0.0.1:8200/demo?autostart=1'
 const seconds = Number(args[1] || 30)
 const FPS = 30
@@ -51,14 +52,14 @@ cdp.on('Page.screencastFrame', async (f) => {
 })
 await page.goto(url, { waitUntil: 'load' })
 await cdp.send('Page.startScreencast', { format: 'jpeg', quality: 92, maxWidth: W, maxHeight: H, everyNthFrame: 1 })
-await page.waitForTimeout(seconds * 1000 + 300)
+await page.waitForTimeout((seconds + skip) * 1000 + 300)
 await cdp.send('Page.stopScreencast')
 await browser.close()
 if (!frames.length) throw new Error('sin cuadros: ¿la página cargó?')
 console.log(`cuadros capturados: ${frames.length}`)
 
 // Cuadros de tiempo variable → 30 fps constantes (repite el último cuadro hasta el siguiente).
-const start = frames[0].t
+const start = frames[0].t + skip
 const total = Math.round(seconds * FPS)
 const enc = spawn('ffmpeg', [
   '-y', '-hide_banner', '-loglevel', 'error',

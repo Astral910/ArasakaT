@@ -12,6 +12,6 @@ Portal guideline: 0:00 team · 0:02 challenge · 0:05 name and tagline · 0:10 h
 | 0:09–0:15 | Web flies to Jocotán in 3D; the 12-month ring draws itself | NASA POWER daily climate, 2001–2026, run through the FAO-56 water balance. |
 | 0:15–0:21 | Three strategy cards enter; the soil profile grows over 5 years | Three rotations compared: risk, water, yield range and soil health. |
 | 0:21–0:25 | Dry-spell alert lands on the phone; the 2026 time machine | Dry-spell alerts: in 2026, 5 of 6 alerts in Jocotán came true. |
-| 0:25–0:30 | Closing card | Free · on WhatsApp · for ⟦TBD: verified IPC figure⟧ people facing hunger. ⟦Project Name⟧ |
+| 0:25–0:30 | Closing card | Free · on WhatsApp · for 3.4 million people facing hunger (IPC/SESAN 2025). ⟦Project Name⟧ |
 
 Spanish voice-over is optional; if used, subtitles stay in English (portal rule).
