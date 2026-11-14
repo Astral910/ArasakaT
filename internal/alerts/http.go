@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -195,6 +196,24 @@ type Resumen struct {
 	Municipios     []ResumenMuni   `json:"municipios"`
 	AlertasActivas []AlertaPublica `json:"alertas_activas"`
 	Totales        map[string]int  `json:"totales"`
+	// forma de web/src/features/alertas/maquina.ts (PanelResumen)
+	Suscriptores []ConteoMuni      `json:"suscriptores"`
+	Respuestas   []ConteoRespuesta `json:"respuestas"`
+	Ejemplo      bool              `json:"ejemplo"`
+	Aviso        string            `json:"_aviso,omitempty"`
+}
+
+// ConteoMuni suscriptores activos por municipio.
+type ConteoMuni struct {
+	MunicipioID string `json:"municipio_id"`
+	N           int    `json:"n"`
+}
+
+// ConteoRespuesta respuestas del seguimiento por municipio y estado (bien | amarillas | secando | perdida).
+type ConteoRespuesta struct {
+	MunicipioID string `json:"municipio_id"`
+	Estado      string `json:"estado"`
+	N           int    `json:"n"`
 }
 
 // ResumenMuni conteos de un municipio con nombre y coordenadas (para el mapa).
@@ -208,17 +227,22 @@ type ResumenMuni struct {
 
 // AlertaPublica alerta sin datos personales (una por municipio, tipo y fecha).
 type AlertaPublica struct {
-	MunicipioID   string  `json:"municipio_id"`
-	Municipio     string  `json:"municipio"`
-	Tipo          string  `json:"tipo"`
-	FechaEmision  string  `json:"fecha_emision"`
-	Inicio        string  `json:"inicio"`
-	Dias          int     `json:"dias"`
-	Probabilidad  float64 `json:"probabilidad"`
-	Titulo        string  `json:"titulo"`
-	Destinatarios int     `json:"destinatarios"`
-	Lat           float64 `json:"lat"`
-	Lon           float64 `json:"lon"`
+	ID            string   `json:"id"`
+	Texto         string   `json:"texto"`
+	Acciones      []string `json:"acciones"`
+	Plantilla     string   `json:"plantilla"`
+	Vars          []string `json:"vars"`
+	MunicipioID   string   `json:"municipio_id"`
+	Municipio     string   `json:"municipio"`
+	Tipo          string   `json:"tipo"`
+	FechaEmision  string   `json:"fecha_emision"`
+	Inicio        string   `json:"inicio"`
+	Dias          int      `json:"dias"`
+	Probabilidad  float64  `json:"probabilidad"`
+	Titulo        string   `json:"titulo"`
+	Destinatarios int      `json:"destinatarios"`
+	Lat           float64  `json:"lat"`
+	Lon           float64  `json:"lon"`
 }
 
 func (s *Service) resumen(w http.ResponseWriter, r *http.Request) {
@@ -233,10 +257,15 @@ func (s *Service) resumen(w http.ResponseWriter, r *http.Request) {
 		fail(w, 500, err.Error())
 		return
 	}
-	out := Resumen{Generado: time.Now().UTC().Format(time.RFC3339), Municipios: []ResumenMuni{}, AlertasActivas: []AlertaPublica{}, Totales: map[string]int{}}
+	out := Resumen{Generado: time.Now().UTC().Format(time.RFC3339), Municipios: []ResumenMuni{}, AlertasActivas: []AlertaPublica{}, Totales: map[string]int{},
+		Suscriptores: []ConteoMuni{}, Respuestas: []ConteoRespuesta{}}
 	for _, x := range rs {
 		m := s.Engine.Munis[x.MunicipioID]
 		out.Municipios = append(out.Municipios, ResumenMuni{ResumenMunicipio: x, Nombre: m.Name, Departamento: m.Dept, Lat: m.Lat, Lon: m.Lon})
+		out.Suscriptores = append(out.Suscriptores, ConteoMuni{MunicipioID: x.MunicipioID, N: x.Activos})
+		for _, k := range sortedKeys(x.Respuestas) {
+			out.Respuestas = append(out.Respuestas, ConteoRespuesta{MunicipioID: x.MunicipioID, Estado: estadoDe(k), N: x.Respuestas[k]})
+		}
 		out.Totales["suscriptores"] += x.Suscriptores
 		out.Totales["activos"] += x.Activos
 		for _, n := range x.Respuestas {
@@ -264,7 +293,7 @@ func (s *Service) resumen(w http.ResponseWriter, r *http.Request) {
 			titulo = titulo[:i] + " · " + m.Name
 		}
 		idx[k] = len(out.AlertasActivas)
-		out.AlertasActivas = append(out.AlertasActivas, AlertaPublica{MunicipioID: a.MunicipioID, Municipio: m.Name, Tipo: a.Tipo, FechaEmision: a.FechaEmision,
+		out.AlertasActivas = append(out.AlertasActivas, AlertaPublica{ID: a.ID, Texto: a.Texto, Acciones: a.Acciones, Plantilla: a.Plantilla, Vars: a.Vars, MunicipioID: a.MunicipioID, Municipio: m.Name, Tipo: a.Tipo, FechaEmision: a.FechaEmision,
 			Inicio: a.Inicio, Dias: a.Dias, Probabilidad: a.Probabilidad, Titulo: titulo, Destinatarios: 1, Lat: m.Lat, Lon: m.Lon})
 	}
 	out.Totales["alertas_activas"] = len(out.AlertasActivas)
@@ -310,4 +339,29 @@ func (s *Service) runAlerts(w http.ResponseWriter, r *http.Request) {
 		res.Alertas[i].SuscriptorID = "" // sin datos personales en la respuesta
 	}
 	writeJSON(w, 200, res)
+}
+
+// estadoDe respuesta guardada (id de botón o texto) → estado del panel.
+func estadoDe(r string) string {
+	r = strings.ToLower(strings.TrimPrefix(r, "seg_"))
+	switch {
+	case strings.Contains(r, "amarill"), strings.Contains(r, "yellow"):
+		return "amarillas"
+	case strings.Contains(r, "sec"), strings.Contains(r, "dry"):
+		return "secando"
+	case strings.Contains(r, "perd"), strings.Contains(r, "lost"):
+		return "perdida"
+	case strings.Contains(r, "bien"), strings.Contains(r, "good"):
+		return "bien"
+	}
+	return r
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
 }

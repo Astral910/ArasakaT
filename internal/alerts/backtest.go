@@ -32,6 +32,12 @@ type TLAlerta struct {
 	Verificacion string  `json:"verificacion"` // acierto | falsa_alarma | sin_verificar
 	Detalle      string  `json:"detalle"`
 	EventoID     string  `json:"evento_id,omitempty"`
+	// compatibles con web/src/features/alertas/maquina.ts (WEBDATOS)
+	FechaEmision string  `json:"fecha_emision"`
+	Modelos      int     `json:"modelos"`
+	LluviaMM     float64 `json:"lluvia_mm,omitempty"`
+	Acierto      *bool   `json:"acierto,omitempty"`
+	Anticipacion *int    `json:"anticipacion_dias,omitempty"`
 }
 
 // TLDia lluvia observada y pronosticada de un día.
@@ -50,11 +56,12 @@ type TLEvento struct {
 	Inicio       string  `json:"inicio"`
 	Fin          string  `json:"fin"`
 	Dias         int     `json:"dias"`
-	MM           float64 `json:"mm,omitempty"`
-	Canicula     bool    `json:"canicula"` // empieza en la ventana típica 15 jun – 31 ago
+	MM           float64 `json:"lluvia_mm,omitempty"`
+	Canicula     bool    `json:"en_ventana_canicula"` // empieza en la ventana típica 15 jun – 31 ago
 	PrimerAviso  string  `json:"primer_aviso,omitempty"`
 	Anticipacion *int    `json:"anticipacion_dias,omitempty"` // días entre el primer aviso y el inicio (negativo = avisó con el evento en curso)
 	Detectado    bool    `json:"detectado"`
+	Avisado      bool    `json:"avisado"` // avisado antes de empezar
 }
 
 // Stats por tipo de aviso.
@@ -73,22 +80,48 @@ type Stats struct {
 
 // Timeline resultado de la máquina del tiempo para un municipio.
 type Timeline struct {
-	MunicipioID  string            `json:"municipio_id"`
-	Municipio    string            `json:"municipio"`
-	Anio         int               `json:"anio"`
-	Desde        string            `json:"desde"`
-	Hasta        string            `json:"hasta"`
-	DiasCorridos int               `json:"dias_corridos"`
-	DiasSinPron  int               `json:"dias_sin_pronostico"`
-	Umbrales     Umbrales          `json:"umbrales"`
-	Titular      string            `json:"titular"`
-	TitularEN    string            `json:"titular_en"`
-	Stats        []Stats           `json:"stats"`
-	Alertas      []TLAlerta        `json:"alertas"`
-	Eventos      []TLEvento        `json:"eventos"`
-	Dias         []TLDia           `json:"dias"`
-	Fuentes      []contract.Fuente `json:"fuentes"`
-	Notas        []string          `json:"notas"`
+	MunicipioID  string                 `json:"municipio_id"`
+	Municipio    string                 `json:"municipio_nombre"`
+	MuniRef      MuniRef                `json:"municipio"`
+	FuenteLluvia string                 `json:"fuente_lluvia"`
+	FuentePron   string                 `json:"fuente_pronostico"`
+	Modelos      []string               `json:"modelos"`
+	UmbralFuerte float64                `json:"umbral_lluvia_fuerte_mm"`
+	P95          float64                `json:"p95_mm"`
+	Preliminar   bool                   `json:"preliminar"`
+	Resumen      map[string]ResumenTipo `json:"resumen"`
+	Anio         int                    `json:"anio"`
+	Desde        string                 `json:"desde"`
+	Hasta        string                 `json:"hasta"`
+	DiasCorridos int                    `json:"dias_corridos"`
+	DiasSinPron  int                    `json:"dias_sin_pronostico"`
+	Umbrales     Umbrales               `json:"umbrales"`
+	Titular      string                 `json:"titular"`
+	TitularEN    string                 `json:"titular_en"`
+	Stats        []Stats                `json:"stats"`
+	Alertas      []TLAlerta             `json:"alertas"`
+	Eventos      []TLEvento             `json:"eventos"`
+	Dias         []TLDia                `json:"dias"`
+	Fuentes      []contract.Fuente      `json:"fuentes"`
+	Notas        []string               `json:"notas"`
+}
+
+// MuniRef municipio en la forma que usa la web.
+type MuniRef struct {
+	ID     string `json:"id"`
+	Nombre string `json:"nombre"`
+	Depto  string `json:"depto"`
+}
+
+// ResumenTipo conteos por tipo (forma de maquina.ts): avisados = eventos avisados antes de empezar.
+type ResumenTipo struct {
+	Eventos       int      `json:"eventos"`
+	Avisados      int      `json:"avisados"`
+	Alertas       int      `json:"alertas"`
+	Aciertos      int      `json:"aciertos"`
+	FalsasAlarmas int      `json:"falsas_alarmas"`
+	SinVerificar  int      `json:"sin_verificar"`
+	AnticipMedia  *float64 `json:"anticipacion_media_dias"`
 }
 
 // Umbrales usados (para mostrar en "How do we know?").
@@ -213,7 +246,7 @@ func Backtest(o BacktestOpts) Timeline {
 			l := int(d.Sub(s).Hours() / 24)
 			if l >= SpellDays && inSeason(s) {
 				n++
-				tl.Eventos = append(tl.Eventos, TLEvento{ID: fmt.Sprintf("seca-%d", n), Tipo: "racha_seca", Inicio: ds(s), Fin: ds(s.AddDate(0, 0, l-1)), Dias: l, Canicula: IsCaniculaWindow(s)})
+				tl.Eventos = append(tl.Eventos, TLEvento{ID: fmt.Sprintf("seca-%d", n), Tipo: "canicula", Inicio: ds(s), Fin: ds(s.AddDate(0, 0, l-1)), Dias: l, Canicula: IsCaniculaWindow(s)})
 			}
 			continue
 		}
@@ -254,6 +287,7 @@ func Backtest(o BacktestOpts) Timeline {
 		"Las rachas secas a 7–16 días tienen acierto moderado: por eso cada aviso dice qué tan seguro es y termina con 'consultá con tu extensionista'.",
 	}
 	tl.Titular, tl.TitularEN = headline(tl)
+	compat(&tl, o)
 	return tl
 }
 
@@ -302,7 +336,7 @@ func verify(tl *Timeline, o BacktestOpts) {
 			best, bi := 0, -1
 			for j := range tl.Eventos {
 				ev := &tl.Eventos[j]
-				if ev.Tipo != "racha_seca" {
+				if ev.Tipo != "canicula" {
 					continue
 				}
 				if ov := overlapDays(ini, fin, parse(ev.Inicio), parse(ev.Fin)); ov > best {
@@ -370,7 +404,7 @@ func verify(tl *Timeline, o BacktestOpts) {
 		}
 	}
 	// estadísticas
-	types := []struct{ alert, event string }{{TCanicula, "racha_seca"}, {TLluviaFuerte, "lluvia_fuerte"}, {TInicio, "inicio_lluvias"}, {TFalsoInicio, ""}, {THelada, "helada"}, {TPerspectiva, ""}}
+	types := []struct{ alert, event string }{{TCanicula, "canicula"}, {TLluviaFuerte, "lluvia_fuerte"}, {TInicio, "inicio_lluvias"}, {TFalsoInicio, ""}, {THelada, "helada"}, {TPerspectiva, ""}}
 	for _, ty := range types {
 		st := Stats{Tipo: ty.alert}
 		for _, a := range tl.Alertas {
@@ -433,7 +467,7 @@ func headline(tl Timeline) (string, string) {
 	var best *TLEvento
 	for i := range tl.Eventos {
 		ev := &tl.Eventos[i]
-		if ev.Tipo != "racha_seca" || !ev.Detectado || ev.Anticipacion == nil || *ev.Anticipacion < 1 {
+		if ev.Tipo != TCanicula || !ev.Detectado || ev.Anticipacion == nil || *ev.Anticipacion < 1 {
 			continue
 		}
 		if best == nil || *ev.Anticipacion > *best.Anticipacion ||
@@ -459,4 +493,63 @@ func headline(tl Timeline) (string, string) {
 	en := fmt.Sprintf("We would have warned %s on %s, %d %s before %s began (%d dry days in a row).",
 		tl.Municipio, a.Format("January 2, 2006"), *best.Anticipacion, days, what, best.Dias)
 	return es, en
+}
+
+// compat llena los campos que usa la web (WEBDATOS) a partir de lo calculado.
+func compat(tl *Timeline, o BacktestOpts) {
+	tl.MuniRef = MuniRef{ID: o.Muni.ID, Nombre: o.Muni.Name, Depto: o.Muni.Dept}
+	tl.FuenteLluvia = o.Clim.Source + ", celda " + o.Clim.Cell
+	tl.FuentePron = o.Archive.Source
+	tl.Modelos = []string{}
+	for m := range o.Archive.Runs {
+		tl.Modelos = append(tl.Modelos, m)
+	}
+	sort.Strings(tl.Modelos)
+	tl.UmbralFuerte, tl.P95 = HeavyThreshold(o.Clim), o.Clim.P95
+	evByID := map[string]*TLEvento{}
+	for i := range tl.Eventos {
+		ev := &tl.Eventos[i]
+		ev.Avisado = ev.Detectado && ev.Anticipacion != nil && *ev.Anticipacion >= 0
+		evByID[ev.ID] = ev
+	}
+	tl.Resumen = map[string]ResumenTipo{}
+	leads := map[string][]float64{}
+	for i := range tl.Alertas {
+		a := &tl.Alertas[i]
+		a.FechaEmision, a.Modelos, a.LluviaMM = a.Fecha, a.Total, a.MM
+		r := tl.Resumen[a.Tipo]
+		r.Alertas++
+		switch a.Verificacion {
+		case "acierto":
+			t := true
+			a.Acierto = &t
+			r.Aciertos++
+			if ev := evByID[a.EventoID]; ev != nil {
+				l := int(parse(ev.Inicio).Sub(parse(a.Fecha)).Hours() / 24)
+				a.Anticipacion = &l
+			}
+		case "falsa_alarma":
+			f := false
+			a.Acierto = &f
+			r.FalsasAlarmas++
+		default:
+			r.SinVerificar++
+		}
+		tl.Resumen[a.Tipo] = r
+	}
+	for _, ev := range tl.Eventos {
+		r := tl.Resumen[ev.Tipo]
+		r.Eventos++
+		if ev.Avisado {
+			r.Avisados++
+			leads[ev.Tipo] = append(leads[ev.Tipo], float64(*ev.Anticipacion))
+		}
+		tl.Resumen[ev.Tipo] = r
+	}
+	for k, ls := range leads {
+		r := tl.Resumen[k]
+		m := data.R1(mean(ls))
+		r.AnticipMedia = &m
+		tl.Resumen[k] = r
+	}
 }

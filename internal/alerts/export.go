@@ -43,7 +43,7 @@ type BacktestAll struct {
 }
 
 // TimelineFile nombre del archivo estático de un municipio.
-func TimelineFile(id string, anio int) string { return fmt.Sprintf("timeline-%s-%d.json", id, anio) }
+func TimelineFile(id string, anio int) string { return fmt.Sprintf("timeline_%s_%d.json", id, anio) }
 
 // RunBacktests corre la máquina del tiempo para los municipios con archivo de pronósticos.
 func RunBacktests(e *Engine, as *forecast.Archives) ([]Timeline, error) {
@@ -99,5 +99,30 @@ func ExportStatic(e *Engine, as *forecast.Archives, outDir string) (BacktestAll,
 			return sum, err
 		}
 	}
+	if err := data.WriteJSON(filepath.Join(outDir, "resumen.json"), ResumenEstatico(e, tls, "2026-07-14")); err != nil {
+		return sum, err
+	}
 	return sum, data.WriteJSON(filepath.Join(outDir, "backtest.json"), sum)
+}
+
+// ResumenEstatico panel para el modo estático: todavía no hay suscriptores reales, así que lleva conteos vacíos y,
+// como alertas activas, los avisos que la máquina del tiempo habría emitido en la semana que termina en `fecha`.
+func ResumenEstatico(e *Engine, tls []Timeline, fecha string) Resumen {
+	out := Resumen{Generado: time.Now().UTC().Format(time.RFC3339), Municipios: []ResumenMuni{}, AlertasActivas: []AlertaPublica{},
+		Totales: map[string]int{}, Suscriptores: []ConteoMuni{}, Respuestas: []ConteoRespuesta{}, Ejemplo: true,
+		Aviso: "Sin suscriptores reales todavía: conteos vacíos. Las alertas activas son las que la máquina del tiempo 2026 habría emitido la semana que termina el " + fecha + "."}
+	hasta, _ := time.Parse("2006-01-02", fecha)
+	desde := hasta.AddDate(0, 0, -6).Format("2006-01-02")
+	for _, t := range tls {
+		for _, a := range t.Alertas {
+			if a.Fecha < desde || a.Fecha > fecha || a.Tipo == TPerspectiva {
+				continue
+			}
+			out.AlertasActivas = append(out.AlertasActivas, AlertaPublica{ID: t.MunicipioID + "-" + a.Fecha + "-" + a.Tipo, Texto: a.Texto,
+				Acciones: []string{}, Vars: []string{}, MunicipioID: t.MunicipioID, Municipio: t.Municipio, Tipo: a.Tipo,
+				FechaEmision: a.Fecha, Inicio: a.Inicio, Dias: a.Dias, Probabilidad: a.Probabilidad, Titulo: a.Titulo, Lat: e.Munis[t.MunicipioID].Lat, Lon: e.Munis[t.MunicipioID].Lon})
+		}
+	}
+	out.Totales["alertas_activas"] = len(out.AlertasActivas)
+	return out
 }
