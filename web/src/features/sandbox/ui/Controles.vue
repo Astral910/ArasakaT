@@ -1,36 +1,29 @@
 <script setup lang="ts">
-// Controles que recalculan en vivo: estrategia, riego (mm/semana), escenario, caso, años, cultivo, área y comparación.
-import { Columns2, Square, SlidersHorizontal, ChevronDown } from 'lucide-vue-next'
-import { ref, watch } from 'vue'
+// Controles del panel Ajustar (recalculan en vivo): estrategia, riego (mm/semana), escenario, caso, años y comparación.
+// Cultivo y área vienen de la landing (no se cambian aquí).
+import { Columns2, Square } from 'lucide-vue-next'
 import { RIEGO, type Ajustes, type Estrategia, type Escenario, type NivelRiego, type Percentil } from './tipos'
 import { t } from './textos'
 
 
-const props = defineProps<{ modelValue: Ajustes; cargando?: boolean; compacto?: boolean }>()
+const props = defineProps<{ modelValue: Ajustes; cargando?: boolean; recomendada?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [v: Ajustes] }>()
-const abierto = ref(!props.compacto)
-watch(() => props.compacto, (c) => (abierto.value = !c))
 const set = <K extends keyof Ajustes>(k: K, v: Ajustes[K]) => emit('update:modelValue', { ...props.modelValue, [k]: v })
 
 const ESTR: Estrategia[] = ['S0', 'S1', 'S2']
 const NIV = Object.keys(RIEGO) as NivelRiego[]
-const ESC: Escenario[] = ['tipico', 'nino', 'real-2026', 'secuencia', '2040-ssp245', '2040-ssp585']
+const ESC: Escenario[] = ['pronostico', 'tipico', 'nino', 'real-2026', 'secuencia', '2040-ssp245', '2040-ssp585']
 const PCT: Percentil[] = ['p10', 'p50', 'p90']
-const CULT: Ajustes['cultivo'][] = ['milpa', 'maiz', 'frijol', 'sorgo']
 </script>
 
 <template>
-  <section class="ctl" :class="{ compacto, cargando }">
-    <button v-if="compacto" class="abrir" type="button" :aria-expanded="abierto" @click="abierto = !abierto">
-      <SlidersHorizontal :size="16" /> {{ t('estrategia') }} {{ modelValue.estrategia }} · {{ t('e.' + modelValue.escenario) }}
-      <ChevronDown :size="16" :class="{ rot: abierto }" />
-    </button>
-    <div v-show="abierto" class="cuerpo">
+  <section class="ctl" :class="{ cargando }">
+    <div class="cuerpo">
       <fieldset>
         <legend>{{ t('estrategia') }}</legend>
         <div class="seg">
           <button v-for="s in ESTR" :key="s" type="button" :class="{ on: modelValue.estrategia === s }" :aria-pressed="modelValue.estrategia === s" :disabled="modelValue.comparar" @click="set('estrategia', s)">
-            <b>{{ s }}</b><small>{{ t(s) }}</small>
+            <b>{{ s }}<i v-if="recomendada === s" class="rec" :title="t('recomendada')">★</i></b><small>{{ t(s) }}</small>
           </button>
         </div>
       </fieldset>
@@ -60,23 +53,6 @@ const CULT: Ajustes['cultivo'][] = ['milpa', 'maiz', 'frijol', 'sorgo']
         <span>{{ t('anios') }} <b class="num">{{ modelValue.anios }}</b></span>
         <input type="range" min="2" max="10" :value="modelValue.anios" @change="set('anios', Number(($event.target as HTMLInputElement).value))" />
       </label>
-      <div class="dos">
-        <label>
-          <span>{{ t('cultivo') }}</span>
-          <select :value="modelValue.cultivo" @change="set('cultivo', ($event.target as HTMLSelectElement).value as Ajustes['cultivo'])">
-            <option v-for="c in CULT" :key="c" :value="c">{{ t('c.' + c) }}</option>
-          </select>
-        </label>
-        <label>
-          <span>{{ t('area') }}</span>
-          <span class="area">
-            <input type="number" min="0.25" max="200" step="0.25" :value="modelValue.area_valor" @change="set('area_valor', Math.max(0.25, Number(($event.target as HTMLInputElement).value) || 1))" />
-            <select :value="modelValue.area_unidad" @change="set('area_unidad', ($event.target as HTMLSelectElement).value as Ajustes['area_unidad'])">
-              <option value="cuerda">cuerda</option><option value="manzana">mz</option><option value="ha">ha</option>
-            </select>
-          </span>
-        </label>
-      </div>
       <button class="comparar" type="button" :aria-pressed="modelValue.comparar" @click="set('comparar', !modelValue.comparar)">
         <Square v-if="modelValue.comparar" :size="16" /><Columns2 v-else :size="16" />
         {{ modelValue.comparar ? t('compararOff') : t('comparar') }}
@@ -101,11 +77,9 @@ legend, label > span:first-child { font-size: .7rem; font-weight: 800; letter-sp
 label { display: grid; gap: 2px; min-width: 0; }
 select, input[type='number'] { font: inherit; font-size: .86rem; color: #f4ebdb; background: rgba(255,250,240,.08); border: 1px solid rgba(255,250,240,.18); border-radius: 10px; padding: 7px 8px; min-width: 0; width: 100%; }
 select option { color: #2a2118; }
-.area { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 .rango input { accent-color: #e0a526; }
 .comparar { display: inline-flex; gap: 8px; align-items: center; justify-content: center; border: 1px solid #e0a526; background: color-mix(in srgb, #e0a526 22%, transparent); color: #ffe7a8; font-weight: 800; border-radius: 999px; padding: 9px 14px; cursor: pointer; }
 .comparar[aria-pressed='true'] { background: #e0a526; color: #2a2118; }
-.abrir { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: transparent; color: #f4ebdb; font-weight: 700; font-size: .86rem; padding: 2px 0; cursor: pointer; text-align: left; }
-.abrir svg:last-child { margin-left: auto; transition: transform .2s; }
-.abrir .rot { transform: rotate(180deg); }
+.rec { font-style: normal; color: #e0a526; margin-left: 3px; font-size: .78rem; }
+.seg button.on .rec { color: #a8741a; }
 </style>

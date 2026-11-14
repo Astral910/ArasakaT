@@ -2,7 +2,7 @@
 import type { PlanRequest } from '@/api/types'
 
 export type Estrategia = 'S0' | 'S1' | 'S2'
-export type Escenario = 'tipico' | 'nino' | 'real-2026' | 'secuencia' | '2040-ssp245' | '2040-ssp585'
+export type Escenario = 'pronostico' | 'tipico' | 'nino' | 'real-2026' | 'secuencia' | '2040-ssp245' | '2040-ssp585'
 export type Percentil = 'p10' | 'p50' | 'p90'
 
 export interface SimRequest {
@@ -59,6 +59,26 @@ export interface SimTimeline {
   pendiente_pct: number
   notas: string[]
   motor: string
+  /** Qué tan confiable es lo mostrado (ronda 3, MOTOR). Puede faltar en salidas viejas. */
+  confianza?: SimConfianza | null
+}
+
+/** Espejo de contract.SimConfianza (_ronda3.md). */
+export interface SimConfianza {
+  metodo: 'analogo-pronostico' | 'remuestreo-enso' | 'observado' | 'cmip6' | string
+  anios_analogos?: number[]
+  anios_base?: number
+  anios_parecidos?: number
+  prob_escenario?: number
+  prob_perdida?: number
+  cosecha_p10?: number
+  cosecha_p50?: number
+  cosecha_p90?: number
+  habilidad?: string
+  nivel?: 'alta' | 'media' | 'baja' | string
+  texto?: string
+  texto_en?: string
+  fuentes?: string[]
 }
 
 /** De dónde salió la línea de tiempo (se muestra en la UI). ejemplo = sintética local, NO es el motor. */

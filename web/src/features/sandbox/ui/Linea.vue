@@ -1,15 +1,14 @@
 <script setup lang="ts">
-// Línea de tiempo: play/pausa, velocidades, barra arrastrable 1–10 años con estaciones, lluvia, agua del suelo y eventos.
+// Línea de tiempo delgada: barra arrastrable con estaciones, lluvia, agua del suelo y marcadores de eventos limpios.
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { Play, Pause } from 'lucide-vue-next'
 import type { SimTimeline, SimEvento } from './tipos'
-import { agrupar, fechaDia, type Banda, type Velocidad } from './tiempo'
+import { agrupar, fechaDia, type Banda } from './tiempo'
 import { ICONO, TONO, TONO_ESTACION } from './iconos'
 import { t } from './textos'
 import { fechaCorta, numero } from '../../mapa/comun/idioma'
 
-const props = defineProps<{ tl: SimTimeline; bandas: Banda[]; dia: number; jugando: boolean; velocidad: Velocidad; compacto?: boolean; textosMotor?: boolean }>()
-const emit = defineEmits<{ ir: [dia: number]; evento: [e: SimEvento]; play: []; velocidad: [v: Velocidad] }>()
+const props = defineProps<{ tl: SimTimeline; bandas: Banda[]; dia: number; compacto?: boolean; textosMotor?: boolean }>()
+const emit = defineEmits<{ ir: [dia: number]; evento: [e: SimEvento] }>()
 
 const pista = ref<HTMLDivElement | null>(null)
 const ancho = ref(800)
@@ -54,8 +53,10 @@ const anios = computed(() => {
   }
   return out
 })
-const visibles = computed(() => props.tl.eventos.filter((e) => e.tipo !== 'riego'))
-const grupos = computed(() => agrupar(visibles.value, ancho.value / N.value, props.compacto ? 18 : 22))
+// solo lo que cuenta la historia: siembra, cosecha/pérdida, tormentas fuertes y rachas secas
+const CLAVE = ['siembra', 'cosecha', 'perdida', 'tormenta', 'racha_seca', 'helada']
+const visibles = computed(() => props.tl.eventos.filter((e) => CLAVE.includes(e.tipo) && !(e.tipo === 'siembra' && e.texto === 'mucuna')))
+const grupos = computed(() => agrupar(visibles.value, ancho.value / N.value, props.compacto ? 16 : 20))
 
 function etiqueta(e: SimEvento) {
   // el motor ya manda el texto del evento en el idioma pedido
@@ -91,25 +92,10 @@ function teclaPista(ev: KeyboardEvent) {
 }
 
 const fechaHoy = computed(() => fechaDia(props.tl, props.dia).toISOString().slice(0, 10))
-const VEL: Velocidad[] = ['x1', 'x2', 'x3', 'anio']
 </script>
 
 <template>
   <div class="linea" :class="{ compacto }">
-    <div class="fila">
-      <button class="play" type="button" :aria-label="jugando ? t('pausa') : t('play')" @click="emit('play')">
-        <Pause v-if="jugando" :size="20" /><Play v-else :size="20" />
-      </button>
-      <div class="vel" role="radiogroup" :aria-label="t('velocidad')">
-        <button v-for="v in VEL" :key="v" type="button" role="radio" :aria-checked="velocidad === v" :class="{ on: velocidad === v }" @click="emit('velocidad', v)">
-          {{ v === 'anio' ? t('xanio') : '×' + v.slice(1) }}
-        </button>
-      </div>
-      <div class="leyenda" aria-hidden="true">
-        <span v-for="e in ['primera', 'canicula', 'postrera', 'seca']" :key="e"><i :style="{ background: TONO_ESTACION[e] }" />{{ t('est.' + e) }}</span>
-      </div>
-    </div>
-
     <div class="marcas" role="group" :aria-label="t('eventos')">
       <button
         v-for="g in grupos" :key="g[0].dia + g[0].tipo" type="button" class="marca"
@@ -117,8 +103,7 @@ const VEL: Velocidad[] = ['x1', 'x2', 'x3', 'anio']
         :aria-label="t('irEvento', { t: etiqueta(prioridad(g)), f: fechaCorta(fechaDia(tl, g[0].dia).toISOString().slice(0, 10)) })"
         @click="emit('evento', prioridad(g))"
       >
-        <component :is="ICONO[prioridad(g).tipo]" :size="compacto ? 12 : 14" />
-        <b v-if="g.length > 1">{{ g.length }}</b>
+        <component :is="ICONO[prioridad(g).tipo]" :size="10" :stroke-width="2.6" />
         <span class="tip">{{ etiqueta(prioridad(g)) }} · {{ fechaCorta(fechaDia(tl, g[0].dia).toISOString().slice(0, 10)) }}<template v-if="g.length > 1"> +{{ g.length - 1 }}</template></span>
       </button>
     </div>
@@ -149,31 +134,19 @@ const VEL: Velocidad[] = ['x1', 'x2', 'x3', 'anio']
 </template>
 
 <style scoped>
-.linea { display: grid; gap: 6px; color: #f4ebdb; }
-.fila { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.play { width: 44px; height: 44px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; background: #f4ebdb; color: #2a2118; box-shadow: 0 4px 18px rgba(0,0,0,.35); transition: transform .2s var(--ease); }
-.play:hover { transform: scale(1.06); }
-.vel { display: inline-flex; background: rgba(255,250,240,.1); border: 1px solid rgba(255,250,240,.16); border-radius: 999px; padding: 3px; }
-.vel button { border: 0; background: transparent; color: #e9dcc6; font-weight: 700; font-size: .8rem; padding: 6px 10px; border-radius: 999px; cursor: pointer; font-variant-numeric: tabular-nums; min-width: 40px; }
-.vel button.on { background: #f4ebdb; color: #2a2118; }
-.leyenda { display: flex; gap: 12px; margin-left: auto; font-size: .74rem; color: #d2c3ab; flex-wrap: wrap; }
-.leyenda span { display: inline-flex; align-items: center; gap: 5px; }
-.leyenda i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.marcas { position: relative; height: 30px; }
-.marca { position: absolute; bottom: 2px; transform: translateX(-50%); width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 30%, rgba(20,16,12,.85)); color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; transition: transform .2s var(--ease); }
-.marca:hover, .marca:focus-visible { transform: translateX(-50%) scale(1.18); z-index: 3; }
-.marca b { position: absolute; top: -6px; right: -7px; background: #f4ebdb; color: #2a2118; font-size: .6rem; border-radius: 999px; padding: 0 4px; line-height: 14px; }
-.marca .tip { position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: rgba(20,16,12,.92); color: #f4ebdb; font-size: .74rem; padding: 4px 8px; border-radius: 8px; pointer-events: none; opacity: 0; transition: opacity .15s; }
+.linea { display: grid; gap: 2px; color: #f4ebdb; }
+.marcas { position: relative; height: 20px; }
+.marca { position: absolute; bottom: 3px; transform: translateX(-50%); width: 16px; height: 16px; border-radius: 50%; border: 0; background: var(--c); color: #fff; display: grid; place-items: center; cursor: pointer; padding: 0; box-shadow: 0 0 0 2px rgba(20,16,12,.7); transition: transform .2s var(--ease); }
+.marca::after { content: ''; position: absolute; left: 50%; top: 100%; width: 1px; height: 4px; background: var(--c); opacity: .8; }
+.marca:hover, .marca:focus-visible { transform: translateX(-50%) scale(1.35); z-index: 3; }
+.marca:focus-visible { outline: 2px solid #ffe7a8; outline-offset: 2px; }
+.marca .tip { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: rgba(20,16,12,.94); color: #f4ebdb; font-size: .74rem; padding: 4px 8px; border-radius: 8px; pointer-events: none; opacity: 0; transition: opacity .15s; }
 .marca:hover .tip, .marca:focus-visible .tip { opacity: 1; }
-.pista { position: relative; height: 54px; border-radius: 12px; overflow: hidden; cursor: pointer; touch-action: none; background: rgba(255,250,240,.06); border: 1px solid rgba(255,250,240,.16); }
+.pista { position: relative; height: 26px; border-radius: 8px; overflow: hidden; cursor: pointer; touch-action: none; background: rgba(255,250,240,.06); border: 1px solid rgba(255,250,240,.14); }
 .pista:focus-visible { outline: 3px solid #e0a526; outline-offset: 2px; }
 .fondo { position: absolute; inset: 0; width: 100%; height: 100%; }
-.anio { position: absolute; top: 0; bottom: 0; border-left: 1px solid rgba(255,250,240,.45); padding: 3px 6px; font-size: .7rem; color: #f4ebdb; pointer-events: none; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
-.anio small { margin-left: 3px; opacity: .8; }
-.anio .nino { margin-left: 5px; background: #b5343c; color: #fff; padding: 0 5px; border-radius: 999px; opacity: 1; }
-.cabeza { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #ffe7a8; box-shadow: 0 0 12px 3px rgba(255,214,120,.75); pointer-events: none; }
-.cabeza::after { content: ''; position: absolute; top: -2px; left: -6px; width: 14px; height: 14px; border-radius: 50%; background: #ffe7a8; box-shadow: 0 0 10px rgba(255,214,120,.9); }
-.compacto .leyenda { display: none; }
-.compacto .pista { height: 42px; }
-.compacto .play { width: 40px; height: 40px; }
+.anio { position: absolute; top: 0; bottom: 0; border-left: 1px solid rgba(255,250,240,.35); padding: 5px 6px; font-size: .64rem; color: #f4ebdb; pointer-events: none; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+.anio small { display: none; }
+.cabeza { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #ffe7a8; box-shadow: 0 0 10px 2px rgba(255,214,120,.7); pointer-events: none; }
+.compacto .pista { height: 22px; }
 </style>
