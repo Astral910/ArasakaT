@@ -81,6 +81,22 @@ func (e *Engine) Soil(m *geo.Municipio) data.Soil {
 	if s, ok := e.soils[m.ID]; ok && s.Sand > 0 {
 		return s
 	}
+	// vecino más cercano con SoilGrids (≤ 25 km y altura parecida)
+	var best data.Soil
+	bd := 25.0
+	for id, s := range e.soils {
+		n, ok := e.Muni.ByID[id]
+		if !ok || s.Sand <= 0 || math.Abs(n.ElevM-m.ElevM) > 400 {
+			continue
+		}
+		if d := geo.Haversine(m.Lat, m.Lon, n.Lat, n.Lon); d < bd {
+			bd, best = d, s
+			best.Source = fmt.Sprintf("ISRIC SoilGrids 2.0 del municipio vecino %s (%.0f km)", n.Name, d)
+		}
+	}
+	if best.Sand > 0 {
+		return best
+	}
 	return sim.DefaultSoil(m.ElevM)
 }
 

@@ -1,0 +1,23 @@
+{
+  "acierto_estadistica": 0.7890909090909091,
+  "acierto_ia": 0.8024242424242424,
+  "brier_estadistica": 0.1612345221963578,
+  "brier_ia": 0.15437908299434006,
+  "coeficientes": {
+    "ONI AMJ": 0.6818562094001251,
+    "Tmáx abr–may (z)": -0.2928322399756612,
+    "humedad raíz GWETROOT mayo (z)": -0.1165773794042916,
+    "lluvia 15-abr–31-may (z)": -0.4513539329018054
+  },
+  "etiqueta": "temporada perdida (grano < 70 %) según el motor",
+  "modelo_estadistico": "Frecuencia de pérdidas por zona NASA POWER y estado ENSO (suavizada)",
+  "modelo_ia": "Regresión logística L2 (4 variables estandarizadas)",
+  "muestras": 825,
+  "validacion": "dejando un año fuera (25 pliegues)",
+  "variables": [
+    "ONI AMJ",
+    "lluvia 15-abr–31-may (z)",
+    "humedad raíz GWETROOT mayo (z)",
+    "Tmáx abr–may (z)"
+  ]
+}
