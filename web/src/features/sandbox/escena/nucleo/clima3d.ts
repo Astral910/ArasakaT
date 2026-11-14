@@ -9,9 +9,9 @@ interface Paleta { top: THREE.Color; hor: THREE.Color; sol: THREE.Color; solI: n
 const P: Record<string, Paleta> = {
   normal: { top: col('#2f6fbe'), hor: col('#a9c9e2'), sol: col('#ffe2b8'), solI: 3.6, cieloH: col('#a9c8ec'), sueloH: col('#6d5a3f'), hemiI: 0.95, niebla: 0.0006, exp: 1.0 },
   nublado: { top: col('#77879a'), hor: col('#c2c8cd'), sol: col('#f1efe8'), solI: 1.35, cieloH: col('#b3bcc6'), sueloH: col('#5b5246'), hemiI: 1.25, niebla: 0.0019, exp: 1.08 },
-  tormenta: { top: col('#262f3d'), hor: col('#6d7887'), sol: col('#c9d4e6'), solI: 0.7, cieloH: col('#93a2b5'), sueloH: col('#463f37'), hemiI: 1.6, niebla: 0.0013, exp: 1.35 },
+  tormenta: { top: col('#262f3d'), hor: col('#6d7887'), sol: col('#c9d4e6'), solI: 0.7, cieloH: col('#93a2b5'), sueloH: col('#463f37'), hemiI: 1.5, niebla: 0.0013, exp: 1.22 },
   calor: { top: col('#8eaac0'), hor: col('#f4ead0'), sol: col('#fff3da'), solI: 4.6, cieloH: col('#e8e3d2'), sueloH: col('#8a6c45'), hemiI: 0.8, niebla: 0.0008, exp: 0.96 },
-  helada: { top: col('#5d88c4'), hor: col('#efe1e6'), sol: col('#ffd9b8'), solI: 2.4, cieloH: col('#c8d8f2'), sueloH: col('#7b7480'), hemiI: 1.0, niebla: 0.0011, exp: 0.95 },
+  helada: { top: col('#4f7fc0'), hor: col('#c9d3e4'), sol: col('#ffd9b8'), solI: 2.4, cieloH: col('#c8d8f2'), sueloH: col('#7b7480'), hemiI: 1.0, niebla: 0.0011, exp: 0.95 },
 }
 
 export interface LuzClima { solCol: THREE.Color; solI: number; hemiCielo: THREE.Color; hemiSuelo: THREE.Color; hemiI: number; niebla: number; nieblaCol: THREE.Color; exp: number; top: THREE.Color; hor: THREE.Color }
@@ -65,7 +65,7 @@ export function crearCielo() {
         float n = vn(pp*1.5)*0.6 + vn(pp*4.0)*0.4;
         float cv = smoothstep(0.55 - uNubes*0.5, 0.95 - uNubes*0.3, n) * smoothstep(0.0, 0.25, y) * (0.25 + uNubes*0.75);
         c = mix(c, mix(uHor, vec3(dot(uHor, vec3(0.33))), 0.4)*(1.05 - uNubes*0.45), cv);
-        c += vec3(0.75,0.8,1.0) * uFlash * 0.9;
+        c += vec3(0.75,0.8,1.0) * uFlash * 0.45;
         gl_FragColor = vec4(c, 1.0); }`,
   })
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(3000, 32, 16), m)
@@ -243,13 +243,13 @@ export class Rayos {
   private mat: THREE.MeshBasicMaterial
   private matGlow: THREE.MeshBasicMaterial
   private vida = 0
-  private duracion = 0.45
+  private duracion = 0.3
   private actual: THREE.Mesh[] = []
   luz: THREE.PointLight
   constructor() {
     this.mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(6, 6.5, 9), transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })
     this.matGlow = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.9, 1.0, 1.6), transparent: true, opacity: 0.35, depthWrite: false, fog: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })
-    this.luz = new THREE.PointLight(0xcfd8ff, 0, 900, 1.2)
+    this.luz = new THREE.PointLight(0xcfd8ff, 0, 220, 2)
     this.grupo.add(this.luz)
     this.grupo.name = 'rayos'
   }
@@ -308,7 +308,7 @@ export class Rayos {
     const parpadeo = t < 0.12 ? 1 : t < 0.22 ? 0.25 : t < 0.36 ? 0.9 : t < 0.5 ? 0.3 : Math.max(0, 0.6 * (1 - (t - 0.5) / 0.5))
     this.mat.opacity = parpadeo
     this.matGlow.opacity = parpadeo * 0.35
-    this.luz.intensity = parpadeo * 900
+    this.luz.intensity = parpadeo * 600
     if (this.vida <= 0) this.limpiar()
     return parpadeo
   }

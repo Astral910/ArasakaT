@@ -56,7 +56,7 @@ export class Post {
           c = mix(c, bl, m);
           // bloom barato a partir del buffer desenfocado
           c += max(bl - 0.9, 0.0) * uBloom * 2.0 + bl*uBloom*0.06;
-          c += vec3(0.8,0.85,1.0) * uFlash * 0.1;
+          c += vec3(0.8,0.85,1.0) * uFlash * 0.012;
           // cortina de lluvia en pantalla (se lee desde cualquier ángulo)
           if (uLluvia > 0.01) {
             vec2 r = vec2(vUv.x*uRes.x/uRes.y, vUv.y);
@@ -68,7 +68,7 @@ export class Post {
               float y = fract(r.y*(k == 0 ? 1.2 : 0.8) + uTime*(1.8 + h*1.2 + float(k)) + h*10.0);
               float gota = smoothstep(0.0, 0.015, y) * (1.0 - smoothstep(0.015, 0.11, y)) * step(1.0 - uLluvia*0.55, h);
               float w = 1.0 - abs(fract(r.x*dens) - 0.5)*2.0;
-              c += gota * smoothstep(0.55, 1.0, w) * (k == 0 ? 0.06 : 0.1) * (0.6 + uLluvia*0.6);
+              c += gota * smoothstep(0.55, 1.0, w) * (k == 0 ? 0.035 : 0.06) * (0.6 + uLluvia*0.6);
             }
           }
           c *= uExp;
