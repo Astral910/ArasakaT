@@ -106,7 +106,7 @@ const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
 /** Maíz criollo (~2.4 m maduro). */
 export function geoMaiz(): GeoPlanta {
   const b = new Constructor(), r = rnd(11), H = 2.4
-  const verde = C('#3d7326'), tallo = C('#4f6f2c')
+  const verde = C('#4a832c'), tallo = C('#557633')
   b.tallo(V(0, 0, 0), H * 0.93, 0.03, 0.015, 5, tallo, 0, H)
   const nH = 11
   for (let i = 0; i < nH; i++) {
