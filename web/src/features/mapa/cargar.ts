@@ -20,10 +20,14 @@ let geoCache: Promise<Geo> | null = null
 /** Polígonos de los municipios (los exporta el motor a static/; en dev puede venir de geo/). */
 export function cargarGeo(): Promise<Geo> {
   geoCache ??= (async () => {
-    for (const url of [`${BASE}static/municipios.geojson`, `${BASE}geo/municipios.geojson`]) {
+    // Último recurso: copia propia (3 decimales ≈ 100 m) empaquetada como asset, para que el mapa nunca quede vacío.
+    const propio = (await import('./datos/municipios.geojson?url')).default
+    for (const url of [`${BASE}static/municipios.geojson`, propio]) {
       try {
         const r = await fetch(url)
-        if (r.ok && (r.headers.get('content-type') || '').match(/json|geo/)) return (await r.json()) as Geo
+        if (!r.ok) continue
+        const g = (await r.json()) as Geo
+        if (g?.features?.length) return g
       } catch { /* siguiente */ }
     }
     throw new Error('sin geojson de municipios')

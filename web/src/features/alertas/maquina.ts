@@ -6,7 +6,7 @@ import { fechaCorta, diasEntre, type Idioma } from '../mapa/comun/idioma'
 export type TipoAlerta = 'canicula' | 'lluvia_fuerte' | 'inicio_lluvias' | 'falso_inicio' | 'perspectiva' | 'helada' | 'seguimiento'
 
 export interface DiaLluvia { fecha: string; lluvia_mm: number }
-export interface Evento { tipo: TipoAlerta; inicio: string; dias: number; lluvia_mm?: number; avisado?: boolean; anticipacion_dias?: number }
+export interface Evento { id?: string; tipo: TipoAlerta; inicio: string; dias: number; lluvia_mm?: number; avisado?: boolean; anticipacion_dias?: number }
 export interface AlertaSim {
   tipo: TipoAlerta
   fecha_emision: string
@@ -16,8 +16,12 @@ export interface AlertaSim {
   lluvia_mm?: number
   acierto?: boolean
   anticipacion_dias?: number
+  texto?: string
+  texto_en?: string
+  evento_id?: string
+  dias?: number
 }
-export interface Resumen { eventos: number; avisados: number; alertas: number; falsas_alarmas: number; anticipacion_media_dias: number | null }
+export interface Resumen { eventos: number; avisados: number; alertas: number; falsas_alarmas: number; anticipacion_media_dias: number | null; aciertos?: number; sin_verificar?: number }
 export interface Maquina {
   municipio: { id: string; nombre: string; depto: string }
   anio: number
@@ -26,6 +30,10 @@ export interface Maquina {
   modelos: string[]
   umbral_lluvia_fuerte_mm?: number
   preliminar?: boolean
+  titular?: string
+  titular_en?: string
+  notas?: string[]
+  umbrales?: { racha_dias?: number; seco_observado_mm?: number }
   dias: DiaLluvia[]
   eventos: Evento[]
   alertas: AlertaSim[]
@@ -72,13 +80,30 @@ export function meses(dias: DiaLluvia[]) {
   return dias.filter((d) => d.fecha.endsWith('-01')).map((d) => d.fecha)
 }
 
-/** El aviso de canícula que acertó primero: el titular de la máquina del tiempo. */
+/** El aviso de racha seca acertado con más anticipación (≤ 14 días): el titular de la máquina del tiempo. */
 export function titular(m: Maquina) {
-  const a = m.alertas.filter((x) => x.tipo === 'canicula' && x.acierto).sort((x, y) => x.fecha_emision.localeCompare(y.fecha_emision))[0]
-  if (!a) return null
-  const ev = m.eventos.find((e) => e.tipo === 'canicula' && diasEntre(a.fecha_emision, e.inicio) >= -1 && diasEntre(a.fecha_emision, e.inicio) <= 14)
-  if (!ev) return null
-  return { alerta: a, evento: ev, diasAntes: diasEntre(a.fecha_emision, ev.inicio) }
+  let mejor: { alerta: AlertaSim; evento: Evento; diasAntes: number } | null = null
+  for (const a of m.alertas) {
+    if (a.tipo !== 'canicula' || !a.acierto) continue
+    for (const e of m.eventos) {
+      if (e.tipo !== 'canicula' || e.dias < 7) continue
+      // Si el motor de alertas dice a qué evento corresponde el aviso, se respeta ese cruce.
+      if (a.evento_id && e.id !== a.evento_id) continue
+      const d = diasEntre(a.fecha_emision, e.inicio)
+      if (d >= 1 && d <= 14 && (!mejor || d > mejor.diasAntes)) mejor = { alerta: a, evento: e, diasAntes: d }
+    }
+  }
+  return mejor
+}
+
+/** Estado de verificación de una alerta simulada. */
+export function verificacion(a: AlertaSim): 'acierto' | 'falsa' | 'pendiente' {
+  return a.acierto === true ? 'acierto' : a.acierto === false ? 'falsa' : 'pendiente'
+}
+
+/** Texto ya redactado por el motor de alertas en el idioma pedido, si lo trae. */
+export function textoDe(a: AlertaSim, l: Idioma): string | undefined {
+  return l === 'en' ? a.texto_en : a.texto
 }
 
 export function lluviaTotal(dias: DiaLluvia[], desde: string, hasta: string) {
