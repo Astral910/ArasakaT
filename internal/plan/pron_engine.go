@@ -153,3 +153,6 @@ func (e *Engine) planConfianza(m *geo.Municipio, s *sim.Site, req contract.PlanR
 	}
 	return tl.Confianza
 }
+
+// NetClient cliente de datos globales del motor (con la caché de DATA_DIR).
+func (e *Engine) NetClient() *global.Client { return e.net() }
