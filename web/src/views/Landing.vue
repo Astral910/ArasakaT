@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
-import { Sprout, MessageCircle, MapPin, FileImage, BellRing, ArrowRight, CloudRain, Thermometer, Leaf, Mountain, Globe2, ShieldCheck } from 'lucide-vue-next'
+import { MessageCircle, MapPin, FileImage, BellRing, ArrowRight, CloudRain, Thermometer, Leaf, Mountain, Globe2, ShieldCheck, Map as MapIcon, History, Users, Microscope } from 'lucide-vue-next'
+import { RouterLink } from 'vue-router'
+import HeroLugar from './inicio/HeroLugar.vue'
 import PhoneSim from '@/components/phone/PhoneSim.vue'
 import CalendarRing from '@/components/plan/CalendarRing.vue'
 import CropIllustration from '@/components/illus/CropIllustration.vue'
 import { FsButton, FsCard, HuipilBand, CountUp, StatusBadge, DataTag } from '@/components/ui'
 import { useUiStore } from '@/stores/ui'
 import { usePlanStore } from '@/stores/plan'
-import { fixturePlan, pub } from '@/api/client'
+import { fixturePlan } from '@/api/client'
 import { t, lang } from '@/i18n'
 import { nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo } from '@/components/plan/util'
 
@@ -15,8 +17,12 @@ const ui = useUiStore()
 const store = usePlanStore()
 onMounted(() => { if (!store.plan) store.calcular() })
 const plan = computed(() => store.plan ?? fixturePlan({ idioma: lang.value }))
-// posición de Jocotán sobre la imagen de relieve (calculada por scripts/relieve.py)
-const JOCOTAN = { x: 0.7003, y: 0.5579 }
+const explorar = [
+  { k: 'map', to: '/map', icon: MapIcon },
+  { k: 'time', to: '/alerts', icon: History },
+  { k: 'ext', to: '/alerts', icon: Users },
+  { k: 'how', to: '/how', icon: Microscope },
+]
 
 const datos = [
   { icon: Thermometer, name: 'NASA POWER', key: 'data.power', period: '2001–2026' },
@@ -29,20 +35,28 @@ const datos = [
 
 <template>
   <div class="landing">
-    <!-- HERO -->
-    <section class="hero">
-      <div class="sky" aria-hidden="true" />
-      <div class="relief" aria-hidden="true">
-        <img :src="pub('img/relieve-alto.webp')" alt="" width="1565" height="1038" fetchpriority="high" />
-        <span class="marker" :style="{ left: JOCOTAN.x * 100 + '%', top: JOCOTAN.y * 100 + '%' }"><i /><b>{{ t('hero.jocotan') }}</b></span>
+    <HeroLugar />
+
+    <!-- MÁS (fuera del camino principal) -->
+    <section id="mas" class="mas container">
+      <div class="mas-grid">
+        <RouterLink v-for="x in explorar" :key="x.k" :to="x.to" class="ex" :data-testid="'explorar-' + x.k">
+          <component :is="x.icon" class="ex-ic" aria-hidden="true" />
+          <strong>{{ t('ini.ex.' + x.k) }}</strong>
+          <span class="muted">{{ t('ini.ex.' + x.k + '.d') }}</span>
+          <ArrowRight class="ex-go" aria-hidden="true" />
+        </RouterLink>
       </div>
-      <div class="container hero-grid">
+    </section>
+
+    <!-- WHATSAPP -->
+    <section class="wa container">
+      <div class="wa-grid">
         <div class="copy">
           <p class="eyebrow">{{ t('hero.eyebrow') }}</p>
-          <h1>{{ t('hero.title') }}</h1>
+          <h2>{{ t('hero.title') }}</h2>
           <p class="sub">{{ t('hero.sub') }}</p>
           <div class="ctas">
-            <FsButton size="lg" to="/plan"><template #icon><Sprout /></template>{{ t('hero.ctaPlan') }}</FsButton>
             <FsButton size="lg" variant="whatsapp" @click="ui.waOpen = true"><template #icon><MessageCircle /></template>{{ t('hero.ctaWa') }}</FsButton>
           </div>
           <p class="free"><ShieldCheck aria-hidden="true" />{{ t('hero.free') }}</p>
@@ -51,7 +65,6 @@ const datos = [
           <PhoneSim :plan="plan" />
         </div>
       </div>
-      <p class="relief-note container">{{ t('hero.reliefNote') }}</p>
     </section>
 
     <HuipilBand :h="12" />
@@ -126,27 +139,23 @@ const datos = [
 </template>
 
 <style scoped>
-.hero { position: relative; overflow: hidden; padding: clamp(1.5rem, 4vw, 3.5rem) 0 2.5rem; margin-top: -68px; padding-top: calc(68px + clamp(1.5rem, 4vw, 3.5rem)); }
-.sky { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--sky-top) 55%, var(--bg)) 0%, var(--bg) 62%); }
-.relief { position: absolute; right: -17%; top: 20%; width: min(1180px, 92vw); aspect-ratio: 1565 / 1038;
-  -webkit-mask-image: linear-gradient(180deg, transparent 6%, #000 36%, #000 80%, transparent 100%), linear-gradient(90deg, transparent 4%, #000 42%); -webkit-mask-composite: source-in; mask-image: linear-gradient(180deg, transparent 6%, #000 36%, #000 80%, transparent 100%), linear-gradient(90deg, transparent 4%, #000 42%); mask-composite: intersect; }
-[data-theme='dark'] .relief { opacity: 0.6; filter: saturate(0.8) brightness(0.75); }
-.relief img { width: 100%; height: 100%; }
-.marker { position: absolute; transform: translate(-50%, calc(-100% + 7px)); display: flex; flex-direction: column-reverse; align-items: center; gap: 8px; }
-.marker i { width: 14px; height: 14px; border-radius: 50%; background: var(--granada); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85); position: relative; }
-.marker i::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--granada); animation: ping 2.4s ease-out infinite; }
-.marker b { font-size: 0.8rem; background: rgba(255, 250, 242, 0.92); color: #2a2118; padding: 2px 8px; border-radius: 99px; box-shadow: var(--shadow-1); white-space: nowrap; }
-@keyframes ping { from { transform: scale(1); opacity: 1; } to { transform: scale(3); opacity: 0; } }
-.hero-grid { position: relative; display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 3rem; align-items: center; }
-.copy { display: flex; flex-direction: column; gap: 1.3rem; max-width: 640px; }
-.copy h1 { text-wrap: balance; }
-.sub { font-size: clamp(1.05rem, 1.6vw, 1.22rem); color: var(--ink-2); max-width: 560px; }
-.ctas { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 0.3rem; }
+.mas { padding: 2.2rem 0 1.4rem; }
+.mas-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.9rem; }
+.ex { position: relative; display: flex; flex-direction: column; gap: 0.3rem; padding: 1.2rem 1.2rem 1.1rem; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: var(--ink); transition: transform 200ms var(--ease), box-shadow 200ms var(--ease); }
+.ex:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+.ex:focus-visible { outline: 3px solid var(--anil); outline-offset: 2px; }
+.ex-ic { width: 26px; height: 26px; color: var(--jade); margin-bottom: 0.3rem; }
+.ex .muted { font-size: 0.9rem; line-height: 1.35; }
+.ex-go { position: absolute; top: 1.1rem; right: 1.1rem; width: 18px; height: 18px; color: var(--ink-3); }
+.wa { padding: 2.5rem 0 3rem; }
+.wa-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 3rem; align-items: center; }
+.copy { display: flex; flex-direction: column; gap: 1.2rem; max-width: 620px; }
+.copy h2 { text-wrap: balance; }
+.sub { font-size: clamp(1.02rem, 1.5vw, 1.15rem); color: var(--ink-2); }
+.ctas { display: flex; flex-wrap: wrap; gap: 0.8rem; }
 .free { display: flex; align-items: center; gap: 0.45rem; font-size: 0.9rem; color: var(--ink-2); font-weight: 600; }
 .free svg { width: 18px; height: 18px; color: var(--jade); }
 .device { display: flex; justify-content: center; }
-.device :deep(.under) { background: var(--glass); backdrop-filter: blur(8px); padding: 0.3rem 0.4rem 0.3rem 0.9rem; border-radius: 99px; }
-.relief-note { position: relative; margin-top: 1.5rem; font-size: 0.75rem; color: var(--ink-3); text-align: right; }
 
 .stats { background: var(--surface); border-bottom: 1px solid var(--line); }
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
@@ -182,9 +191,8 @@ const datos = [
 .small { font-size: 0.86rem; }
 
 @media (max-width: 980px) {
-  .hero-grid { grid-template-columns: 1fr; gap: 2.5rem; }
-  .relief { width: 230vw; right: -75%; top: auto; bottom: 4%; opacity: 0.55; }
-  .marker { display: none; }
+  .wa-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+  .mas-grid { grid-template-columns: repeat(2, 1fr); }
   .prev-grid { grid-template-columns: 1fr; }
   .data-grid { grid-template-columns: repeat(2, 1fr); }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -195,6 +203,6 @@ const datos = [
 @media (max-width: 720px) {
   .steps { grid-template-columns: 1fr; }
   .prev-inner { grid-template-columns: 1fr; justify-items: center; }
-  .relief-note { text-align: left; }
+  .mas-grid { grid-template-columns: 1fr; }
 }
 </style>

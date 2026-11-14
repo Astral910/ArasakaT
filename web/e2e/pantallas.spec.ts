@@ -12,10 +12,11 @@ function errores(page: Page) {
   return errs
 }
 
-test('landing: teléfono con chat, aviso y botones', async ({ page }) => {
+test('landing: teléfono con chat (debajo del hero), aviso y botones', async ({ page }) => {
   const errs = errores(page)
   await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('NASA satellites')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Where is your land?')
+  await page.locator('.wa').scrollIntoViewIfNeeded()
   await page.waitForTimeout(8000)
   await shot(page, 'landing-chat', false)
   await page.waitForTimeout(7000)
@@ -31,13 +32,14 @@ test('landing: teléfono con chat, aviso y botones', async ({ page }) => {
 
 test('landing en español y modo oscuro', async ({ page }) => {
   await page.goto('/?lang=es')
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Planeá tu milpa')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('¿Dónde está tu terreno?')
   await page.getByRole('button', { name: /modo oscuro/ }).click()
+  await page.locator('#mas').scrollIntoViewIfNeeded()
   await page.waitForTimeout(6000)
   await shot(page, 'landing-es-oscuro', false)
 })
 
-test('asistente: 4 pasos con mapa 3D', async ({ page }) => {
+test('opciones avanzadas: asistente de 4 pasos con mapa 3D', async ({ page }) => {
   const errs = errores(page)
   await page.goto('/plan')
   await page.getByRole('searchbox').fill('jocot')
