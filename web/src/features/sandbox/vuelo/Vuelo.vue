@@ -108,6 +108,7 @@ onMounted(async () => {
     return
   }
   const el = caja.value!
+  el.style.opacity = '0' // el plano alto aparece con fundido cuando ya cargaron teselas y municipios (sin cuadros a medio cargar)
   const tmp = new ml.Map({ container: el, style: { version: 8, sources: {}, layers: [] }, interactive: false, attributionControl: false })
   const enc = tmp.cameraForBounds(GT, { padding: Math.min(el.clientWidth, el.clientHeight) * 0.06 })
   tmp.remove()
@@ -167,11 +168,16 @@ onMounted(async () => {
     const empezar = () => {
       if (empezo) return
       empezo = true
+      if (caja.value) caja.value.style.opacity = '1'
       if (props.manual) emit('preparado')
       else saltarYa ? terminar() : volar(a)
     }
-    mapa.once('idle', empezar)
-    setTimeout(empezar, 2500)
+    // 'idle' puede llegar antes de que el worker procese los municipios: se espera a fuente y teselas
+    const cargado = () => (!mapa.getSource('municipios') || mapa.isSourceLoaded('municipios')) && mapa.areTilesLoaded()
+    const revisar = () => { if (!empezo && cargado()) { mapa.off('render', revisar); empezar() } }
+    mapa.on('render', revisar)
+    mapa.once('idle', revisar)
+    setTimeout(() => { mapa?.off('render', revisar); empezar() }, 2500)
   })
 })
 
@@ -186,6 +192,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.vuelo { position: absolute; inset: 0; }
+.vuelo { position: absolute; inset: 0; transition: opacity .6s ease; }
+@media (prefers-reduced-motion: reduce) { .vuelo { transition: none; } }
 .vuelo :deep(.maplibregl-ctrl-attrib) { font-size: 10px; opacity: .75; }
 </style>

@@ -55,7 +55,7 @@ const anios = computed(() => {
   return out
 })
 const visibles = computed(() => props.tl.eventos.filter((e) => e.tipo !== 'riego'))
-const grupos = computed(() => agrupar(visibles.value, ancho.value / N.value, props.compacto ? 18 : 22))
+const grupos = computed(() => agrupar(visibles.value, ancho.value / N.value, 32)) // marca de 26 px + contador: sin solaparse
 
 function etiqueta(e: SimEvento) {
   // el motor ya manda el texto del evento en el idioma pedido

@@ -59,6 +59,14 @@ test('sandbox: datos reales, línea de tiempo, evento, riego, comparar y exporta
   await page.getByRole('button', { name: /Compare|Comparar/ }).click()
   await page.waitForTimeout(5000)
   await snap(page, '08-comparar-S0-S2')
+  // La mitad S2 también se anima (antes quedaba congelada: autoRender ausente = false).
+  // Se lee el lienzo (sin el HUD encima) dos veces con la línea de tiempo corriendo.
+  const derecha = page.locator('.panel-escena canvas').nth(1)
+  await page.getByRole('button', { name: /^(Play|Reproducir)$/ }).click()
+  const leer = () => derecha.evaluate((c: HTMLCanvasElement) => c.toDataURL('image/jpeg', 0.6))
+  const a = await leer()
+  await page.waitForTimeout(1500)
+  expect(await leer()).not.toBe(a)
   noErrors(errors)
 })
 

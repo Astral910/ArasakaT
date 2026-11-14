@@ -4,14 +4,15 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { crearSandbox, type CamaraMapa, type Sandbox } from '../vuelo/escena'
 import type { SimTimeline } from './tipos'
 
-const props = defineProps<{
+// autoRender: por defecto true (sin withDefaults, Vue convierte el booleano ausente en false y la escena queda congelada)
+const props = withDefaults(defineProps<{
   lon: number; lat: number; lado: number
   tl: SimTimeline | null; cultivo: string; area_m2: number; area_valor: number; area_unidad: 'cuerda' | 'manzana' | 'ha'; estrategia: string
   escala?: number; idioma?: 'es' | 'en'; autoRender?: boolean
   dia: number; fraccion: number
   preset: string; duracion: number; mapa?: CamaraMapa | null; seq?: number
   subida: number; calidad: 'baja' | 'media' | 'alta'
-}>()
+}>(), { autoRender: true })
 const emit = defineEmits<{ listo: [info: { alineable: boolean; rumbo?: number }] }>()
 
 const lienzo = ref<HTMLCanvasElement | null>(null)

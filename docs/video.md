@@ -51,3 +51,13 @@ go run ./internal/simvideo/precalc -base http://127.0.0.1:8204 -ruta /sandbox -f
 - Render real: `SIMVIDEO_E2E_URL=http://127.0.0.1:8204/sandbox go test -run E2E -v ./internal/simvideo`.
 - Navegador: `node web/src/features/sandbox/export/banco/probar.mjs salida.mp4` (Playwright headless, silencioso).
 - `vitest` en `web/src/features/sandbox/export/plan.test.ts`.
+
+## Clip del /demo (`web/public/static/demo/sandbox.mp4`)
+Se regenera cuando cambia la escena (servidor en 127.0.0.1:8200, caché de videos vacía):
+1. Toma 1080p del motor: `curl -o s2_1080.mp4 "http://127.0.0.1:8200/api/sim/video.mp4?municipio_id=jocotan-chiquimula&cultivo=milpa&estrategia=S2&escenario=tipico&riego_mm_semana=0&idioma=en&calidad=1080p"`.
+2. Comparar S0 | S2 en vivo: `cd e2e && node grabar-comparar.mjs http://127.0.0.1:8200 <carpeta> 4`, luego `ffmpeg -f concat -i <carpeta>/lista.txt -vf fps=30,format=yuv420p -c:v h264_nvenc -b:v 8M comparar.mp4`.
+3. Unir (la comparación empieza a los 9.9 s, como espera `Demo.vue`):
+   `ffmpeg -i s2_1080.mp4 -i comparar.mp4 -filter_complex "[0:v]trim=0:18.81,setpts=(PTS-STARTPTS)/1.9,fps=30,format=yuv420p[a];[1:v]trim=0.6:3.533,setpts=PTS-STARTPTS,fps=30,scale=1920:1080,format=yuv420p[b];[a][b]concat=n=2:v=1[v]" -map "[v]" -c:v h264_nvenc -preset p7 -b:v 3.6M -movflags +faststart -an sandbox.mp4`.
+4. Precalculados: `go run ./internal/simvideo/precalc -base http://127.0.0.1:8200 -forzar`. Video de la entrega: `node record-demo.mjs "http://127.0.0.1:8200/demo?autostart=1&rec=1" 29.9 --skip=1.4`.
+
+Fidelidad escena ↔ motor: `cd e2e && node fidelidad.mjs <vite> <api> <carpeta>` (5 días: racha seca, tormenta, desarrollo, llenado, cosecha).
