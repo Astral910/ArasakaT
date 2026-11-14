@@ -33,6 +33,44 @@ type Site struct {
 	Scenario       string
 
 	rhCache, wsCache, rsCache []float64
+	cycle                     float64
+}
+
+// CycleFactor alarga las etapas del cultivo con el frío (tiempo térmico, base 10 °C):
+// a 24 °C de media en may–oct el ciclo es el de FAO-56; en frío se alarga hasta 1.8 veces (maíz de altiplano, ~8 meses).
+func (s *Site) CycleFactor() float64 {
+	if s.cycle > 0 {
+		return s.cycle
+	}
+	sum, n := 0.0, 0
+	for _, y := range s.ClimYears() {
+		for i := s.Idx(y, 5, 1); i <= s.Idx(y, 10, 31); i++ {
+			sum += (s.Tmax[i] + s.Tmin[i]) / 2
+			n++
+		}
+	}
+	t := 24.0
+	if n > 0 {
+		t = sum / float64(n)
+	}
+	f := 1.0
+	if t < 24 {
+		f = (24 - 10) / math.Max(t-10, 0.1)
+	}
+	s.cycle = math.Max(1, math.Min(1.8, f)) // maíz de altiplano: ~8 meses (variedades adaptadas)
+	return s.cycle
+}
+
+// Scaled cultivo con las etapas ajustadas al ciclo del lugar.
+func (s *Site) Scaled(c fao56.Crop) fao56.Crop {
+	f := s.CycleFactor()
+	if f == 1 {
+		return c
+	}
+	for i := range c.L {
+		c.L[i] = int(math.Round(float64(c.L[i]) * f))
+	}
+	return c
 }
 
 // NewSite construye el sitio: corrige temperatura por altitud y calcula ET0 FAO-56 diaria.
@@ -116,6 +154,7 @@ func (s *Site) ClimYears() []int {
 func (s *Site) WithDelta(md data.MonthlyDelta, scen string) *Site {
 	o := *s
 	o.Scenario = scen
+	o.cycle = 0 // más calor → ciclo más corto
 	o.Tmax, o.Tmin, o.PR, o.ET0 = make([]float64, s.N), make([]float64, s.N), make([]float64, s.N), make([]float64, s.N)
 	for i := 0; i < s.N; i++ {
 		m := int(s.Date(i).Month()) - 1

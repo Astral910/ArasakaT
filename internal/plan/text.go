@@ -91,7 +91,7 @@ func (l lang) describe(est *contract.Estrategia, r sim.StratResult, req contract
 		est.Descripcion = l.f("%s en Primera y %s sembrado en relevo cuando el maíz dobla; se deja la mitad del rastrojo sobre el suelo.",
 			"%s in Primera and %s relay-planted when the maize is doubled over; half of the residue stays on the soil.", capital(ml), post)
 		est.Secuencia = []string{l.f("Primera: %s", "Primera: %s", ml), l.f("Postrera: %s", "Postrera: %s", post), l.t("Seca: rastrojo", "Dry season: crop residue")}
-		pe := r.PostDOYP50 + float64(r.Def.Post.Season())
+		pe := r.PostDOYP50 + float64(s.Scaled(*r.Def.Post).Season())
 		est.Calendario = []contract.Periodo{
 			{Tipo: "primera", Nombre: l.f("Primera: %s", "Primera: %s", ml), Inicio: sim.MMDD(r.SowDOYP50), Fin: sim.MMDD(r.SowDOYP50 + float64(main.Season()))},
 			{Tipo: "postrera", Nombre: l.f("Postrera: %s", "Postrera: %s", post), Inicio: sim.MMDD(r.PostDOYP50), Fin: sim.MMDD(wrap(pe))},
@@ -109,7 +109,7 @@ func (l lang) describe(est *contract.Estrategia, r sim.StratResult, req contract
 		est.Descripcion = l.f("%s en Primera y %s sembrada ~50 días después; no se quema: la cobertura y el rastrojo protegen el suelo todo el año.",
 			"%s in Primera and %s planted ~50 days later; no burning: the cover and residue protect the soil all year.", capital(ml), cov)
 		est.Secuencia = []string{l.f("Primera: %s + %s", "Primera: %s + %s", ml, cov), l.f("Postrera: %s creciendo", "Postrera: growing %s", cov), l.t("Seca: abono verde (mulch)", "Dry season: green manure mulch")}
-		ce := r.SowDOYP50 + sim.CoverSowDay + float64(r.Def.Cover.Season())
+		ce := r.SowDOYP50 + sim.CoverSowDay + float64(s.Scaled(*r.Def.Cover).Season())
 		est.Calendario = []contract.Periodo{
 			{Tipo: "primera", Nombre: l.f("Primera: %s", "Primera: %s", ml), Inicio: sim.MMDD(r.SowDOYP50), Fin: sim.MMDD(r.SowDOYP50 + float64(main.Season()))},
 			{Tipo: "cobertura", Nombre: l.f("Cobertura: %s", "Cover: %s", cov), Inicio: sim.MMDD(r.SowDOYP50 + sim.CoverSowDay), Fin: sim.MMDD(wrap(ce))},
@@ -234,6 +234,10 @@ func (l lang) warnings(p *contract.Plan, req contract.PlanRequest, cfg sim.Confi
 		case "S1":
 			if req.ManoObra == "poca" {
 				e.Advertencias = append(e.Advertencias, l.t("Pide mano de obra en septiembre, cuando también cosechás.", "Needs labor in September, when you also harvest."))
+			}
+			if e.PostreraQQMZ.P50 < 1 {
+				e.Advertencias = append(e.Advertencias, l.t("En tu zona el ciclo del maíz es largo (frío) y casi no queda tiempo para la Postrera: compará con S2.",
+					"In your area the maize cycle is long (cool weather) and there is hardly time for Postrera: compare with S2."))
 			}
 			if cfg.Postrera == "sorghum" {
 				e.Advertencias = append(e.Advertencias, l.t("Se propone maicillo en Postrera porque aguanta mejor la falta de agua.", "Sorghum is proposed for Postrera because it tolerates drought better."))

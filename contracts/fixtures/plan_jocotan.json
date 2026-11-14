@@ -55,48 +55,48 @@
       "deficit_agua_mm": {
         "p10": 0,
         "p50": 22,
-        "p90": 126
+        "p90": 130
       },
       "rendimiento_qq_mz": {
-        "p10": 9.7,
-        "p50": 26.2,
+        "p10": 8.6,
+        "p50": 26.5,
         "p90": 32.8
       },
       "suelo_mo": [
         2.5,
         2.4,
-        2.29,
-        2.19,
+        2.3,
+        2.2,
         2.1,
         2.01
       ],
       "erosion_t_ha": [
         198,
         198,
-        200,
-        200,
+        198,
+        198,
         196,
         196
       ],
-      "suelo_desnudo_dias": 266,
+      "suelo_desnudo_dias": 260,
       "calendario": [
         {
           "tipo": "primera",
           "nombre": "Primera: milpa (maíz + frijol)",
           "inicio": "05-22",
-          "fin": "09-24"
+          "fin": "10-02"
         },
         {
           "tipo": "suelo_desnudo",
           "nombre": "Suelo desnudo",
-          "inicio": "09-25",
+          "inicio": "10-03",
           "fin": "06-11"
         }
       ],
       "ficha": {
         "por_que": [
           "Es lo que hacés hoy: sirve de punto de comparación para las otras opciones.",
-          "Con tu clima, perdés en promedio 3.3 de cada 10 temporadas (grano < 70 % de lo normal)."
+          "Con tu clima, perdés en promedio 3.2 de cada 10 temporadas (grano < 70 % de lo normal)."
         ],
         "evidencia": [
           "Balance de agua FAO-56 día por día con el clima real de 25 temporadas (NASA POWER 2001–2025): canícula típica del 12 jul al 1 ago.",
@@ -105,7 +105,7 @@
         ],
         "beneficios": [
           "Ya la conocés: no necesita semilla, dinero ni trabajo extra.",
-          "Cosecha típica: 26 qq/mz de grano (rango 10–33)."
+          "Cosecha típica: 27 qq/mz de grano (rango 9–33)."
         ],
         "info_faltante": [
           "Tu fecha real de siembra y la variedad de maíz.",
@@ -113,22 +113,22 @@
         ],
         "riesgos": [
           "La floración cae en la canícula en muchos años: revisá con tu extensionista si conviene correr la siembra.",
-          "Suelo desnudo ~266 días al año: erosión en la ladera y pérdida de materia orgánica (2.5 % → 2.0 % en 5 años, aprox.)."
+          "Suelo desnudo ~260 días al año: erosión en la ladera y pérdida de materia orgánica (2.5 % → 2.0 % en 5 años, aprox.)."
         ]
       },
       "recomendada": false,
       "advertencias": [
-        "El suelo queda desnudo ~266 días al año."
+        "El suelo queda desnudo ~260 días al año."
       ],
-      "riesgo_de_10": 3.3,
+      "riesgo_de_10": 3.2,
       "puntajes": {
-        "agua": 5.6,
+        "agua": 5.4,
         "comida": 3.1,
         "ingreso": 3.6,
         "suelo": 0
       },
       "ingreso_q_mz": {
-        "p10": 3000,
+        "p10": 2700,
         "p50": 7300,
         "p90": 9100
       },
@@ -138,11 +138,11 @@
         "p90": 0
       },
       "total_qq": {
-        "p10": 4.9,
-        "p50": 13.1,
+        "p10": 4.3,
+        "p50": 13.3,
         "p90": 16.4
       },
-      "escorrentia_mm": 29,
+      "escorrentia_mm": 31,
       "etapa_vulnerable": "floración",
       "suelo_mo_p10": [
         2.5,
@@ -158,48 +158,48 @@
         2.33,
         2.24,
         2.15,
-        2.06
+        2.07
       ],
       "anios": [
         {
           "anio": 2001,
-          "grano_qq_mz": 15.7,
-          "deficit_mm": 69,
+          "grano_qq_mz": 18.8,
+          "deficit_mm": 62,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2002,
-          "grano_qq_mz": 23.8,
-          "deficit_mm": 52,
+          "grano_qq_mz": 22.2,
+          "deficit_mm": 53,
           "perdida": false,
           "el_nino": true
         },
         {
           "anio": 2003,
-          "grano_qq_mz": 19.8,
-          "deficit_mm": 64,
+          "grano_qq_mz": 19.1,
+          "deficit_mm": 79,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2004,
-          "grano_qq_mz": 5.4,
-          "deficit_mm": 191,
+          "grano_qq_mz": 3.7,
+          "deficit_mm": 214,
           "perdida": true,
           "el_nino": true
         },
         {
           "anio": 2005,
-          "grano_qq_mz": 28.4,
-          "deficit_mm": 23,
+          "grano_qq_mz": 26.9,
+          "deficit_mm": 33,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2006,
-          "grano_qq_mz": 33.5,
-          "deficit_mm": 2,
+          "grano_qq_mz": 33.7,
+          "deficit_mm": 1,
           "perdida": false,
           "el_nino": false
         },
@@ -226,14 +226,14 @@
         },
         {
           "anio": 2010,
-          "grano_qq_mz": 29.1,
+          "grano_qq_mz": 28.8,
           "deficit_mm": 20,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2011,
-          "grano_qq_mz": 33.8,
+          "grano_qq_mz": 33.9,
           "deficit_mm": 0,
           "perdida": false,
           "el_nino": false
@@ -247,29 +247,29 @@
         },
         {
           "anio": 2013,
-          "grano_qq_mz": 27.4,
-          "deficit_mm": 23,
+          "grano_qq_mz": 28.2,
+          "deficit_mm": 22,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2014,
-          "grano_qq_mz": 22.3,
-          "deficit_mm": 47,
+          "grano_qq_mz": 21.3,
+          "deficit_mm": 51,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2015,
-          "grano_qq_mz": 12.6,
-          "deficit_mm": 117,
+          "grano_qq_mz": 11.6,
+          "deficit_mm": 129,
           "perdida": true,
           "el_nino": true
         },
         {
           "anio": 2016,
-          "grano_qq_mz": 33.7,
-          "deficit_mm": 3,
+          "grano_qq_mz": 33.9,
+          "deficit_mm": 1,
           "perdida": false,
           "el_nino": false
         },
@@ -282,29 +282,29 @@
         },
         {
           "anio": 2018,
-          "grano_qq_mz": 15.6,
-          "deficit_mm": 65,
+          "grano_qq_mz": 17.9,
+          "deficit_mm": 61,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2019,
-          "grano_qq_mz": 19.7,
-          "deficit_mm": 64,
+          "grano_qq_mz": 19.6,
+          "deficit_mm": 65,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2020,
-          "grano_qq_mz": 31.1,
-          "deficit_mm": 10,
+          "grano_qq_mz": 31.8,
+          "deficit_mm": 8,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2021,
-          "grano_qq_mz": 31.7,
-          "deficit_mm": 8,
+          "grano_qq_mz": 32.4,
+          "deficit_mm": 6,
           "perdida": false,
           "el_nino": false
         },
@@ -317,29 +317,29 @@
         },
         {
           "anio": 2023,
-          "grano_qq_mz": 25.6,
-          "deficit_mm": 36,
+          "grano_qq_mz": 25.2,
+          "deficit_mm": 40,
           "perdida": false,
           "el_nino": true
         },
         {
           "anio": 2024,
-          "grano_qq_mz": 21.6,
-          "deficit_mm": 62,
-          "perdida": false,
+          "grano_qq_mz": 19.7,
+          "deficit_mm": 73,
+          "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2025,
-          "grano_qq_mz": 2.7,
-          "deficit_mm": 184,
+          "grano_qq_mz": 1.5,
+          "deficit_mm": 195,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2026,
           "grano_qq_mz": 0.2,
-          "deficit_mm": 309,
+          "deficit_mm": 323,
           "perdida": true,
           "el_nino": true
         }
@@ -361,13 +361,13 @@
       },
       "deficit_agua_mm": {
         "p10": 0,
-        "p50": 19,
-        "p90": 125
+        "p50": 17,
+        "p90": 130
       },
       "rendimiento_qq_mz": {
-        "p10": 20.5,
-        "p50": 39.2,
-        "p90": 46.2
+        "p10": 20.1,
+        "p50": 38.3,
+        "p90": 45.9
       },
       "suelo_mo": [
         2.5,
@@ -378,12 +378,12 @@
         2.24
       ],
       "erosion_t_ha": [
-        43,
         42,
-        43,
-        43,
-        43,
-        43
+        41,
+        42,
+        41,
+        41,
+        41
       ],
       "suelo_desnudo_dias": 115,
       "calendario": [
@@ -391,13 +391,13 @@
           "tipo": "primera",
           "nombre": "Primera: milpa (maíz + frijol)",
           "inicio": "05-22",
-          "fin": "09-24"
+          "fin": "10-02"
         },
         {
           "tipo": "postrera",
           "nombre": "Postrera: frijol",
-          "inicio": "08-29",
-          "fin": "12-02"
+          "inicio": "09-02",
+          "fin": "12-12"
         },
         {
           "tipo": "suelo_desnudo",
@@ -409,17 +409,17 @@
       "ficha": {
         "por_que": [
           "Aprovecha las lluvias de Postrera (desde el 10 ago) con frijol: si la Primera falla, todavía hay cosecha.",
-          "Baja las temporadas perdidas de 3.3 a 1.0 de cada 10."
+          "Baja las temporadas perdidas de 3.2 a 1.1 de cada 10."
         ],
         "evidencia": [
           "Balance de agua FAO-56 día por día con el clima real de 25 temporadas (NASA POWER 2001–2025): canícula típica del 12 jul al 1 ago.",
           "Monte Carlo de 1000 secuencias de 10 temporadas, con fecha de siembra y agua del suelo inciertas.",
-          "Inicio de Postrera calculado año por año con la regla de Sivakumar (1988); frijol de Postrera: 11 qq/mz típico.",
+          "Inicio de Postrera calculado año por año con la regla de Sivakumar (1988); frijol de Postrera: 10 qq/mz típico.",
           "El relevo de frijol o maicillo en Postrera es práctica común en el oriente (MAGA; FAO, Corredor Seco)."
         ],
         "beneficios": [
-          "Más comida: 39 qq/mz en total (rango 20–46) y una segunda cosecha para vender.",
-          "Menos suelo desnudo: 151 días menos al año; erosión ≈ 156 t/ha/año menos.",
+          "Más comida: 38 qq/mz en total (rango 20–46) y una segunda cosecha para vender.",
+          "Menos suelo desnudo: 145 días menos al año; erosión ≈ 157 t/ha/año menos.",
           "El frijol fija nitrógeno y corta el ciclo de plagas del maíz."
         ],
         "info_faltante": [
@@ -434,29 +434,29 @@
       },
       "recomendada": true,
       "advertencias": [],
-      "riesgo_de_10": 1,
+      "riesgo_de_10": 1.1,
       "puntajes": {
-        "agua": 5.9,
-        "comida": 7,
-        "ingreso": 7.4,
+        "agua": 6,
+        "comida": 6.9,
+        "ingreso": 7.2,
         "suelo": 5.2
       },
       "ingreso_q_mz": {
-        "p10": 9000,
-        "p50": 14700,
-        "p90": 17200
+        "p10": 8700,
+        "p50": 14500,
+        "p90": 17000
       },
       "postrera_qq_mz": {
-        "p10": 5.3,
-        "p50": 10.8,
-        "p90": 12.2
+        "p10": 4,
+        "p50": 10.2,
+        "p90": 12.1
       },
       "total_qq": {
-        "p10": 10.2,
-        "p50": 19.6,
-        "p90": 23.1
+        "p10": 10.1,
+        "p50": 19.1,
+        "p90": 23
       },
-      "escorrentia_mm": 28,
+      "escorrentia_mm": 29,
       "etapa_vulnerable": "floración",
       "suelo_mo_p10": [
         2.5,
@@ -477,43 +477,43 @@
       "anios": [
         {
           "anio": 2001,
-          "grano_qq_mz": 26.4,
-          "deficit_mm": 59,
+          "grano_qq_mz": 27.8,
+          "deficit_mm": 52,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2002,
-          "grano_qq_mz": 34.8,
-          "deficit_mm": 49,
+          "grano_qq_mz": 33,
+          "deficit_mm": 50,
           "perdida": false,
           "el_nino": true
         },
         {
           "anio": 2003,
-          "grano_qq_mz": 29,
-          "deficit_mm": 60,
+          "grano_qq_mz": 30.2,
+          "deficit_mm": 74,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2004,
-          "grano_qq_mz": 9.4,
-          "deficit_mm": 184,
+          "grano_qq_mz": 6.9,
+          "deficit_mm": 206,
           "perdida": true,
           "el_nino": true
         },
         {
           "anio": 2005,
-          "grano_qq_mz": 38.2,
-          "deficit_mm": 22,
+          "grano_qq_mz": 34.1,
+          "deficit_mm": 29,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2006,
-          "grano_qq_mz": 45.6,
-          "deficit_mm": 2,
+          "grano_qq_mz": 45.8,
+          "deficit_mm": 1,
           "perdida": false,
           "el_nino": false
         },
@@ -526,134 +526,134 @@
         },
         {
           "anio": 2008,
-          "grano_qq_mz": 44.6,
-          "deficit_mm": 0,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2009,
-          "grano_qq_mz": 42.2,
-          "deficit_mm": 1,
-          "perdida": false,
-          "el_nino": true
-        },
-        {
-          "anio": 2010,
-          "grano_qq_mz": 35.4,
-          "deficit_mm": 20,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2011,
-          "grano_qq_mz": 44.2,
-          "deficit_mm": 0,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2012,
-          "grano_qq_mz": 46.2,
-          "deficit_mm": 0,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2013,
-          "grano_qq_mz": 39.4,
-          "deficit_mm": 23,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2014,
-          "grano_qq_mz": 34.4,
-          "deficit_mm": 46,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2015,
-          "grano_qq_mz": 24.7,
-          "deficit_mm": 113,
-          "perdida": false,
-          "el_nino": true
-        },
-        {
-          "anio": 2016,
-          "grano_qq_mz": 45.7,
-          "deficit_mm": 1,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2017,
-          "grano_qq_mz": 45.1,
-          "deficit_mm": 0,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2018,
-          "grano_qq_mz": 24.4,
-          "deficit_mm": 63,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2019,
-          "grano_qq_mz": 32.3,
-          "deficit_mm": 60,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2020,
-          "grano_qq_mz": 43.5,
-          "deficit_mm": 8,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2021,
-          "grano_qq_mz": 44,
-          "deficit_mm": 6,
-          "perdida": false,
-          "el_nino": false
-        },
-        {
-          "anio": 2022,
           "grano_qq_mz": 43.7,
           "deficit_mm": 0,
           "perdida": false,
           "el_nino": false
         },
         {
+          "anio": 2009,
+          "grano_qq_mz": 42.9,
+          "deficit_mm": 1,
+          "perdida": false,
+          "el_nino": true
+        },
+        {
+          "anio": 2010,
+          "grano_qq_mz": 33.8,
+          "deficit_mm": 20,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2011,
+          "grano_qq_mz": 43.2,
+          "deficit_mm": 0,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2012,
+          "grano_qq_mz": 44.4,
+          "deficit_mm": 0,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2013,
+          "grano_qq_mz": 40.2,
+          "deficit_mm": 21,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2014,
+          "grano_qq_mz": 33.6,
+          "deficit_mm": 49,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2015,
+          "grano_qq_mz": 23.7,
+          "deficit_mm": 126,
+          "perdida": false,
+          "el_nino": true
+        },
+        {
+          "anio": 2016,
+          "grano_qq_mz": 44.9,
+          "deficit_mm": 1,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2017,
+          "grano_qq_mz": 43.7,
+          "deficit_mm": 0,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2018,
+          "grano_qq_mz": 24.3,
+          "deficit_mm": 58,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2019,
+          "grano_qq_mz": 31.8,
+          "deficit_mm": 64,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2020,
+          "grano_qq_mz": 44.3,
+          "deficit_mm": 6,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2021,
+          "grano_qq_mz": 44.9,
+          "deficit_mm": 4,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
+          "anio": 2022,
+          "grano_qq_mz": 43.1,
+          "deficit_mm": 0,
+          "perdida": false,
+          "el_nino": false
+        },
+        {
           "anio": 2023,
-          "grano_qq_mz": 35.9,
-          "deficit_mm": 34,
+          "grano_qq_mz": 35.3,
+          "deficit_mm": 38,
           "perdida": false,
           "el_nino": true
         },
         {
           "anio": 2024,
-          "grano_qq_mz": 33.5,
-          "deficit_mm": 56,
+          "grano_qq_mz": 32,
+          "deficit_mm": 66,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2025,
-          "grano_qq_mz": 7.7,
-          "deficit_mm": 175,
+          "grano_qq_mz": 6.1,
+          "deficit_mm": 185,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2026,
           "grano_qq_mz": 0.2,
-          "deficit_mm": 293,
+          "deficit_mm": 308,
           "perdida": true,
           "el_nino": true
         }
@@ -675,12 +675,12 @@
       },
       "deficit_agua_mm": {
         "p10": 0,
-        "p50": 23,
-        "p90": 133
+        "p50": 20,
+        "p90": 140
       },
       "rendimiento_qq_mz": {
-        "p10": 10,
-        "p50": 30.1,
+        "p10": 8.7,
+        "p50": 30.3,
         "p90": 37.8
       },
       "suelo_mo": [
@@ -688,14 +688,14 @@
         2.51,
         2.52,
         2.53,
-        2.54,
+        2.53,
         2.54
       ],
       "erosion_t_ha": [
-        13,
-        13,
         12,
         13,
+        12,
+        12,
         13,
         13
       ],
@@ -705,18 +705,18 @@
           "tipo": "primera",
           "nombre": "Primera: milpa (maíz + frijol)",
           "inicio": "05-23",
-          "fin": "09-25"
+          "fin": "10-03"
         },
         {
           "tipo": "cobertura",
           "nombre": "Cobertura: mucuna (frijol abono)",
           "inicio": "07-12",
-          "fin": "12-19"
+          "fin": "12-30"
         }
       ],
       "ficha": {
         "por_que": [
-          "La mucuna (frijol abono) cubre el suelo casi todo el año: menos evaporación y más agua que entra a la tierra (escorrentía 29 → 11 mm).",
+          "La mucuna (frijol abono) cubre el suelo casi todo el año: menos evaporación y más agua que entra a la tierra (escorrentía 31 → 11 mm).",
           "Es la que más cuida el suelo: erosión ≈ 13 t/ha/año (vs 198 hoy) y materia orgánica +0.04 puntos en 5 años."
         ],
         "evidencia": [
@@ -727,9 +727,9 @@
         ],
         "beneficios": [
           "Fija nitrógeno: el rendimiento del maíz puede subir con los años (hasta +15 %, aprox.); cosecha típica 30 qq/mz.",
-          "Suelo desnudo: solo ~11 días al año (vs 266 hoy).",
+          "Suelo desnudo: solo ~11 días al año (vs 260 hoy).",
           "Menos maleza y no hay que quemar.",
-          "Temporadas perdidas: 2.4 de cada 10 (vs 3.3 hoy)."
+          "Temporadas perdidas: 2.4 de cada 10 (vs 3.2 hoy)."
         ],
         "info_faltante": [
           "Dónde conseguir semilla de mucuna (frijol abono) y cuánta.",
@@ -746,14 +746,14 @@
       "advertencias": [],
       "riesgo_de_10": 2.4,
       "puntajes": {
-        "agua": 7.4,
-        "comida": 4.2,
+        "agua": 7.5,
+        "comida": 4.1,
         "ingreso": 4.2,
         "suelo": 7.9
       },
       "ingreso_q_mz": {
-        "p10": 3200,
-        "p50": 8400,
+        "p10": 2900,
+        "p50": 8500,
         "p90": 10600
       },
       "postrera_qq_mz": {
@@ -762,8 +762,8 @@
         "p90": 0
       },
       "total_qq": {
-        "p10": 5,
-        "p50": 15,
+        "p10": 4.3,
+        "p50": 15.1,
         "p90": 18.9
       },
       "escorrentia_mm": 11,
@@ -771,59 +771,59 @@
       "suelo_mo_p10": [
         2.5,
         2.49,
+        2.48,
         2.49,
         2.49,
-        2.5,
-        2.5
+        2.49
       ],
       "suelo_mo_p90": [
         2.5,
         2.52,
-        2.54,
+        2.53,
         2.55,
         2.56,
-        2.58
+        2.57
       ],
       "anios": [
         {
           "anio": 2001,
-          "grano_qq_mz": 17.3,
-          "deficit_mm": 58,
+          "grano_qq_mz": 20.1,
+          "deficit_mm": 51,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2002,
-          "grano_qq_mz": 21.7,
-          "deficit_mm": 57,
-          "perdida": false,
+          "grano_qq_mz": 20.4,
+          "deficit_mm": 58,
+          "perdida": true,
           "el_nino": true
         },
         {
           "anio": 2003,
-          "grano_qq_mz": 18.2,
-          "deficit_mm": 67,
+          "grano_qq_mz": 17.5,
+          "deficit_mm": 82,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2004,
-          "grano_qq_mz": 4.9,
-          "deficit_mm": 193,
+          "grano_qq_mz": 3.3,
+          "deficit_mm": 217,
           "perdida": true,
           "el_nino": true
         },
         {
           "anio": 2005,
-          "grano_qq_mz": 26.1,
-          "deficit_mm": 29,
+          "grano_qq_mz": 24.6,
+          "deficit_mm": 38,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2006,
-          "grano_qq_mz": 31.3,
-          "deficit_mm": 4,
+          "grano_qq_mz": 31.7,
+          "deficit_mm": 3,
           "perdida": false,
           "el_nino": false
         },
@@ -843,21 +843,21 @@
         },
         {
           "anio": 2009,
-          "grano_qq_mz": 31.9,
+          "grano_qq_mz": 31.8,
           "deficit_mm": 3,
           "perdida": false,
           "el_nino": true
         },
         {
           "anio": 2010,
-          "grano_qq_mz": 27.1,
+          "grano_qq_mz": 26.6,
           "deficit_mm": 24,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2011,
-          "grano_qq_mz": 32.4,
+          "grano_qq_mz": 32.5,
           "deficit_mm": 0,
           "perdida": false,
           "el_nino": false
@@ -871,29 +871,29 @@
         },
         {
           "anio": 2013,
-          "grano_qq_mz": 25,
-          "deficit_mm": 28,
+          "grano_qq_mz": 25.9,
+          "deficit_mm": 27,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2014,
-          "grano_qq_mz": 20.2,
-          "deficit_mm": 53,
+          "grano_qq_mz": 19.2,
+          "deficit_mm": 57,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2015,
-          "grano_qq_mz": 11.2,
-          "deficit_mm": 122,
+          "grano_qq_mz": 10.2,
+          "deficit_mm": 136,
           "perdida": true,
           "el_nino": true
         },
         {
           "anio": 2016,
-          "grano_qq_mz": 31.3,
-          "deficit_mm": 6,
+          "grano_qq_mz": 31.8,
+          "deficit_mm": 4,
           "perdida": false,
           "el_nino": false
         },
@@ -906,29 +906,29 @@
         },
         {
           "anio": 2018,
-          "grano_qq_mz": 15,
-          "deficit_mm": 67,
+          "grano_qq_mz": 17.5,
+          "deficit_mm": 62,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2019,
-          "grano_qq_mz": 18.1,
-          "deficit_mm": 69,
+          "grano_qq_mz": 17.6,
+          "deficit_mm": 73,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2020,
-          "grano_qq_mz": 29.7,
-          "deficit_mm": 10,
+          "grano_qq_mz": 30.6,
+          "deficit_mm": 7,
           "perdida": false,
           "el_nino": false
         },
         {
           "anio": 2021,
-          "grano_qq_mz": 30.2,
-          "deficit_mm": 9,
+          "grano_qq_mz": 31,
+          "deficit_mm": 6,
           "perdida": false,
           "el_nino": false
         },
@@ -941,42 +941,42 @@
         },
         {
           "anio": 2023,
-          "grano_qq_mz": 23.1,
-          "deficit_mm": 43,
+          "grano_qq_mz": 22.6,
+          "deficit_mm": 47,
           "perdida": false,
           "el_nino": true
         },
         {
           "anio": 2024,
-          "grano_qq_mz": 20.4,
-          "deficit_mm": 63,
+          "grano_qq_mz": 18.5,
+          "deficit_mm": 75,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2025,
-          "grano_qq_mz": 3,
-          "deficit_mm": 181,
+          "grano_qq_mz": 1.8,
+          "deficit_mm": 192,
           "perdida": true,
           "el_nino": false
         },
         {
           "anio": 2026,
           "grano_qq_mz": 0.2,
-          "deficit_mm": 296,
+          "deficit_mm": 312,
           "perdida": true,
           "el_nino": true
         }
       ]
     }
   ],
-  "incertidumbre": "Datos de una zona de ~50 km (no de tu parcela exacta). Los rangos van del 10 % al 90 % de 10000 temporadas simuladas. El rendimiento puede variar ±30–50 %: compará opciones, no prometemos quintales. En años El Niño ([2002 2004 2009 2015 2023]) hoy se pierden 5.1 de cada 10 temporadas; en los demás, 2.9. El Niño está activo ahora (ONI 2.5, ASO 2026).",
+  "incertidumbre": "Datos de una zona de ~50 km (no de tu parcela exacta). Los rangos van del 10 % al 90 % de 10000 temporadas simuladas. El rendimiento puede variar ±30–50 %: compará opciones, no prometemos quintales. En años El Niño ([2002 2004 2009 2015 2023]) hoy se pierden 5.1 de cada 10 temporadas; en los demás, 2.8. El Niño está activo ahora (ONI 2.5, ASO 2026).",
   "ia_vs_estadistica": {
-    "prob_ia": 0.47,
+    "prob_ia": 0.49,
     "prob_estadistica": 0.51,
-    "error_ia": 0.155,
-    "error_estadistica": 0.16,
-    "nota": "IA: regresión logística con 4 datos conocidos al sembrar (ONI AMJ, lluvia 15-abr–31-may (z), humedad raíz GWETROOT mayo (z), Tmáx abr–may (z)) entrenada con 825 temporadas (33 zonas NASA POWER × 2001–2025). Estadística: frecuencia de pérdidas por zona y estado de El Niño. Validación dejando un año fuera: error de Brier IA 0.155 vs estadística 0.160 (menor es mejor) → acá gana la IA. Probabilidad de perder la próxima Primera si El Niño sigue al sembrar: las dos se muestran; el motor usa la estadística."
+    "error_ia": 0.154,
+    "error_estadistica": 0.161,
+    "nota": "IA: regresión logística con 4 datos conocidos al sembrar (ONI AMJ, lluvia 15-abr–31-may (z), humedad raíz GWETROOT mayo (z), Tmáx abr–may (z)) entrenada con 825 temporadas (33 zonas NASA POWER × 2001–2025). Estadística: frecuencia de pérdidas por zona y estado de El Niño. Validación dejando un año fuera: error de Brier IA 0.154 vs estadística 0.161 (menor es mejor) → acá gana la IA. Probabilidad de perder la próxima Primera si El Niño sigue al sembrar: las dos se muestran; el motor usa la estadística."
   },
   "validacion": {
     "detectadas": 4,
@@ -1100,7 +1100,7 @@
       {
         "anio": 2024,
         "documentada": false,
-        "detectada": false
+        "detectada": true
       },
       {
         "anio": 2025,
@@ -1153,14 +1153,14 @@
       "uso": "cambios mensuales de lluvia y temperatura a 2040"
     }
   ],
-  "generado": "2026-11-14T17:14:48Z",
+  "generado": "2026-11-14T17:20:15Z",
   "siembra_aqui": "05-14",
   "periodos": [
     {
       "tipo": "primera",
       "nombre": "Primera",
       "inicio": "05-14",
-      "fin": "09-16"
+      "fin": "09-24"
     },
     {
       "tipo": "canicula",
@@ -1177,8 +1177,8 @@
     {
       "tipo": "vulnerable",
       "nombre": "Floración: etapa más sensible a la falta de agua",
-      "inicio": "07-08",
-      "fin": "08-17"
+      "inicio": "07-11",
+      "fin": "08-23"
     }
   ],
   "clima_mensual": [
@@ -1316,7 +1316,7 @@
       2023
     ],
     "riesgo_nino_s0": 5.1,
-    "riesgo_otros_s0": 2.9
+    "riesgo_otros_s0": 2.8
   },
   "zona": "Jocotán, Chiquimula · zona climática NASA POWER de ~50 km (celda c15_m89.375) · 909 m de altura · pendiente media 30 % (SRTM)",
   "suelo": {
@@ -1338,7 +1338,7 @@
     "📍 Jocotán, Chiquimula · zona NASA POWER (~50 km)",
     "🌱 Primera: sembrá entre el 29 abr y el 1 jun (lo más común: desde el 14 may, con la tierra mojada).",
     "🌵 Canícula típica: 12 jul al 1 ago; la floración cae en esas fechas: es la etapa más sensible.",
-    "✅ Mejor para vos: S1 (Relevo de frijol en Postrera) · perdés 1.0 de 10 temporadas vs 3.3 hoy."
+    "✅ Mejor para vos: S1 (Relevo de frijol en Postrera) · perdés 1.1 de 10 temporadas vs 3.2 hoy."
   ],
   "motor": "fieldshift-motor 1.0 (FAO-56 + FAO-33 + Monte Carlo 2001–2025)"
 }

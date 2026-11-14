@@ -28,6 +28,7 @@ type SeasonResult struct {
 	StageDef    [4]float64
 	WorstStage  int
 	MaxDrySpell int
+	FrostDays   int // días con Tmín ≤ 0 °C con el cultivo ya nacido
 }
 
 // Interception pérdida inicial diaria (mm) por intercepción y evaporación directa de lluvias pequeñas.
@@ -98,6 +99,9 @@ func RunCrop(s *Site, c fao56.Crop, sow int, o CropOpts) SeasonResult {
 			dr = taw
 		}
 		st := c.StageAt(d)
+		if (st == 1 || st == 2) && s.Tmin[i] <= 0 { // helada con el cultivo en crecimiento o floración
+			r.FrostDays++
+		}
 		etaS[st] += eta
 		etcS[st] += etc
 		r.ETc += etc
@@ -108,6 +112,9 @@ func RunCrop(s *Site, c fao56.Crop, sow int, o CropOpts) SeasonResult {
 	}
 	r.Deficit = r.ETc - r.ETa
 	r.YieldRatio = fao56.YieldRatio(c.Ky, etaS, etcS)
+	if r.FrostDays > 0 && !c.IsCover { // helada: daño fuerte en el follaje (aproximado)
+		r.YieldRatio *= math.Pow(0.7, math.Min(float64(r.FrostDays), 3))
+	}
 	worst := 0.0
 	for st := 0; st < 4; st++ {
 		r.StageDef[st] = etcS[st] - etaS[st]

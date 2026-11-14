@@ -120,6 +120,7 @@ func (e *Engine) build(req contract.PlanRequest, m *geo.Municipio) (contract.Pla
 	p.CaniculaDias = rango(cl.CaniculaDays, 1)
 	p.FalsoInicioDe10 = math.Round(cl.FalseStartRate*100) / 10
 	main, _ := sim.MainCrop(req.Cultivo)
+	main = s.Scaled(main) // ciclo más largo con el frío del altiplano
 	flowerA := sow + float64(main.L[0]+main.L[1])
 	flowerB := flowerA + float64(main.L[2])
 	p.Periodos = []contract.Periodo{
