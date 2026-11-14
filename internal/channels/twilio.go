@@ -137,6 +137,9 @@ func (t *Twilio) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if s.Tipo == "image" && s.ImageURL != "" {
 				m.Media = base + s.ImageURL
 			}
+			if s.Tipo == "video" && s.VideoURL != "" {
+				m.Media = base + s.VideoURL // Twilio baja el MP4 de /api/sim/video.mp4 (≤ 16 MB)
+			}
 			resp.Messages = append(resp.Messages, m)
 		}
 	}
@@ -192,6 +195,16 @@ func (t *Twilio) EnviarImagen(tel string, png []byte, caption string) error {
 	id := t.Media.Guardar(png)
 	return t.enviar(url.Values{"Body": {caption}, "MediaUrl": {t.PublicURL + "/api/cards/media/" + id + ".png"}}, tel)
 }
+
+// EnviarVideo manda el MP4 por MediaUrl (requiere PublicURL).
+func (t *Twilio) EnviarVideo(tel string, s bot.Salida) error {
+	if t.PublicURL == "" {
+		return t.EnviarTexto(tel, s.Texto)
+	}
+	return t.enviar(url.Values{"Body": {s.Texto}, "MediaUrl": {t.PublicURL + s.VideoURL}}, tel)
+}
+
+var _ CanalVideo = (*Twilio)(nil)
 
 // EnviarPlantilla usa ContentSid si está configurado; si no, manda las variables como texto
 // (válido dentro de la ventana de 24 h del sandbox).
