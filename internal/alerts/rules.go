@@ -185,6 +185,12 @@ func RuleInicio(c Ctx) *Event {
 	if md < 415 || md > 715 {
 		return nil
 	}
+	// si las lluvias ya empezaron hace más de 10 días (en lo observado hasta ayer), ya no es "inicio": lo cubre la canícula
+	if c.Clim != nil && c.Clim.Climate() != nil {
+		if od, ok := ObservedOnsetBefore(c.Clim.Climate(), c.Date.Year(), c.Date); ok && c.Date.Sub(od) > 10*24*time.Hour {
+			return nil
+		}
+	}
 	obs3 := 0.0
 	if len(c.Obs) >= 3 {
 		for _, v := range c.Obs[len(c.Obs)-3:] {

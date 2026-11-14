@@ -225,8 +225,28 @@ func TestTextoOrdenYEtapa(t *testing.T) {
 			t.Fatalf("%s sin título/plantilla/acciones: %+v", ty, r)
 		}
 	}
+	pe := Render(Event{Tipo: TPerspectiva, ENSO: "nino", Analogos: []int{2015, 2023}}, Persona{Municipio: "X", Idioma: "es"}).Full()
+	if !strings.Contains(pe, "perspectiva: muestra una tendencia") || strings.Contains(pe, "seasonal") {
+		t.Fatalf("perspectiva en español: %s", pe)
+	}
 	s, bs := RenderSeguimiento(Persona{Municipio: "Camotán", Cultivo: "maiz", FechaSiembra: "2026-05-15"}, day("2026-07-13"))
 	if len(bs) != 4 || !strings.Contains(s.Etapa, "floración") {
 		t.Fatalf("seguimiento: %+v %v", s, bs)
+	}
+}
+
+func TestSinInicioSiYaLlovio(t *testing.T) {
+	// lo observado: lluvias desde el 20 de mayo
+	pr := cat(rep(0, 49), rep(10, 60)) // 1 abr + 49 días = 20 may
+	c := &data.Climate{Start: "2026-04-01", PR: pr, Tmax: rep(30, len(pr)), Tmin: rep(18, len(pr))}
+	cl := &Clim{climate: c}
+	ms := runs(rep(8, 16), rep(8, 16))
+	ctx := Ctx{Date: day("2026-07-10"), Clim: cl, Obs: cl.ObsBefore(day("2026-07-10"), 10), Members: ms}
+	if e := RuleInicio(ctx); e != nil {
+		t.Fatalf("en julio, con lluvias desde mayo, no hay aviso de inicio: %+v", e)
+	}
+	ctx.Date, ctx.Obs = day("2026-05-24"), cl.ObsBefore(day("2026-05-24"), 10)
+	if e := RuleInicio(ctx); e == nil || e.Tipo != TInicio {
+		t.Fatalf("a los pocos días del inicio sí avisa: %+v", e)
 	}
 }

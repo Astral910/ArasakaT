@@ -14,3 +14,4 @@ e2e/playwright-report/
 /bin/
 /fieldshift-server*
 sesiones.json
+var/

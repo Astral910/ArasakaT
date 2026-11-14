@@ -464,3 +464,21 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	return ks
 }
+
+// ParaBot adapta el Store a la interfaz que declara internal/bot (bot.Suscripciones):
+// Suscribir(s) error · Baja(tel) error · RegistrarRespuesta(tel, alertaID, respuesta) error.
+type ParaBot struct{ *Store }
+
+// Bot devuelve el adaptador para el bot.
+func (s *Store) Bot() ParaBot { return ParaBot{s} }
+
+// Suscribir alta o actualización.
+func (p ParaBot) Suscribir(s contract.Suscriptor) error {
+	_, err := p.Store.Suscribir(s)
+	return err
+}
+
+// RegistrarRespuesta respuesta del seguimiento (bien | amarillas | seca | perdida).
+func (p ParaBot) RegistrarRespuesta(tel, alertaID, respuesta string) error {
+	return p.Store.GuardarRespuesta(tel, alertaID, respuesta)
+}

@@ -194,7 +194,7 @@ func (e *Engine) Run(date time.Time, force bool) (RunResult, error) {
 		if date.Weekday() == time.Monday && !e.enCooldown(s.ID, TSeguimiento, date) {
 			t, _ := RenderSeguimiento(p, date)
 			out = append(out, contract.Alerta{SuscriptorID: s.ID, MunicipioID: m.ID, Tipo: TSeguimiento, FechaEmision: ds, Inicio: ds,
-				Titulo: t.Titulo, Texto: t.Full(), Acciones: t.Acciones, Plantilla: t.Plantilla, Vars: t.Vars(m.Name)})
+				Titulo: t.Titulo, Texto: t.Full(), Acciones: t.Acciones, Plantilla: t.Plantilla, Vars: SeguimientoVars(p, t)})
 		}
 		for i := range out {
 			a := &out[i]
@@ -245,6 +245,9 @@ func (e *Engine) send(s contract.Suscriptor, a contract.Alerta, p Persona) (stri
 	if e.Store.VentanaAbierta(s.Telefono, e.now()) {
 		if a.Tipo == TSeguimiento {
 			_, bs := RenderSeguimiento(p, Day(e.now()))
+			for i := range bs {
+				bs[i].ID += ":" + a.ID
+			}
 			return "botones", e.Mensajero.EnviarBotones(s.Telefono, a.Texto, bs)
 		}
 		return "texto", e.Mensajero.EnviarTexto(s.Telefono, a.Texto)
