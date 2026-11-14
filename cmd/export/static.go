@@ -119,6 +119,8 @@ func exportStatic(e *plan.Engine, out string) error {
 		Total     int         `json:"total"`
 		Falsas    int         `json:"falsas_alarmas"`
 		Filas     []valid.Row `json:"anios"`
+		NDVI      any         `json:"ndvi_modis,omitempty"`
+		Combinada int         `json:"detectadas_motor_o_ndvi"`
 	}
 	var vs []vrow
 	for _, h := range heroes {
@@ -127,10 +129,24 @@ func exportStatic(e *plan.Engine, out string) error {
 			continue
 		}
 		r := plan.Validation(s)
-		vs = append(vs, vrow{h, r.Hits, r.Total, r.FalseAlarms, r.Years})
+		row := vrow{Municipio: h, Hits: r.Hits, Total: r.Total, Falsas: r.FalseAlarms, Filas: r.Years}
+		if nd, err := e.NDVIValidation(h); err == nil {
+			row.NDVI = nd
+			low := map[int]bool{}
+			for _, y := range nd.Years {
+				low[y.Year] = y.Low
+			}
+			for _, y := range r.Years {
+				if y.Documented && (y.Detected || low[y.Year]) {
+					row.Combinada++
+				}
+			}
+		}
+		vs = append(vs, row)
 	}
 	write(filepath.Join(out, "validacion.json"), map[string]any{
 		"regla":        "Temporada detectada como mala si el grano de la milpa (S0, siembra al inicio de lluvias) < 70 % de lo normal según FAO-56/FAO-33 con NASA POWER.",
+		"regla_ndvi":   "Chequeo independiente: NDVI MODIS medio de ago–sep con anomalía z ≤ −0.8 respecto a 2001–2025 (vegetación estresada).",
 		"documentadas": valid.Documented,
 		"municipios":   vs,
 	}, true)

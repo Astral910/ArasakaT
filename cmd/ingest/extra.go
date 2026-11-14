@@ -382,7 +382,8 @@ func stepNDVI() error {
 	for _, s := range ndviSites {
 		dates, err := get(fmt.Sprintf("https://modis.ornl.gov/rst/api/v1/MOD13Q1/dates?latitude=%.4f&longitude=%.4f", s.Lat, s.Lon))
 		if err != nil {
-			return fmt.Errorf("ORNL DAAC: %v", err)
+			log.Printf("ORNL DAAC no responde (%v): uso NASA GIBS", err)
+			return stepNDVIGIBS()
 		}
 		var dl struct {
 			Dates []struct {

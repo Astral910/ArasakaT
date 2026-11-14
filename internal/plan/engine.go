@@ -341,3 +341,44 @@ func readStatic(path string, v any) bool {
 	}
 	return data.ReadJSON(path, v) == nil
 }
+
+// NDVIValidation compara el NDVI de MODIS (ago–sep) con el motor, si hay serie en data/ndvi/<id>.json.
+func (e *Engine) NDVIValidation(id string) (*valid.NDVIResult, error) {
+	var raw struct {
+		Source string             `json:"source"`
+		NDVI   map[string]float64 `json:"ndvi"`
+	}
+	if err := data.ReadJSON(filepath.Join(e.Dir, "ndvi", id+".json"), &raw); err != nil {
+		return nil, err
+	}
+	m, ok := e.Muni.ByID[id]
+	if !ok {
+		return nil, fmt.Errorf("municipio %s", id)
+	}
+	s, err := e.Site(m, "2026")
+	if err != nil {
+		return nil, err
+	}
+	sum, cnt := map[int]float64{}, map[int]float64{}
+	for d, v := range raw.NDVI {
+		var y int
+		fmt.Sscanf(d, "%d", &y)
+		sum[y] += v
+		cnt[y]++
+	}
+	nd := map[int]float64{}
+	for y := range sum {
+		if y <= 2025 {
+			nd[y] = sum[y] / cnt[y]
+		}
+	}
+	d := sim.Strategies(sim.Config{Crop: "milpa"})[0]
+	eng, det := map[int]float64{}, map[int]bool{}
+	for _, y := range s.ClimYears() {
+		yo := s.RunYear(d, y, 0, 1, sim.Config{Crop: "milpa"})
+		eng[y] = yo.FoodQQ / d.Main.YmQQMz
+		det[y] = yo.FoodQQ < sim.LossThreshold*d.Main.YmQQMz
+	}
+	r := valid.CompareNDVI(nd, eng, det, raw.Source)
+	return &r, nil
+}
