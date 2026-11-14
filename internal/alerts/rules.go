@@ -30,6 +30,8 @@ type Ctx struct {
 	InicioEmitido *time.Time
 	// DryThr umbral de día seco por modelo (CalibrateDry). Vacío = 1 mm para todos.
 	DryThr map[string]float64
+	// HeavyThr umbral de lluvia fuerte por modelo (CalibrateHeavy). Vacío = regla fija P99 / 3 días > P95.
+	HeavyThr map[string]float64
 }
 
 // Event: resultado de una regla, antes de escribir el texto para cada persona.
@@ -54,6 +56,42 @@ type Event struct {
 
 // inSeason: temporada de lluvias (mayo–octubre), cuando una racha seca daña la milpa.
 func inSeason(d time.Time) bool { m := d.Month(); return m >= 5 && m <= 10 }
+
+// heavyCalibrated: cada miembro con su umbral (el de su modelo o la mediana de los calibrados).
+func heavyCalibrated(c Ctx) *Event {
+	var starts, maxs []float64
+	yes, tot := 0, 0
+	for _, m := range c.Members {
+		h := min(len(m.PR), HeavyHorizon)
+		if h < 3 {
+			continue
+		}
+		tot++
+		thr := dryThr(c.HeavyThr, m.Model)
+		first, mx := -1, 0.0
+		for d := 0; d < h; d++ {
+			mx = math.Max(mx, m.PR[d])
+			if first < 0 && m.PR[d] > thr {
+				first = d
+			}
+		}
+		if first >= 0 {
+			yes++
+			starts = append(starts, float64(first))
+			maxs = append(maxs, mx)
+		}
+	}
+	if tot == 0 {
+		return nil
+	}
+	p := float64(yes) / float64(tot)
+	if p < MinProb {
+		return nil
+	}
+	st := int(math.Round(median(starts)))
+	return &Event{Tipo: TLluviaFuerte, Emision: c.Date, Inicio: c.Date.AddDate(0, 0, st), Dias: 1, Prob: data.R2(p),
+		Miembros: yes, Total: tot, MM: data.R1(median(maxs))}
+}
 
 // IsCaniculaWindow: ventana típica de la canícula en el Corredor Seco (15 jun – 31 ago).
 func IsCaniculaWindow(d time.Time) bool {
@@ -123,10 +161,14 @@ func HeavyThreshold(cl *Clim) float64 {
 	return math.Min(cl.P99, HeavyAbsMM)
 }
 
-// RuleLluviaFuerte: un día > P99 local (o ≥ 50 mm), o 3 días seguidos > P95, en los próximos 7 días.
+// RuleLluviaFuerte: en los próximos 7 días, un día por encima del umbral calibrado del propio modelo (CalibrateHeavy).
+// Sin calibración (no hay archivo de pronósticos): un día > P99 local (tope 50 mm) o 3 días seguidos > P95.
 func RuleLluviaFuerte(c Ctx) *Event {
 	if c.Clim == nil {
 		return nil
+	}
+	if len(c.HeavyThr) > 0 {
+		return heavyCalibrated(c)
 	}
 	thr1 := HeavyThreshold(c.Clim)
 	thr3 := c.Clim.P95

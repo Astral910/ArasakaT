@@ -38,13 +38,13 @@ type Engine struct {
 
 	mu    sync.Mutex
 	clims map[string]*Clim
-	cals  map[string]map[string]float64
+	cals  map[string]Calib
 	run   sync.Mutex
 }
 
 // NewEngine carga municipios y ONI de dataDir.
 func NewEngine(st *store.Store, fp *forecast.Provider, m contract.Mensajero, dataDir string) (*Engine, error) {
-	e := &Engine{Store: st, Forecast: fp, Mensajero: m, DataDir: dataDir, Munis: map[string]Muni{}, clims: map[string]*Clim{}, cals: map[string]map[string]float64{}}
+	e := &Engine{Store: st, Forecast: fp, Mensajero: m, DataDir: dataDir, Munis: map[string]Muni{}, clims: map[string]*Clim{}, cals: map[string]Calib{}}
 	var ms []Muni
 	if err := data.ReadJSON(filepath.Join(dataDir, "municipios.json"), &ms); err != nil {
 		return nil, fmt.Errorf("alerts: municipios: %w", err)
@@ -77,14 +77,23 @@ func (e *Engine) Clim(m Muni) (*Clim, error) {
 
 // DryCal umbral de día seco por modelo para un municipio: calibrado con su archivo de pronósticos o, si no tiene,
 // con el del municipio con archivo más cercano (misma región climática del Corredor Seco o del altiplano).
-func (e *Engine) DryCal(m Muni) map[string]float64 {
+func (e *Engine) DryCal(m Muni) map[string]float64 { return e.Cal(m).Dry }
+
+// Calib umbrales por modelo (día seco y lluvia fuerte) y municipio del que salen.
+type Calib struct {
+	Dry, Heavy map[string]float64
+	Desde      string
+}
+
+// Cal calibraciones de un municipio (en caché): las de su archivo o las del municipio con archivo más cercano.
+func (e *Engine) Cal(m Muni) Calib {
 	e.mu.Lock()
 	if c, ok := e.cals[m.ID]; ok {
 		e.mu.Unlock()
 		return c
 	}
 	e.mu.Unlock()
-	var cal map[string]float64
+	var cal Calib
 	if e.Forecast != nil && e.Forecast.Archives != nil {
 		best, bd := "", math.Inf(1)
 		for _, id := range e.Forecast.Archives.Sites() {
@@ -98,7 +107,8 @@ func (e *Engine) DryCal(m Muni) map[string]float64 {
 		}
 		if best != "" {
 			if cl, err := e.Clim(e.Munis[best]); err == nil {
-				cal = CalibrateDry(cl, e.Forecast.Archives.Get(best))
+				a := e.Forecast.Archives.Get(best)
+				cal = Calib{Dry: CalibrateDry(cl, a), Heavy: CalibrateHeavy(cl, a), Desde: best}
 			}
 		}
 	}
@@ -175,7 +185,7 @@ func (e *Engine) Run(date time.Time, force bool) (RunResult, error) {
 			}
 			members[k] = ms
 		}
-		ctx := Ctx{Date: date, Members: members[k], Obs: cl.ObsBefore(date, 10), Clim: cl, ONI: e.ONI, DryThr: e.DryCal(m)}
+		ctx := Ctx{Date: date, Members: members[k], Obs: cl.ObsBefore(date, 10), Clim: cl, ONI: e.ONI, DryThr: e.Cal(m).Dry, HeavyThr: e.Cal(m).Heavy}
 		if em, ini, ok := e.Store.UltimaAlerta(s.ID, TInicio, ds); ok && em[:4] == ds[:4] {
 			if t, err := time.Parse("2006-01-02", em); err == nil {
 				_ = ini
