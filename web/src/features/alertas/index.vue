@@ -160,7 +160,7 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 4
 th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line, rgba(42, 33, 24, 0.12)); }
 thead th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); font-weight: 700; }
 tbody th { font-weight: 700; white-space: nowrap; }
-.pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 700; background: var(--bg-2, #ece2d0); }
+.pill { display: inline-block; white-space: nowrap; padding: 3px 10px; border-radius: 999px; font-weight: 700; background: var(--bg-2, #ece2d0); }
 .pill.ok { background: color-mix(in srgb, var(--jade, #2a8a66) 16%, transparent); color: var(--jade, #2a8a66); }
 .pill.malo { background: color-mix(in srgb, var(--granada, #b5343c) 12%, transparent); color: var(--granada, #b5343c); }
 .reglas { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 0.84rem; line-height: 1.5; display: grid; gap: 4px; }
