@@ -306,7 +306,7 @@ const secciones = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 
             <div v-if="confianza?.oni_pronostico != null"><dt>{{ tx('oniPron') }}</dt><dd><N :src="`${C}.oni_pronostico`" :dec="1" /><small v-if="confianza.oni_fuente" class="muted"> · {{ confianza.oni_fuente }}</small></dd></div>
             <div v-if="confianza?.dias_pronostico"><dt>{{ tx('pron16') }}</dt><dd><N :src="`${C}.dias_pronostico`" /> {{ tx('dias') }}<template v-if="confianza.fecha_pronostico"> · {{ tx('corrida') }} {{ fechaISO(confianza.fecha_pronostico) }}</template></dd></div>
             <div v-if="confianza?.prob_clases?.length === 3" class="ancho"><dt>{{ tx('probClases') }}</dt><dd class="clases">
-              <span v-for="(c, j) in ['perdida', 'regular', 'buena']" :key="c" class="clase" :class="c"><i :style="{ width: (confianza.prob_clases[j] * 100) + '%' }" /><em>{{ tx('clase_' + c) }}</em> <N :src="`${C}.prob_clases.${j}`" :x="100" u="%" /></span>
+              <span v-for="(c, j) in ['perdida', 'regular', 'buena']" :key="c" class="clase" :class="c"><i :style="{ width: (confianza.prob_clases[j] * 100) + '%' }" /><em>{{ tx('clase_' + c) }}</em><b><N :src="`${C}.prob_clases.${j}`" :x="100" u="%" /></b></span>
             </dd></div>
             <div v-if="confianza?.regla" class="ancho"><dt>{{ tx('regla') }}</dt><dd class="chico">{{ confianza.regla }}</dd></div>
             <div class="ancho"><dt>{{ tx('analogos') }}</dt><dd><span v-if="!analogos.length">{{ RAYA }}</span><span v-for="a in analogos" :key="a" class="anio">{{ a }}</span></dd></div>
@@ -317,7 +317,7 @@ const secciones = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 
           <p class="nota chico">{{ datos.escenario !== 'pronostico' ? tx('escTipico') : escEfectivo === 'remuestreo-enso' ? tx('escRemuestreo') : tx('escPron') }}</p>
           <table class="tabla">
             <caption>{{ tx('simTabla') }}</caption>
-            <thead><tr><th></th><th>{{ tx('anioReal') }}</th><th>{{ tx('grano') }}</th><th>{{ tx('perdida') }}</th></tr></thead>
+            <thead><tr><th></th><th>{{ tx('anioReal') }}</th><th>{{ tx('grano') }}</th><th>{{ tx('perdida') }}</th><th>{{ tx('probPerdCorta') }}</th><th>{{ tx('cosechaRango') }}</th></tr></thead>
             <tbody>
               <tr v-for="e in est" :key="e.id" :class="{ rec: e.recomendada }">
                 <th :style="{ color: COLOR[e.id] }">{{ e.id }} · {{ e.nombre }}</th>
@@ -325,8 +325,10 @@ const secciones = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 
                   <td><N :src="`sim.${e.id}:anual.0.anio_real`" /></td>
                   <td><N :src="`sim.${e.id}:anual.0.grano_qq_mz`" :dec="1" /></td>
                   <td>{{ datos.sim[e.id as 'S0']!.anual[0].perdida ? tx('si') : tx('no') }}</td>
+                  <td><N :src="`sim.${e.id}:confianza.prob_perdida`" :x="100" u="%" /></td>
+                  <td><N :src="`sim.${e.id}:confianza.cosecha_p10`" :dec="1" /> / <b><N :src="`sim.${e.id}:confianza.cosecha_p50`" :dec="1" /></b> / <N :src="`sim.${e.id}:confianza.cosecha_p90`" :dec="1" /></td>
                 </template>
-                <td v-else colspan="3">{{ RAYA }}</td>
+                <td v-else colspan="5">{{ RAYA }}</td>
               </tr>
             </tbody>
           </table>
@@ -738,7 +740,7 @@ h3 { font-family: var(--font-display); }
 
 .sitio { margin: .6rem 0; padding: .6rem .8rem; background: #f8f3ea; border-radius: 8px; display: grid; gap: .25rem; }
 .clases { display: grid; gap: .25rem; }
-.clase { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .5rem; position: relative; font-size: .82rem; padding: .1rem .4rem; border-radius: 4px; overflow: hidden; }
+.clase { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; position: relative; font-size: .82rem; padding: .1rem .4rem; border-radius: 4px; overflow: hidden; }
 .clase i { position: absolute; inset: 0 auto 0 0; opacity: .22; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .clase.perdida i { background: #b5343c; } .clase.regular i { background: #e0a526; } .clase.buena i { background: #2a8a66; }
 .clase em { font-style: normal; position: relative; }
