@@ -70,3 +70,11 @@ describe('modo grabación', () => {
     expect(opcionesDesdeURL('?rec=1')).toMatchObject({ calidad: '720p', vertical: false, fps: undefined })
   })
 })
+
+describe('tarjeta final', () => {
+  it('URL corta y legible', async () => {
+    const { urlCorta } = await import('./marca')
+    expect(urlCorta('https://fieldshift.onrender.com/sandbox?municipio_id=jocotan-chiquimula&rec=1')).toBe('fieldshift.onrender.com/sandbox')
+    expect(urlCorta('fieldshift.onrender.com')).toBe('fieldshift.onrender.com')
+  })
+})

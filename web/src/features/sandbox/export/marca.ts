@@ -41,6 +41,16 @@ export function huipil(g: CanvasRenderingContext2D, y: number, w: number, h: num
   g.restore()
 }
 
+/** "https://x.app/sandbox?municipio_id=…" → "x.app/sandbox" (legible en la tarjeta final). */
+export function urlCorta(u: string): string {
+  try {
+    const x = new URL(u)
+    return (x.host + x.pathname).replace(/\/$/, '')
+  } catch {
+    return u.replace(/^https?:\/\//, '').split('?')[0]
+  }
+}
+
 function caja(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   g.beginPath()
   if (g.roundRect) g.roundRect(x, y, w, h, r)
@@ -150,7 +160,8 @@ export class Compositor {
       const px = 56 * s, by = vertical ? H * 0.7 : H * 0.74
       const gr = g.createLinearGradient(0, by - 200 * s, 0, H)
       gr.addColorStop(0, 'rgba(10,6,3,0)')
-      gr.addColorStop(1, `rgba(10,6,3,${0.62 * aT})`)
+      gr.addColorStop(0.45, `rgba(10,6,3,${0.42 * aT})`)
+      gr.addColorStop(1, `rgba(10,6,3,${0.78 * aT})`)
       g.fillStyle = gr
       g.fillRect(0, by - 200 * s, W, H - by + 200 * s)
       const dy = (1 - suave(0.4, 1.5, tv)) * 24 * s
@@ -166,7 +177,7 @@ export class Compositor {
       g.shadowBlur = 18 * s
       g.font = `600 ${(vertical ? 62 : 76) * s}px ${DISPLAY}`
       g.fillText(m.municipio, px - 3 * s, by - 18 * s + dy)
-      g.shadowBlur = 0
+      g.shadowBlur = 8 * s
       g.font = `600 ${22 * s}px ${UI}`
       g.fillStyle = 'rgba(245,239,228,0.92)'
       const sub = [m.departamento, subtitulo(m)].filter(Boolean).join(' · ')
@@ -382,7 +393,7 @@ export class Compositor {
       g.globalAlpha = a(1.1)
       g.fillStyle = C.hueso
       g.font = `700 ${18 * s}px ${UI}`
-      g.fillText(m.url, px, H - 50 * s, W - 2 * px)
+      g.fillText(urlCorta(m.url), px, H - 50 * s, W - 2 * px)
       g.restore()
     }
   }
