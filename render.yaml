@@ -20,6 +20,8 @@ services:
         value: "*"
       - key: SCHEDULER
         value: "on"
+      - key: TZ
+        value: America/Guatemala
       - key: SCHEDULER_HORA
         value: "06:00"
       - key: ADMIN_TOKEN
@@ -46,5 +48,7 @@ services:
         sync: false
       - key: TWILIO_SANDBOX_CODE
         sync: false
+      - key: SIMVIDEO_RENDER
+        value: "off"         # starter = 512 MB: sirve los videos precalculados. Con plan standard (2 GB), borrar esta línea para render en vivo.
       - key: LLM_ENABLED
         value: "false"

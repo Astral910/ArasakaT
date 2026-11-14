@@ -1,0 +1,4 @@
+bin/
+salida/
+srv*.log
+srv*.err

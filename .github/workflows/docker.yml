@@ -1,0 +1,30 @@
+# Construye la imagen del backend y la prueba de verdad: /healthz, Chromium y ffmpeg dentro del contenedor.
+name: docker
+on:
+  push:
+    paths: ['Dockerfile', '.dockerignore', 'go.mod', 'go.sum', 'cmd/**', 'internal/**', 'web/**', '.github/workflows/docker.yml']
+  workflow_dispatch:
+jobs:
+  imagen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+      - name: docker build
+        run: docker build -t fieldshift:ci .
+      - name: Arranca y responde
+        run: |
+          docker run -d --name fs -p 8080:8080 -e PORT=8080 -e SCHEDULER=off -v fsdata:/var/data fieldshift:ci
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/healthz && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8080/healthz
+          curl -fsS -o /dev/null http://127.0.0.1:8080/
+          curl -fsS -o /dev/null "http://127.0.0.1:8080/sandbox?lat=14.79&lon=-89.39&auto=1"
+          docker exec fs chromium --headless --no-sandbox --disable-gpu --dump-dom about:blank > /dev/null
+          docker exec fs ffmpeg -hide_banner -loglevel error -f lavfi -i color=c=black:s=64x64:d=0.2 -c:v libx264 -f null -
+          docker exec fs sh -c 'touch /var/data/escribe && ls -la /var/data'
+      - name: Logs
+        if: always()
+        run: docker logs fs || true

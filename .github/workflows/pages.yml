@@ -1,5 +1,6 @@
-# Front estático en GitHub Pages (alternativa a Vercel). Funciona solo con web/public/static/ (sin backend).
-# Settings → Pages → Source: GitHub Actions. Variable opcional del repo: VITE_API_BASE (URL del backend).
+# Link estático que nunca falla, en GitHub Pages (alternativa/espejo de Vercel). Sin backend:
+# usa web/public/static (planes, sim, video), el motor en WebAssembly (web/public/wasm) y cae a esos JSON si no hay API.
+# Activar: Settings → Pages → Source: GitHub Actions. Variable opcional del repo: VITE_API_BASE (URL del backend).
 name: pages
 on:
   push:
@@ -17,21 +18,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Motor en WebAssembly (mismo Go que el wasm_exec.js)
+        run: |
+          GOOS=js GOARCH=wasm go build -trimpath -ldflags="-s -w" -o web/public/wasm/fieldshift.wasm ./cmd/wasm
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" web/public/wasm/wasm_exec.js
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Build
+      - name: Build estático
         working-directory: web
         env:
           VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+          VITE_WA_NUMBER: ${{ vars.VITE_WA_NUMBER }}
+          VITE_WA_JOIN: ${{ vars.VITE_WA_JOIN }}
           VITE_BASE: /${{ github.event.repository.name }}/
         run: |
           npm ci --no-audit --no-fund
-          npm run build -- --base="$VITE_BASE"
+          npx vite build --base="$VITE_BASE"
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
+      - name: Prueba sin backend (servidor de archivos en 127.0.0.1)
+        env:
+          DIST_DIR: web/dist
+        run: |
+          node deploy/servir-estatico.mjs 5290 "/${{ github.event.repository.name }}/" &
+          sleep 2
+          base="http://127.0.0.1:5290/${{ github.event.repository.name }}"
+          for p in "/" "/sandbox?lat=14.79&lon=-89.39&auto=1" "/wasm/fieldshift.wasm" "/static/municipios.json"; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$base$p"); echo "$code $p"; test "$code" = 200
+          done
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web/dist
