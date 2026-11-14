@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { MapPin, MessageCircle, Download, Pencil, Sprout, CloudSun, Flame, Brain, Sigma, FlaskConical, Database, Info, Check, X } from 'lucide-vue-next'
+import { MapPin, MessageCircle, Download, Pencil, Box, Sprout, CloudSun, Flame, Brain, Sigma, FlaskConical, Database, Info, Check, X } from 'lucide-vue-next'
 import CalendarRing from '@/components/plan/CalendarRing.vue'
 import StrategyCard from '@/components/plan/StrategyCard.vue'
 import SoilProfile from '@/components/plan/SoilProfile.vue'
@@ -29,6 +29,12 @@ const plan = computed(() => store.plan)
 const nombreMuni = computed(() => plan.value ? `${plan.value.municipio.nombre}, ${plan.value.municipio.departamento}` : '')
 const origenTono = computed(() => (store.origen === 'api' || store.origen === 'static' ? 'ok' : store.origen === 'approx' ? 'anil' : 'warn'))
 const ordenadas = computed(() => plan.value?.estrategias ?? [])
+
+// Sandbox 3D (agente VUELO): abre la toma continua con el plan cargado
+const sandboxTo = computed(() => {
+  const r = store.request
+  return { path: '/sandbox', query: { m: r.municipio_id, s: store.seleccion, cultivo: r.cultivo, area: String(r.area_valor), unidad: r.area_unidad, riego: r.riego ? 'medio' : 'nada', ...(r.horizonte !== '2026' ? { esc: r.horizonte } : {}) } }
+})
 
 function linkPlan() {
   const r = store.request
@@ -96,6 +102,7 @@ async function descargar() {
           <div class="acts">
             <FsButton variant="whatsapp" :href="waHref"><template #icon><MessageCircle /></template>{{ t('plan.sendWa') }}</FsButton>
             <FsButton variant="secondary" :disabled="!plan || bajando" @click="descargar"><template #icon><Download /></template>{{ bajando ? t('plan.downloading') : t('plan.download') }}</FsButton>
+            <FsButton variant="primary" :to="sandboxTo"><template #icon><Box /></template>{{ lang === 'es' ? 'Ver en 3D' : 'See it in 3D' }}</FsButton>
             <FsButton variant="ghost" to="/plan"><template #icon><Pencil /></template>{{ t('plan.change') }}</FsButton>
           </div>
         </div>
