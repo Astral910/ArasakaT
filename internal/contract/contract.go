@@ -254,8 +254,8 @@ type SimEvento struct {
 }
 
 type SimAnio struct {
-	Anio       int     `json:"anio"`        // año simulado (2026, 2027…)
-	AnioReal   int     `json:"anio_real"`   // de qué año real sale el clima
+	Anio       int     `json:"anio"`      // año simulado (2026, 2027…)
+	AnioReal   int     `json:"anio_real"` // de qué año real sale el clima
 	GranoQQMZ  float64 `json:"grano_qq_mz"`
 	MO         float64 `json:"mo"`
 	ErosionTHa float64 `json:"erosion_t_ha"`
@@ -265,25 +265,25 @@ type SimAnio struct {
 
 // SimTimeline columnas diarias (mismo largo = Dias) para animar la escena.
 type SimTimeline struct {
-	Inicio      string      `json:"inicio"` // YYYY-MM-DD del día 0
-	Dias        int         `json:"dias"`
-	Fuente      []string    `json:"fuente"` // por día: observado | remuestreado:<año> | pronostico | cmip6:<año>
-	LluviaMM    []float32   `json:"lluvia_mm"`
-	RiegoMM     []float32   `json:"riego_mm"`
-	TmaxC       []float32   `json:"tmax_c"`
-	TminC       []float32   `json:"tmin_c"`
-	ET0MM       []float32   `json:"et0_mm"`
-	AguaSuelo   []float32   `json:"agua_suelo"` // 0..1 fracción del agua disponible
-	Escorrentia []float32   `json:"escorrentia_mm"`
-	Nubes       []float32   `json:"nubes"`  // 0..1 derivado de lluvia/radiación
-	Viento      []float32   `json:"viento"` // m/s
-	Residuo     []float32   `json:"residuo"` // 0..1 rastrojo/mulch sobre el suelo
-	SueloDesnudo []bool     `json:"suelo_desnudo"`
-	Capas       []SimCapa   `json:"capas"`
-	Eventos     []SimEvento `json:"eventos"`
-	Anual       []SimAnio   `json:"anual"`
-	P95LluviaMM float64     `json:"p95_lluvia_mm"` // umbral local de tormenta
-	Pendiente   float64     `json:"pendiente_pct"`
-	Notas       []string    `json:"notas"`
-	Motor       string      `json:"motor"`
+	Inicio       string      `json:"inicio"` // YYYY-MM-DD del día 0
+	Dias         int         `json:"dias"`
+	Fuente       []string    `json:"fuente"` // por día: observado | remuestreado:<año> | pronostico | cmip6:<año>
+	LluviaMM     []float32   `json:"lluvia_mm"`
+	RiegoMM      []float32   `json:"riego_mm"`
+	TmaxC        []float32   `json:"tmax_c"`
+	TminC        []float32   `json:"tmin_c"`
+	ET0MM        []float32   `json:"et0_mm"`
+	AguaSuelo    []float32   `json:"agua_suelo"` // 0..1 fracción del agua disponible
+	Escorrentia  []float32   `json:"escorrentia_mm"`
+	Nubes        []float32   `json:"nubes"`   // 0..1 derivado de lluvia/radiación
+	Viento       []float32   `json:"viento"`  // m/s
+	Residuo      []float32   `json:"residuo"` // 0..1 rastrojo/mulch sobre el suelo
+	SueloDesnudo []bool      `json:"suelo_desnudo"`
+	Capas        []SimCapa   `json:"capas"`
+	Eventos      []SimEvento `json:"eventos"`
+	Anual        []SimAnio   `json:"anual"`
+	P95LluviaMM  float64     `json:"p95_lluvia_mm"` // umbral local de tormenta
+	Pendiente    float64     `json:"pendiente_pct"`
+	Notas        []string    `json:"notas"`
+	Motor        string      `json:"motor"`
 }
