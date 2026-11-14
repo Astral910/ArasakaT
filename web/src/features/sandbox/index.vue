@@ -349,10 +349,21 @@ function volver() {
   router.push({ path: '/my-plan', query: { m: lugar.id } })
 }
 const mostrarAyuda = ref(false)
+// alto real de la línea de tiempo: los paneles de arriba se apoyan sobre ella (en celular cambia con el contenido)
+const pie = ref<HTMLElement | null>(null)
+const pieAlto = ref(170)
+let roPie: ResizeObserver | null = null
+watch(pie, (el) => {
+  roPie?.disconnect()
+  if (!el) return
+  roPie = new ResizeObserver(([e]) => (pieAlto.value = Math.round(e.borderBoxSize?.[0]?.blockSize ?? e.contentRect.height + 20)))
+  roPie.observe(el)
+})
+onBeforeUnmount(() => roPie?.disconnect())
 </script>
 
 <template>
-  <div class="sandbox" :class="['f-' + fase, { rec, movil, comparar: ajustes.comparar, tormenta: cielo.tormenta, calor: cielo.calor, real: !alineable }]" :style="{ '--cielo-a': cielo.a, '--cielo-b': cielo.b }">
+  <div class="sandbox" :class="['f-' + fase, { rec, movil, comparar: ajustes.comparar, tormenta: cielo.tormenta, calor: cielo.calor, real: !alineable }]" :style="{ '--cielo-a': cielo.a, '--cielo-b': cielo.b, '--pie-h': pieAlto + 'px' }">
     <h1 class="sr-only">{{ t('titulo') }} · {{ lugar.nombre }}</h1>
     <div class="cielo" :style="{ opacity: mapaVivo ? mapaFx : 1 }" aria-hidden="true"><i class="sol" /></div>
 
@@ -433,7 +444,7 @@ const mostrarAyuda = ref(false)
       </aside>
     </Transition>
     <Transition name="sube">
-      <footer v-if="fase === 'sandbox' && tl" class="vidrio abajo-ui">
+      <footer v-if="fase === 'sandbox' && tl" ref="pie" class="vidrio abajo-ui">
         <Linea :tl="tl" :textos-motor="origen !== 'ejemplo'" :bandas="bandas" :dia="dia" :jugando="jugando" :velocidad="velocidad" :compacto="movil" @ir="ir" @evento="alEvento" @play="toggle" @velocidad="velocidad = $event" />
         <p class="pie">
           <button class="mini" type="button" :aria-expanded="mostrarAyuda" @click="mostrarAyuda = !mostrarAyuda"><Keyboard :size="13" /></button>
@@ -465,7 +476,7 @@ const mostrarAyuda = ref(false)
 .comparar .panel-escena + .panel-escena { border-left: 2px solid rgba(255,231,168,.6); box-shadow: -8px 0 30px rgba(0,0,0,.25); }
 .hud-mitad { position: absolute; z-index: 7; top: 64px; left: 50%; transform: translateX(-50%); width: min(440px, 44vw); padding: 10px 14px; }
 .hud-mitad.b { border-color: rgba(42,138,102,.7); }
-.comparar .lado-der { top: auto; bottom: 190px; }
+.comparar .lado-der { top: auto; bottom: calc(var(--pie-h, 170px) + 28px); }
 /* tilt-shift: bandas desenfocadas arriba y abajo (look de maqueta) */
 .tiltshift { position: absolute; inset: 0; pointer-events: none; backdrop-filter: blur(2.5px); -webkit-backdrop-filter: blur(2.5px);
   mask-image: linear-gradient(180deg, #000 0%, transparent 26%, transparent 70%, #000 100%); -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 26%, transparent 70%, #000 100%); opacity: 0; transition: opacity 1.2s; }
@@ -499,14 +510,17 @@ const mostrarAyuda = ref(false)
 .chip:hover { background: rgba(20,16,12,.75); }
 .saltar { border-color: #ffe7a8; }
 .vidrio { background: rgba(22,17,12,.6); border: 1px solid rgba(255,250,240,.14); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); border-radius: 18px; padding: 14px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
-.lado { position: absolute; z-index: 7; top: 64px; left: 18px; width: min(330px, 28vw); display: grid; gap: 10px; align-content: start; max-height: calc(100vh - 64px - 190px); overflow: auto; scrollbar-width: thin; }
-.lado-der { position: absolute; z-index: 7; top: 64px; right: 18px; width: min(330px, 28vw); max-height: calc(100vh - 64px - 190px); overflow: auto; scrollbar-width: thin; }
+.lado { position: absolute; z-index: 7; top: 64px; left: 18px; width: min(330px, 28vw); display: grid; gap: 10px; align-content: start; max-height: calc(100vh - 64px - var(--pie-h, 170px) - 30px); overflow: auto; scrollbar-width: thin; }
+.lado-der { position: absolute; z-index: 7; top: 64px; right: 18px; width: min(330px, 28vw); max-height: calc(100vh - 64px - var(--pie-h, 170px) - 30px); overflow: auto; scrollbar-width: thin; }
 .honesto { display: flex; gap: 7px; font-size: .72rem; line-height: 1.4; color: #e9dcc6; background: rgba(22,17,12,.5); border-radius: 12px; padding: 8px 10px; backdrop-filter: blur(8px); }
 .honesto svg { flex: none; margin-top: 2px; }
 .abajo-ui { position: absolute; z-index: 7; left: 18px; right: 18px; bottom: 16px; padding: 10px 14px 8px; }
 .pie { display: flex; gap: 10px; align-items: center; margin-top: 4px; font-size: .7rem; color: #bfae94; }
 .pie .org { margin-left: auto; }
 .movil .pie .org { font-size: .62rem; }
+.exp-movil { flex: none; }
+.exp-movil :deep(button) { white-space: nowrap; padding: 6px 11px; font-size: .74rem; min-height: 0; }
+.exp-movil :deep(svg) { width: 14px; height: 14px; }
 .mini { border: 0; background: transparent; color: inherit; padding: 2px; cursor: pointer; display: grid; }
 .cargando { position: absolute; inset: 0; display: grid; place-items: center; z-index: 9; font-weight: 700; }
 .aviso-webgl { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); z-index: 9; background: rgba(20,16,12,.85); padding: 14px 18px; border-radius: 14px; max-width: 420px; text-align: center; }
@@ -519,7 +533,7 @@ const mostrarAyuda = ref(false)
 /* celular: HUD arriba compacto, controles plegables, línea de tiempo abajo */
 .movil .lado { top: 58px; left: 10px; right: 10px; width: auto; max-height: 40vh; }
 .movil .lado .honesto { display: none; }
-.movil .lado-der { top: auto; bottom: 178px; left: 10px; right: 10px; width: auto; max-height: 46vh; }
+.movil .lado-der { top: auto; bottom: calc(var(--pie-h, 170px) + 18px); left: 10px; right: 10px; width: auto; max-height: 46vh; }
 .movil .abajo-ui { left: 8px; right: 8px; bottom: 8px; padding: 8px 10px 6px; }
 .movil .vidrio { padding: 10px 12px; border-radius: 14px; }
 .movil .top { padding: 10px; }
