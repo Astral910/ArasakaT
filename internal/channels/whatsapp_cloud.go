@@ -241,7 +241,7 @@ func (c *Cloud) EnviarLista(tel, texto string, opciones []contract.Boton) error 
 	return c.enviar(tel, "interactive", map[string]any{
 		"type":   "list",
 		"body":   map[string]string{"text": recortar(texto, 4096)},
-		"action": map[string]any{"button": "Elegir", "sections": []map[string]any{{"title": "Opciones", "rows": rows}}},
+		"action": map[string]any{"button": "Elegir · Choose", "sections": []map[string]any{{"title": "Opciones", "rows": rows}}},
 	})
 }
 

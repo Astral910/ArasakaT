@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fogleman/gg"
+
 	"fieldshift/internal/bot"
 	"fieldshift/internal/contract"
 )
@@ -60,6 +62,11 @@ func TestRenderPlanRaro(t *testing.T) {
 		Estrategias: []contract.Estrategia{{ID: "S0", Nombre: "Solo una", PerdidasDe10: contract.Rango{P50: 11}}}}
 	if _, err := Render(&p, "es"); err != nil {
 		t.Fatal(err)
+	}
+	dc := gg.NewContext(10, 10)
+	dc.SetFontFace(face("bold", 29))
+	if got := sinParentesis(dc, "Maize with jack bean (canavalia) cover", 100); got != "Maize with jack bean cover" {
+		t.Fatalf("sinParentesis: %q", got)
 	}
 	if _, err := Render(nil, "es"); err == nil {
 		t.Fatal("esperaba error con plan nil")
