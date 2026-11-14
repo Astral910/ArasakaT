@@ -13,8 +13,11 @@
 
 import type { Estrategia, SimEvento, SimTimeline } from './tipos'
 import { crearSandbox } from './nucleo/sandbox'
+import type { Bioma } from './nucleo/biomas'
 
 export type * from './tipos'
+export type { Bioma }
+export { BIOMAS, sugerirBioma } from './nucleo/biomas'
 
 /** Parámetros de la plantilla (una sola escena procedural para cualquier coordenada). */
 export interface TemplateParams {
@@ -30,10 +33,15 @@ export interface TemplateParams {
   pendientePct?: number
   /** Exageración vertical del relieve (default 1.35). */
   exageracion?: number
-  /** Lado de la maqueta en metros (default 280). */
+  /** Lado de la maqueta en metros (default 280). La parcela se dibuja con 28–64 m de lado (ilustrativo) aunque el área sea mayor. */
   ladoM?: number
-  /** true = relieve procedural sin descargar tiles (offline / pruebas). */
+  /** true = relieve de plantilla sin descargar tiles (offline / pruebas). */
   sinRed?: boolean
+  /**
+   * Plantilla visual del lugar (paleta, vegetación, casas, suelo). La sugiere `/api/sitio`; si falta, se elige por
+   * latitud/longitud/altura (`sugerirBioma`). El relieve sigue saliendo de Terrarium; si falla, parche del bioma.
+   */
+  bioma?: Bioma
 }
 
 export type CameraPreset =
@@ -82,7 +90,7 @@ export interface ClimaVisual {
 
 export interface SandboxEvents {
   /** rumboCamara: hacia dónde mira la cámara general (grados desde el norte; la maqueta se orienta para que la ladera baje hacia la cámara). */
-  ready: { ms: number; relieveReal: boolean; satelite: boolean; rumboCamara: number }
+  ready: { ms: number; relieveReal: boolean; satelite: boolean; rumboCamara: number; bioma: Bioma; casas: number; picosCorregidos: number }
   progress: { fase: string; p: number }
   dia: { indice: number; fecha: string; clima: ClimaVisual }
   evento: SimEvento
@@ -102,6 +110,7 @@ export interface SandboxState {
   plantas: number
   listo: boolean
   rumboCamara: number
+  bioma: Bioma
 }
 
 export interface Sandbox {

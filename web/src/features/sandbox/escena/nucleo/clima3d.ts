@@ -8,8 +8,9 @@ const col = (h: string) => new THREE.Color(h)
 interface Paleta { top: THREE.Color; hor: THREE.Color; sol: THREE.Color; solI: number; cieloH: THREE.Color; sueloH: THREE.Color; hemiI: number; niebla: number; exp: number }
 const P: Record<string, Paleta> = {
   normal: { top: col('#2f6fbe'), hor: col('#a9c9e2'), sol: col('#ffe2b8'), solI: 3.6, cieloH: col('#a9c8ec'), sueloH: col('#6d5a3f'), hemiI: 0.95, niebla: 0.0006, exp: 1.0 },
-  nublado: { top: col('#77879a'), hor: col('#c2c8cd'), sol: col('#f1efe8'), solI: 1.35, cieloH: col('#b3bcc6'), sueloH: col('#5b5246'), hemiI: 1.25, niebla: 0.0019, exp: 1.08 },
-  tormenta: { top: col('#262f3d'), hor: col('#6d7887'), sol: col('#c9d4e6'), solI: 0.7, cieloH: col('#93a2b5'), sueloH: col('#463f37'), hemiI: 1.5, niebla: 0.0013, exp: 1.22 },
+  nublado: { top: col('#5f7088'), hor: col('#aab4bf'), sol: col('#f1efe8'), solI: 1.6, cieloH: col('#b3bcc6'), sueloH: col('#5b5246'), hemiI: 1.3, niebla: 0.0015, exp: 1.12 },
+  // tormenta: cielo plomo-azul oscuro, pero el suelo y las plantas con luz suficiente para leerse (contraste alto)
+  tormenta: { top: col('#1f2a3a'), hor: col('#5f6e82'), sol: col('#d6e0f0'), solI: 1.25, cieloH: col('#9aabc2'), sueloH: col('#544a3e'), hemiI: 1.75, niebla: 0.0011, exp: 1.34 },
   calor: { top: col('#8eaac0'), hor: col('#f4ead0'), sol: col('#fff3da'), solI: 4.6, cieloH: col('#e8e3d2'), sueloH: col('#8a6c45'), hemiI: 0.8, niebla: 0.0008, exp: 0.96 },
   helada: { top: col('#4f7fc0'), hor: col('#c9d3e4'), sol: col('#ffd9b8'), solI: 2.4, cieloH: col('#c8d8f2'), sueloH: col('#7b7480'), hemiI: 1.0, niebla: 0.0011, exp: 0.95 },
 }

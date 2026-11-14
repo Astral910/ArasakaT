@@ -10,6 +10,7 @@ import { cargarRelieve, cargarSatelite } from './relieve'
 import { construirMaqueta, crearUniformsSuelo, type Maqueta, type Parcela } from './maqueta'
 import { crearCapa, estadoCapa, liberarCapa, type Capa3D, ESCALA_PLANTA } from './cultivos'
 import { construirProps, type Props } from './props'
+import { sugerirBioma, type Bioma } from './biomas'
 import { CANALES, climaVacio, muestrearClima, precalcularClima, type ClimaInterno, type ClimaPre } from './climaDatos'
 import {
   actualizarUniformsClima, crearCielo, crearLluvia, crearNubes, crearPolvo, crearSalpicaduras, luzDelClima, Rayos, type LuzClima,
@@ -56,6 +57,8 @@ class SandboxImpl implements Sandbox {
   private props: Props | null = null
   private parcela: Parcela = { cx: 0, cz: 0, hx: 30, hz: 30, surco: 1.35 }
   private capas: Array<{ c3: Capa3D; idx: number }> = []
+  private vecinas: Capa3D[] = []
+  private bioma: Bioma = 'corredor-seco'
   private nubes: ReturnType<typeof crearNubes> | null = null
   private lluvia: ReturnType<typeof crearLluvia> | null = null
   private salp: ReturnType<typeof crearSalpicaduras> | null = null
@@ -169,8 +172,9 @@ class SandboxImpl implements Sandbox {
     this.listo = false
     const area = Math.max(100, (p.areaValor ?? 8) * (M2[p.areaUnidad ?? 'cuerda'] ?? M2.cuerda))
     const ladoReal = Math.sqrt(area)
-    const L = Math.min(800, Math.max(p.ladoM ?? 280, ladoReal * 2))
-    const lado = Math.min(L * 0.5, Math.max(28, ladoReal))
+    // la parcela se dibuja entre 28 y 64 m de lado (ilustrativo): más grande queda vacía y sin rancho alrededor
+    const lado = Math.min(64, Math.max(28, ladoReal))
+    const L = Math.min(800, Math.max(p.ladoM ?? 280, lado * 2.4))
     const cz = L / 2 - lado / 2 - L * 0.035
     const cfg = CFG[this.calidad]
     this.emitir('progress', { fase: 'relieve', p: 0 })
@@ -180,7 +184,7 @@ class SandboxImpl implements Sandbox {
     try {
       const grande = await cargarRelieve({
         lat: p.lat, lon: p.lon, L: B, offX: 0, offZ: 0, N: Math.round((cfg.N * B) / L), satPx: Math.min(3072, Math.round((cfg.sat * B) / L)),
-        zSat: 17, sinRed: p.sinRed, signal: ab.signal, progreso: (fase, v) => this.emitir('progress', { fase, p: v }),
+        zSat: 17, sinRed: p.sinRed, bioma: p.bioma, signal: ab.signal, progreso: (fase, v) => this.emitir('progress', { fase, p: v }),
       })
       rec = orientarYRecortar(grande, L, cfg.N, cfg.sat, cz, lado / 2)
     } catch (e) {
@@ -199,7 +203,10 @@ class SandboxImpl implements Sandbox {
     // ajustar la dirección de los surcos (a lo largo de x) y ladera abajo
     this.US.uParcel.value.set(this.parcela.cx, this.parcela.cz, this.parcela.hx, this.parcela.hz)
     this.US.uDown.value.copy(this.maqueta.abajo)
-    this.props = construirProps(this.U, this.parcela, this.maqueta.alturaEn, L, datos.satelite, this.calidad)
+    this.bioma = p.bioma ?? sugerirBioma(p.lat, p.lon, datos.relieveReal ? datos.alturaMedia : undefined)
+    const semilla = Math.abs(Math.round(p.lat * 1000) * 31 + Math.round(p.lon * 1000) * 17) % 100000 + 1
+    this.props = construirProps(this.U, this.parcela, this.maqueta.alturaEn, L, datos.satelite, this.calidad, this.bioma, semilla)
+    this.maqueta.actualizarSatelite(datos.satelite)
     this.mundo.add(this.props.grupo)
     this.construirEfectos()
     this.construirCultivos()
@@ -207,14 +214,19 @@ class SandboxImpl implements Sandbox {
     this.listo = true
     this.cuadro(0, false)
     this.emitir('progress', { fase: 'listo', p: 1 })
-    this.emitir('ready', { ms: Math.round(performance.now() - t0), relieveReal: datos.relieveReal, satelite: datos.sateliteReal, rumboCamara: Math.round(this.rumbo) })
+    this.emitir('ready', {
+      ms: Math.round(performance.now() - t0), relieveReal: datos.relieveReal, satelite: datos.sateliteReal, rumboCamara: Math.round(this.rumbo),
+      bioma: this.bioma, casas: this.props.rancho.casas, picosCorregidos: datos.picosCorregidos,
+    })
     // carga progresiva: la imagen nítida (z18) llega después sin frenar el arranque
     if (datos.sateliteReal && !p.sinRed && this.calidad !== 'baja') {
       const mq = this.maqueta
       cargarSatelite(p.lat, p.lon, B, Math.min(4096, Math.round((cfg.sat * 1.6 * B) / L)), 18, ab.signal)
         .then((c) => {
           if (ab.signal.aborted || this.desechado || this.maqueta !== mq) return
-          mq.actualizarSatelite(recortarImagen(c, B, L, Math.round(cfg.sat * 1.33), rec.phi, rec.Cx, rec.Cz))
+          const hd = recortarImagen(c, B, L, Math.round(cfg.sat * 1.33), rec.phi, rec.Cx, rec.Cz)
+          this.props?.rancho.pintar(hd)
+          mq.actualizarSatelite(hd)
           this.emitir('progress', { fase: 'satelite-hd', p: 1 })
         })
         .catch(() => { /* se queda con z17 */ })
@@ -286,7 +298,7 @@ class SandboxImpl implements Sandbox {
     const c: ClimaVisual = { ...this.clima }
     return {
       dia: Math.floor(this.x), frac: this.x - Math.floor(this.x), fecha: this.fecha(Math.floor(this.x)), camara: this.preset,
-      calidad: this.calidad, clima: c, plantas: this.plantasTotal, listo: this.listo, rumboCamara: this.rumbo,
+      calidad: this.calidad, clima: c, plantas: this.plantasTotal, listo: this.listo, rumboCamara: this.rumbo, bioma: this.bioma,
     }
   }
 
@@ -313,6 +325,8 @@ class SandboxImpl implements Sandbox {
   private limpiarMundo() {
     for (const { c3 } of this.capas) { this.mundo.remove(c3.mesh); liberarCapa(c3) }
     this.capas = []
+    for (const c3 of this.vecinas) { this.mundo.remove(c3.mesh); liberarCapa(c3) }
+    this.vecinas = []
     for (const e of [this.nubes, this.lluvia, this.salp, this.polvo]) {
       if (!e) continue
       this.mundo.remove(e.mesh)
@@ -369,6 +383,14 @@ class SandboxImpl implements Sandbox {
       this.mundo.add(c3.mesh)
       this.plantasTotal += c3.n
     })
+    // milpas de los vecinos (ilustrativas): maíz sembrado con las mismas lluvias que la parcela
+    for (const c3 of this.vecinas) { this.mundo.remove(c3.mesh); liberarCapa(c3) }
+    this.vecinas = []
+    for (const [k, v] of (this.props?.rancho.vecinas ?? []).entries()) {
+      const c3 = crearCapa('maiz', this.U, { parcela: v, alturaEn: this.maqueta.alturaEn, tope: this.calidad === 'baja' ? 160 : 420, sombras: false }, 900 + k * 13)
+      this.vecinas.push(c3)
+      this.mundo.add(c3.mesh)
+    }
   }
 
   // ------------------------------------------------------------ calidad
@@ -590,6 +612,16 @@ class SandboxImpl implements Sandbox {
       if (c3.mesh.visible) cover = Math.max(cover, e.cobertura)
     }
     this.US.uCover.value = cover
+    // vecinas: siguen a la capa de maíz de la parcela (o a la primera); sin estrés del manejo propio
+    const guia = this.capas.find((c) => c.c3.cultivo === 'maiz') ?? this.capas[0]
+    for (const v of this.vecinas) {
+      if (!guia) { v.mesh.visible = false; continue }
+      v.mesh.visible = guia.c3.mesh.visible
+      v.u.uStage.value = guia.c3.u.uStage.value
+      v.u.uHealth.value = Math.min(1, guia.c3.u.uHealth.value * 0.9 + 0.08)
+      v.u.uAltura.value = guia.c3.cultivo === 'maiz' ? guia.c3.u.uAltura.value * 0.95 : v.H0 * Math.max(0, Math.min(1, guia.c3.u.uStage.value * 1.4))
+      v.u.uWidth.value = 1
+    }
   }
 
   private actualizarLuzYEfectos(dt: number, dtE: number) {
@@ -637,7 +669,7 @@ class SandboxImpl implements Sandbox {
     pu.uFlash.value = flash
     pu.uCalor.value = Math.min(1, (c.calor * 0.9 + c.sequia * 0.45) * (1 - c.nubes * 0.8))
     pu.uFrio.value = Math.min(1, c.helada * 0.6 + c.tormenta * 0.35)
-    pu.uSat.value = 1.1 - c.tormenta * 0.28 - c.nubes * 0.1 + c.calor * 0.04
+    pu.uSat.value = 1.12 - c.tormenta * 0.14 - c.nubes * 0.06 + c.calor * 0.04
     pu.uTime.value = this.tiempo
     pu.uBloom.value = CFG[this.calidad].tilt ? 0.18 + flash * 0.15 : 0
     pu.uLluvia.value = Math.pow(c.lluvia, 0.9)

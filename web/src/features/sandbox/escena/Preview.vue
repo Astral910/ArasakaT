@@ -2,7 +2,7 @@
 // Página de prueba de la escena 3D (sin router): /src/features/sandbox/escena/preview.html
 // Parámetros: ?est=S2&dia=150&clima=tormenta&cam=general&q=media&play=1&vel=1&sinRed=1&hud=0&lat=..&lon=..&area=8&unidad=cuerda&tl=<url>
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
-import { createSandbox, generarTimelineSintetico, type CameraPreset, type ClimaVisual, type Quality, type Sandbox, type SimTimeline } from './api'
+import { createSandbox, generarTimelineSintetico, type Bioma, type CameraPreset, type ClimaVisual, type Quality, type Sandbox, type SimTimeline } from './api'
 import '@fontsource-variable/figtree'
 
 const q = new URLSearchParams(location.search)
@@ -77,7 +77,7 @@ onMounted(async () => {
   s.on('fps', (d) => { fps.value = d.fps; ;(window as unknown as Record<string, unknown>).__fps = d.fps })
   s.on('dia', (d) => { fecha.value = d.fecha })
   s.on('evento', (e) => { eventos.value = [e.texto, ...eventos.value].slice(0, 4) })
-  s.on('ready', (d) => { ;(window as unknown as Record<string, unknown>).__readyMs = d.ms; info.value = `lista en ${d.ms} ms · relieve ${d.relieveReal ? 'SRTM real' : 'procedural'} · ${d.satelite ? 'satélite Esri' : 'textura procedural'}` })
+  s.on('ready', (d) => { ;(window as unknown as Record<string, unknown>).__readyMs = d.ms; (window as unknown as Record<string, unknown>).__ready = d; info.value = `lista en ${d.ms} ms · relieve ${d.relieveReal ? 'SRTM real' : 'plantilla'} · ${d.satelite ? 'satélite Esri' : 'textura de plantilla'} · ${d.bioma} · ${d.casas} casas · ${d.picosCorregidos} picos corregidos` })
   tl.value = await cargarTimeline()
   s.setTimeline(tl.value)
   s.setDay(Math.floor(dia.value), dia.value % 1)
@@ -87,6 +87,7 @@ onMounted(async () => {
     lat: Number(q.get('lat') ?? 14.8121), lon: Number(q.get('lon') ?? -89.3778),
     areaValor: Number(q.get('area') ?? 8), areaUnidad: (q.get('unidad') as 'cuerda') ?? 'cuerda',
     cultivo: 'milpa', estrategia: est.value, sinRed: q.get('sinRed') === '1',
+    bioma: (q.get('bioma') as Bioma | null) ?? undefined,
   })
   listo.value = true
   ;(window as unknown as Record<string, unknown>).__listo = true
