@@ -669,7 +669,7 @@ class SandboxImpl implements Sandbox {
     pu.uFlash.value = flash
     pu.uCalor.value = Math.min(1, (c.calor * 0.9 + c.sequia * 0.45) * (1 - c.nubes * 0.8))
     pu.uFrio.value = Math.min(1, c.helada * 0.6 + c.tormenta * 0.35)
-    pu.uSat.value = 1.1 - c.tormenta * 0.28 - c.nubes * 0.1 + c.calor * 0.04
+    pu.uSat.value = 1.12 - c.tormenta * 0.14 - c.nubes * 0.06 + c.calor * 0.04
     pu.uTime.value = this.tiempo
     pu.uBloom.value = CFG[this.calidad].tilt ? 0.18 + flash * 0.15 : 0
     pu.uLluvia.value = Math.pow(c.lluvia, 0.9)

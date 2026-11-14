@@ -52,10 +52,25 @@ async function teselas(plantilla: string, z: number, cx: number, cy: number, r: 
   const trabajos: Promise<void>[] = []
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
     const url = plantilla.replace('{z}', String(z)).replace('{x}', String(tx)).replace('{y}', String(ty))
-    trabajos.push(cargarImg(url, ms, signal).then((img) => { ctx.drawImage(img, (tx - x0) * 256, (ty - y0) * 256) }))
+    trabajos.push(cargarImg(url, ms, signal).then((img) => {
+      ctx.drawImage(img, (tx - x0) * 256, (ty - y0) * 256)
+      if (plantilla === ESRI && tileDeRelleno(ctx, (tx - x0) * 256, (ty - y0) * 256)) throw new Error('esri sin imagen en este zoom')
+    }))
   }
   await Promise.all(trabajos)
   return { tmp, ctx, ox: x0 * 256, oy: y0 * 256 }
+}
+
+/** Esri devuelve un tile gris claro casi uniforme ("Map data not yet available") donde no hay imagen. */
+function tileDeRelleno(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const d = ctx.getImageData(x, y, 256, 256).data
+  let s = 0, s2 = 0, n = 0
+  for (let j = 8; j < 256; j += 16) for (let i = 8; i < 256; i += 16) {
+    const k = (j * 256 + i) * 4, l = (d[k] + d[k + 1] + d[k + 2]) / 3
+    s += l; s2 += l * l; n++
+  }
+  const m = s / n, sd = Math.sqrt(Math.max(0, s2 / n - m * m))
+  return m > 170 && sd < 14
 }
 
 async function mosaico(plantilla: string, z: number, cx: number, cy: number, r: number, salida: number, ms: number, signal?: AbortSignal) {

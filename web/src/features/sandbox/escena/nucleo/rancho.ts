@@ -418,7 +418,7 @@ export function construirRancho(
     if (Math.hypot(puerta[0] - hxP, puerta[1] - hzP) > 8) caminos.push(curva(borde, puerta))
   }
   caminos.push(curva(hub, [hxP + (hxP > 0 ? 1 : -1) * 20, -L / 2]))
-  for (const v of vecinas) caminos.push(curva(hub, [v.cx, v.cz + v.hz]))
+  for (const v of vecinas) if (Math.hypot(v.cx - hxP, v.cz - hzP) < 45) caminos.push(curva(hub, [v.cx, v.cz + v.hz]))
   const ocupado = (x: number, z: number, margen = 0) => {
     for (const [ox, oz, orr] of ocup) if (Math.hypot(x - ox, z - oz) < orr + margen) return true
     for (const cam of caminos) for (const [px, pz] of cam) if (Math.hypot(x - px, z - pz) < 2.2 + margen) return true
@@ -452,7 +452,7 @@ export function construirRancho(
       }
       // caminos (borde suave + centro más claro)
       caminos.forEach((cam, i) => {
-        const f = i === 0 || i === caminos.length - 1 - vecinas.length ? 1 : 0.6 // camino principal más ancho
+        const f = i === 0 ? 1 : 0.55 // camino principal (tranquera → patio) más ancho
         for (const [ancho, color] of [[2.6 * f, 'rgba(128,104,76,0.4)'], [1.5 * f, 'rgba(170,142,106,0.75)']] as Array<[number, string]>) {
           g.strokeStyle = color; g.lineWidth = Math.max(1, ancho * s)
           g.beginPath(); cam.forEach(([x, z], k) => (k ? g.lineTo(X(x), Z(z)) : g.moveTo(X(x), Z(z)))); g.stroke()

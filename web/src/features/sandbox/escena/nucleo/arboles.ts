@@ -401,10 +401,12 @@ export function geoArbustoHojas(semilla: number, hojas: string[]) {
   const r = rng(semilla)
   const A = new Armador()
   const tonos = hojas.map((h) => lin(h))
+  // mata compacta: núcleo denso de hojas anchas + ramitas finas que asoman
   for (let k = 0; k < 3; k++) {
-    const c = V((k - 1) * 0.5, 0.45 + r() * 0.2, (r() - 0.5) * 0.5)
-    A.copa(c, V(0.75, 0.55, 0.75), 9, 1.0, r, k % 2 ? 'fina' : 'ancha', tonos, 0.4)
+    const c = V((k - 1) * 0.42, 0.5 + r() * 0.15, (r() - 0.5) * 0.4)
+    A.copa(c, V(0.62, 0.48, 0.62), 12, 1.25, r, 'ancha', tonos, 0.4)
   }
+  A.copa(V(0, 0.75, 0), V(0.9, 0.4, 0.8), 6, 1.0, r, 'fina', tonos, 0.5)
   return A.geo()
 }
 

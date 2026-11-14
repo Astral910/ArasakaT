@@ -142,12 +142,13 @@ export function construirProps(
   geos.push(ga2)
   // monte bajo (arbustos de hojas) junto al cerco
   {
-    const nA = calidad === 'baja' ? 110 : 360
-    const variantes = [geoArbustoHojas(11, E.arbusto), geoArbustoHojas(23, E.arbusto)]
+    const nA = calidad === 'baja' ? 60 : 150
+    const claros = E.arbusto.map((h) => '#' + new THREE.Color(h).offsetHSL(0, -0.04, 0.07).getHexString())
+    const variantes = [geoArbustoHojas(11, claros), geoArbustoHojas(23, claros)]
     const ims = variantes.map((g) => new THREE.InstancedMesh(g, matH, nA))
     const cuenta = [0, 0]
     for (let t = 0; t < nA * 6 && cuenta[0] + cuenta[1] < nA * 2; t++) {
-      const lado = Math.floor(r() * 4), u = r() * 2 - 1, fuera = 2.2 + Math.pow(r(), 2.5) * 12
+      const lado = Math.floor(r() * 4), u = r() * 2 - 1, fuera = 2.4 + Math.pow(r(), 1.6) * 14
       let x = cx, z = cz
       if (lado === 0) { x = cx + u * (hx + fuera); z = cz - hz - fuera }
       else if (lado === 1) { x = cx + u * (hx + fuera); z = cz + hz + fuera }

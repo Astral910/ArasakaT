@@ -139,6 +139,10 @@ export function construirMaqueta(
       {
         vec3 c = diffuseColor.rgb;
         vec2 xz = vMundo.xz;
+        // satélite: comprimir altas luces (suelos claros, techos, arena) y dar un poco de cuerpo al color
+        { float lm = dot(c, vec3(0.3,0.59,0.11));
+          c *= 1.0 / (1.0 + max(0.0, lm - 0.22) * 1.6);
+          c = mix(vec3(dot(c, vec3(0.3,0.59,0.11))), c, 1.12); }
         // vegetación alrededor: se seca en la época seca/sequía, revive con lluvia
         float luma = dot(c, vec3(0.3,0.59,0.11));
         float verde = smoothstep(0.0, 0.03, c.g - max(c.r, c.b)*0.92);
@@ -147,9 +151,9 @@ export function construirMaqueta(
         c = mix(c, c*vec3(0.92,1.08,0.9)*1.05, (1.0-uSeason)*verde*0.35);
         // parcela
         vec2 q = xz - uParcel.xy;
-        float bordeR = (vnoise(xz*0.35)-0.5)*1.6;
+        float bordeR = (vnoise(xz*0.35)-0.5)*0.6;
         float dP = max(abs(q.x)-uParcel.z, abs(q.y)-uParcel.w) + bordeR;
-        float mP = 1.0 - smoothstep(-0.6, 0.9, dP);
+        float mP = 1.0 - smoothstep(0.1, 0.7, dP);
         float cresta = 0.5 + 0.5*cos(q.y*6.2831/uRowSp);
         float valle = smoothstep(0.55, 1.0, 1.0-cresta);
         float var = fbm(xz*0.45);
@@ -169,6 +173,10 @@ export function construirMaqueta(
         float paja = vnoise(vec2(fib.x*7.0, fib.y*0.9)) * vnoise(vec2(fib.y*6.0, fib.x*0.8) + 4.0);
         float mPaja = smoothstep(1.0 - uResiduo*0.9, 1.0 - uResiduo*0.9 + 0.18, var*0.6 + paja*0.9);
         vec3 colPaja = mix(lin(vec3(0.78,0.66,0.42)), lin(vec3(0.46,0.38,0.26)), vnoise(xz*3.0)*0.6 + uHum*0.4);
+        // pajas finas cruzadas (rastrojo), con huecos donde asoma la tierra
+        float paja2 = vnoise(vec2(fib.x*34.0, fib.y*3.2)) * 0.6 + vnoise(vec2(fib.y*31.0, fib.x*2.8) + 9.0) * 0.6;
+        colPaja *= 0.62 + 0.62*smoothstep(0.35, 0.8, paja2);
+        mPaja *= 0.7 + 0.3*smoothstep(0.25, 0.55, paja2);
         suelo = mix(suelo, colPaja, mPaja*clamp(uResiduo*1.4,0.0,1.0));
         // erosión: cárcavas ladera abajo en suelo desnudo
         vec2 perp = vec2(-uDown.y, uDown.x);
@@ -193,6 +201,15 @@ export function construirMaqueta(
         float rg = uRiego*valle*mP*smoothstep(0.3,0.6, vnoise(vec2(q.x*0.12, q.y*0.4)) + 0.4);
         suelo = mix(suelo, mix(lin(vec3(0.22,0.26,0.27)), uSkyCol*0.8, 0.35), rg*0.75);
         gGloss = max(gGloss, rg);
+        // terrones (suelo trabajado, se ven más con el suelo desnudo y seco)
+        float tc = voroBorde(xz*2.6 + vec2(1.7, 4.3));
+        float kT = (1.0 - mPaja*0.85) * (0.45 + 0.55*uDesnudo) * (1.0 - ch*mP);
+        suelo *= mix(1.0, mix(0.8, 1.08, smoothstep(0.02, 0.16, tc)), kT);
+        // bordo de tierra apisonada y zanja al pie: el borde de la parcela se lee definido
+        float bordo = smoothstep(-1.6, -1.0, dP) * (1.0 - smoothstep(-0.55, -0.2, dP));
+        float zanja = smoothstep(-0.45, -0.2, dP) * (1.0 - smoothstep(0.05, 0.4, dP));
+        suelo = mix(suelo, suelo*vec3(1.2,1.12,1.02), bordo*0.75);
+        suelo = mix(suelo, suelo*vec3(0.55,0.52,0.5), zanja*0.65);
         // sombra del dosel
         suelo *= 1.0 - uCover*0.35*mP;
         c = mix(c, suelo, mP);
