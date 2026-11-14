@@ -69,7 +69,7 @@ const progreso = ref(0)
 const mapaVivo = ref(!saltarIntro)
 const sinWebgl = ref(false)
 const camMapa = shallowRef<CamaraMapa | null>(null)
-const preset = ref(saltarIntro ? 'iso' : 'llegada')
+const preset = ref(saltarIntro ? 'cerca' : 'llegada')
 const presetSeq = ref(0)
 const durCam = ref(0)
 const subida = ref(saltarIntro ? 1 : 0)
@@ -408,7 +408,7 @@ const mostrarAyuda = ref(false)
       <p class="lugar"><b>{{ lugar.nombre }}</b><span v-if="lugar.depto">, {{ lugar.depto }}</span></p>
       <div class="der">
         <button class="chip idioma" type="button" :aria-label="lang === 'es' ? 'English' : 'Español'" @click="setLang(lang === 'es' ? 'en' : 'es')">{{ lang === 'es' ? 'EN' : 'ES' }}</button>
-        <BotonExportar v-if="BotonExportar && fase === 'sandbox' && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" />
+        <BotonExportar v-if="BotonExportar && !movil && fase === 'sandbox' && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" />
         <button v-if="fase === 'vuelo'" class="chip saltar" type="button" @click="saltar"><SkipForward :size="16" />{{ t('saltar') }}</button>
       </div>
     </header>
@@ -439,6 +439,7 @@ const mostrarAyuda = ref(false)
           <button class="mini" type="button" :aria-expanded="mostrarAyuda" @click="mostrarAyuda = !mostrarAyuda"><Keyboard :size="13" /></button>
           <span v-if="mostrarAyuda || !movil" class="kbd">{{ t('teclado') }}</span>
           <span class="org">{{ t('origen_' + origen) }} · {{ t('fuente') }}</span>
+          <BotonExportar v-if="BotonExportar && movil && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" class="exp-movil" />
         </p>
       </footer>
     </Transition>
@@ -484,7 +485,7 @@ const mostrarAyuda = ref(false)
 .cap-t { font-family: var(--font-display); font-size: clamp(1.9rem, 4.6vw, 3.6rem); font-weight: 600; line-height: 1.02; letter-spacing: -.02em; }
 .cap-s { margin-top: 8px; font-size: clamp(.86rem, 1.4vw, 1.02rem); color: #f1e4cc; max-width: 52ch; }
 .rotulo-enter-active, .rotulo-leave-active { transition: opacity .55s ease, transform .7s var(--ease); }
-.rotulo-leave-active { position: absolute; }
+.rotulo-leave-active { position: absolute; transition-duration: .3s; }
 .rotulo-enter-from { opacity: 0; transform: translateY(16px); }
 .rotulo-leave-to { opacity: 0; transform: translateY(-10px); }
 .progreso { position: absolute; left: 6vw; right: 6vw; bottom: calc(9vh + 16px); height: 2px; background: rgba(255,250,240,.18); z-index: 7; border-radius: 2px; overflow: hidden; }
@@ -505,6 +506,7 @@ const mostrarAyuda = ref(false)
 .abajo-ui { position: absolute; z-index: 7; left: 18px; right: 18px; bottom: 16px; padding: 10px 14px 8px; }
 .pie { display: flex; gap: 10px; align-items: center; margin-top: 4px; font-size: .7rem; color: #bfae94; }
 .pie .org { margin-left: auto; }
+.movil .pie .org { font-size: .62rem; }
 .mini { border: 0; background: transparent; color: inherit; padding: 2px; cursor: pointer; display: grid; }
 .cargando { position: absolute; inset: 0; display: grid; place-items: center; z-index: 9; font-weight: 700; }
 .aviso-webgl { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); z-index: 9; background: rgba(20,16,12,.85); padding: 14px 18px; border-radius: 14px; max-width: 420px; text-align: center; }
