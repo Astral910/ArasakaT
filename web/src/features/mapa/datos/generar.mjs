@@ -32,19 +32,23 @@ function et0(lat, doy, tmax, tmin) {
 
 // Resumen de la temporada de Primera (may–ago) de una celda.
 function temporada(c, y) {
-  let P = 0, E = 0, run = 0, racha = 0, ini = ''
+  let P = 0, E = 0, run = 0, racha = 0, ini = '', gw = 0, ngw = 0
   for (let i = idx(`${y}-05-01`); i <= idx(`${y}-08-31`) && i < c.pr.length; i++) {
     const ds = fecha(i)
     const doy = Math.floor((Date.parse(ds) - Date.UTC(y, 0, 1)) / DIA) + 1
     P += Math.min(c.pr[i], 40)
     E += et0(c.lat, doy, c.tmax[i], c.tmin[i])
     if (ds >= `${y}-06-01`) {
+      gw += c.gw[i]
+      ngw++
       if (c.pr[i] < 1) { if (!run) ini = ds; run++; racha = Math.max(racha, run) } else run = 0
     }
   }
-  return { lluvia: Math.round(P), balance: Math.round(P - E), racha }
+  return { lluvia: Math.round(P), balance: Math.round(P - E), racha, humedad: Math.round((gw / ngw) * 100) / 100 }
 }
-const dificil = (t) => t.balance < 150 || t.racha >= 7
+// Temporada difícil: humedad de la zona de raíces (GWETROOT) media jun–ago < 0.62 o racha seca ≥ 7 días.
+// (El balance con ET0 de Hargreaves sobreestima la evaporación en el trópico húmedo; GWETROOT no.)
+const dificil = (t) => t.humedad < 0.62 || t.racha >= 7
 
 // ---------- Mapa: riesgo por municipio (a nivel de celda POWER 0.5°×0.625°) ----------
 const municipios = JSON.parse(fs.readFileSync(path.join(raiz, 'data/municipios.json')))
@@ -61,6 +65,8 @@ for (const fn of fs.readdirSync(path.join(raiz, 'data/climate'))) {
   celdas[c.cell] = {
     dificiles_de_10: r1((hist.filter(dificil).length / hist.length) * 10),
     balance_mm: { p10: pct(bal, 0.1), p50: pct(bal, 0.5), p90: pct(bal, 0.9) },
+    humedad_raiz: { p10: pct(hist.map((t) => t.humedad), 0.1), p50: pct(hist.map((t) => t.humedad), 0.5), p90: pct(hist.map((t) => t.humedad), 0.9) },
+    humedad_2026: anios[2026].humedad,
     lluvia_normal_mm: lluviaMed,
     lluvia_2026_mm: anios[2026].lluvia,
     lluvia_2026_pct: Math.round((anios[2026].lluvia / lluviaMed) * 100),
@@ -73,14 +79,14 @@ const filas = municipios.map((m) => {
   return {
     id: m.id, nombre: m.name, depto: m.dept, lat: m.lat, lon: m.lon, celda: m.cell,
     elev_m: m.elev_m, pendiente_pct: m.slope_pct,
-    dificiles_de_10: c.dificiles_de_10, balance_mm: c.balance_mm, lluvia_normal_mm: c.lluvia_normal_mm,
+    dificiles_de_10: c.dificiles_de_10, balance_mm: c.balance_mm, humedad_raiz: c.humedad_raiz, humedad_2026: c.humedad_2026, lluvia_normal_mm: c.lluvia_normal_mm,
     lluvia_2026_mm: c.lluvia_2026_mm, lluvia_2026_pct: c.lluvia_2026_pct, racha_2026_dias: c.racha_2026_dias,
   }
 })
 escribir('web/src/features/mapa/datos/riesgo.json', {
-  fuente: 'NASA POWER daily (PRECTOTCORR, T2M_MAX, T2M_MIN), 0.5°×0.625° cells',
+  fuente: 'NASA POWER daily (GWETROOT, PRECTOTCORR, T2M), 0.5°×0.625° cells',
   periodo: '2001–2025 · 2026',
-  metodo: 'difficult season = May–Aug balance (rain − Hargreaves ET0) < 150 mm or Jun–Aug dry spell ≥ 7 days < 1 mm',
+  metodo: 'difficult season = Jun–Aug mean root-zone soil wetness (GWETROOT) < 0.62 or Jun–Aug dry spell ≥ 7 days < 1 mm',
   preliminar: true,
   municipios: filas,
 })
