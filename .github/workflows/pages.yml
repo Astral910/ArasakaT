@@ -1,0 +1,46 @@
+# Front estático en GitHub Pages (alternativa a Vercel). Funciona solo con web/public/static/ (sin backend).
+# Settings → Pages → Source: GitHub Actions. Variable opcional del repo: VITE_API_BASE (URL del backend).
+name: pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build
+        working-directory: web
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE }}
+          VITE_BASE: /${{ github.event.repository.name }}/
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build -- --base="$VITE_BASE"
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

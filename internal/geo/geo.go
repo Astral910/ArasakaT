@@ -20,15 +20,15 @@ type Polygon []Ring
 
 // Municipio con su geometría y metadatos derivados.
 type Municipio struct {
-	ID       string    `json:"id"`
-	Name     string    `json:"name"`
-	Dept     string    `json:"dept"`
-	Lat      float64   `json:"lat"`
-	Lon      float64   `json:"lon"`
-	Cell     string    `json:"cell"`
-	ElevM    float64   `json:"elev_m"`
-	SlopePct float64   `json:"slope_pct"`
-	Polys    []Polygon `json:"-"`
+	ID       string     `json:"id"`
+	Name     string     `json:"name"`
+	Dept     string     `json:"dept"`
+	Lat      float64    `json:"lat"`
+	Lon      float64    `json:"lon"`
+	Cell     string     `json:"cell"`
+	ElevM    float64    `json:"elev_m"`
+	SlopePct float64    `json:"slope_pct"`
+	Polys    []Polygon  `json:"-"`
 	BBox     [4]float64 `json:"bbox"`
 }
 

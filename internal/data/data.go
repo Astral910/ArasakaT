@@ -142,10 +142,10 @@ type ONI struct {
 	Values map[string]float64 `json:"values"` // "2015-JJA": 1.5
 }
 
-// ENSOYear: estado ENSO de la temporada de lluvias (promedio MJJ–JAS).
+// ENSOYear: estado ENSO de la temporada de lluvias (promedio JJA–JAS–ASO, cuando El Niño pega en la canícula y la Postrera).
 func (o *ONI) ENSOYear(y int) (val float64, state string) {
 	n := 0
-	for _, s := range []string{"MJJ", "JJA", "JAS"} {
+	for _, s := range []string{"JJA", "JAS", "ASO"} {
 		if v, ok := o.Values[itoa(y)+"-"+s]; ok {
 			val += v
 			n++
@@ -173,9 +173,9 @@ func itoa(i int) string {
 
 // CMIP6Deltas: cambios mensuales 2036–2045 vs 2005–2014 (NEX-GDDP-CMIP6).
 type CMIP6Deltas struct {
-	Source   string         `json:"source"`
-	Models   []string       `json:"models"`
-	Points   []CMIP6Point   `json:"points"`
+	Source string       `json:"source"`
+	Models []string     `json:"models"`
+	Points []CMIP6Point `json:"points"`
 }
 
 // CMIP6Point deltas para un punto.
@@ -189,10 +189,10 @@ type CMIP6Point struct {
 
 // MonthlyDelta 12 valores por variable + dispersión entre modelos.
 type MonthlyDelta struct {
-	PrRatio   [12]float64 `json:"pr_ratio"`
-	TmaxAdd   [12]float64 `json:"tmax_add"`
-	TminAdd   [12]float64 `json:"tmin_add"`
-	PrSpread  [12]float64 `json:"pr_spread"` // desviación entre modelos del ratio
+	PrRatio  [12]float64 `json:"pr_ratio"`
+	TmaxAdd  [12]float64 `json:"tmax_add"`
+	TminAdd  [12]float64 `json:"tmin_add"`
+	PrSpread [12]float64 `json:"pr_spread"` // desviación entre modelos del ratio
 }
 
 // Nearest punto CMIP6 más cercano.
@@ -211,8 +211,8 @@ func (d *CMIP6Deltas) Nearest(lat, lon float64) *CMIP6Point {
 
 // Soil: propiedades de suelo de referencia.
 type Soil struct {
-	Sand   float64 `json:"sand"`   // %
-	Clay   float64 `json:"clay"`   // %
-	OM     float64 `json:"om"`     // % materia orgánica
+	Sand   float64 `json:"sand"` // %
+	Clay   float64 `json:"clay"` // %
+	OM     float64 `json:"om"`   // % materia orgánica
 	Source string  `json:"source"`
 }
