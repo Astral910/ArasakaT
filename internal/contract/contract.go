@@ -19,6 +19,8 @@ type PlanRequest struct {
 	Horizonte        string   `json:"horizonte"`               // 2026 | 2040-ssp245 | 2040-ssp585
 	ElNino           *bool    `json:"el_nino,omitempty"`       // nil = según ONI actual
 	Idioma           string   `json:"idioma"`                  // es | en
+	// Agregado por el motor (14-nov, sandbox): riego en mm por semana; si viene > 0 reemplaza a Riego (auxilio).
+	RiegoMMSemana *float64 `json:"riego_mm_semana,omitempty"`
 }
 
 type Rango struct {
@@ -221,4 +223,69 @@ type Alerta struct {
 	Acciones     []string `json:"acciones"`
 	Plantilla    string   `json:"plantilla"`
 	Vars         []string `json:"vars"`
+}
+
+// ---------- Sandbox 3D (vault nota 25) ----------
+
+// SimRequest pide una línea de tiempo diaria para el sandbox 3D.
+type SimRequest struct {
+	Plan          PlanRequest `json:"plan"`
+	Estrategia    string      `json:"estrategia"`      // S0 | S1 | S2
+	RiegoMMSemana float64     `json:"riego_mm_semana"` // 0 = temporal; poco≈10, medio≈20, mucho≈35 (documentar)
+	Escenario     string      `json:"escenario"`       // tipico | nino | real-2026 | secuencia | 2040-ssp245 | 2040-ssp585
+	Percentil     string      `json:"percentil"`       // p10 | p50 | p90 (para secuencia/típico)
+	Anios         int         `json:"anios"`           // 1..10
+	Semilla       int64       `json:"semilla"`
+}
+
+// SimCapa estado diario de un cultivo (la milpa trae varias capas: maíz + frijol; S2 agrega mucuna).
+type SimCapa struct {
+	Cultivo   string    `json:"cultivo"`   // maiz | frijol | sorgo | mucuna | canavalia | otro
+	Etapa     []float32 `json:"etapa"`     // -1 sin cultivo; 0 siembra … 1 cosecha
+	Cobertura []float32 `json:"cobertura"` // 0..1 dosel
+	Salud     []float32 `json:"salud"`     // 0..1 (1 − estrés)
+	Altura    []float32 `json:"altura_m"`
+}
+
+type SimEvento struct {
+	Dia   int     `json:"dia"`  // índice en la línea de tiempo
+	Tipo  string  `json:"tipo"` // tormenta | racha_seca | calor | helada | siembra | cosecha | falso_inicio | riego | perdida
+	Dias  int     `json:"dias"`
+	Valor float64 `json:"valor"` // mm, °C o qq/mz según tipo
+	Texto string  `json:"texto"`
+}
+
+type SimAnio struct {
+	Anio       int     `json:"anio"`      // año simulado (2026, 2027…)
+	AnioReal   int     `json:"anio_real"` // de qué año real sale el clima
+	GranoQQMZ  float64 `json:"grano_qq_mz"`
+	MO         float64 `json:"mo"`
+	ErosionTHa float64 `json:"erosion_t_ha"`
+	Perdida    bool    `json:"perdida"`
+	ElNino     bool    `json:"el_nino"`
+}
+
+// SimTimeline columnas diarias (mismo largo = Dias) para animar la escena.
+type SimTimeline struct {
+	Inicio       string      `json:"inicio"` // YYYY-MM-DD del día 0
+	Dias         int         `json:"dias"`
+	Fuente       []string    `json:"fuente"` // por día: observado | remuestreado:<año> | pronostico | cmip6:<año>
+	LluviaMM     []float32   `json:"lluvia_mm"`
+	RiegoMM      []float32   `json:"riego_mm"`
+	TmaxC        []float32   `json:"tmax_c"`
+	TminC        []float32   `json:"tmin_c"`
+	ET0MM        []float32   `json:"et0_mm"`
+	AguaSuelo    []float32   `json:"agua_suelo"` // 0..1 fracción del agua disponible
+	Escorrentia  []float32   `json:"escorrentia_mm"`
+	Nubes        []float32   `json:"nubes"`   // 0..1 derivado de lluvia/radiación
+	Viento       []float32   `json:"viento"`  // m/s
+	Residuo      []float32   `json:"residuo"` // 0..1 rastrojo/mulch sobre el suelo
+	SueloDesnudo []bool      `json:"suelo_desnudo"`
+	Capas        []SimCapa   `json:"capas"`
+	Eventos      []SimEvento `json:"eventos"`
+	Anual        []SimAnio   `json:"anual"`
+	P95LluviaMM  float64     `json:"p95_lluvia_mm"` // umbral local de tormenta
+	Pendiente    float64     `json:"pendiente_pct"`
+	Notas        []string    `json:"notas"`
+	Motor        string      `json:"motor"`
 }

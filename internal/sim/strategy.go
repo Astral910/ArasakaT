@@ -13,6 +13,36 @@ type Config struct {
 	Livestock  bool   // el rastrojo se usa como forraje (menos cobertura)
 	Cover      string // mucuna | canavalia
 	Postrera   string // bean | sorghum
+	// IrrigMMWeek riego en mm por semana (0 = temporal o riego de auxilio si Irrigation).
+	IrrigMMWeek float64
+	// Trace opcional: guarda el día a día del año (sandbox 3D). nil en el Monte Carlo.
+	Trace *YearTrace
+}
+
+// LayerTrace día a día de un cultivo del año.
+type LayerTrace struct {
+	Crop fao56.Crop
+	Sow  int
+	QQ   float64 // cosecha estimada (qq/mz), 0 para coberturas
+	Days []DayState
+}
+
+// YearTrace día a día de un año: capas de cultivo y cobertura del suelo.
+type YearTrace struct {
+	I0     int
+	Layers []*LayerTrace
+	Mulch  []float64 // por día desde el 1 de enero
+	Canopy []float64
+	Bare   []bool
+}
+
+func (t *YearTrace) layer(c fao56.Crop, sow int) *[]DayState {
+	if t == nil {
+		return nil
+	}
+	l := &LayerTrace{Crop: c, Sow: sow}
+	t.Layers = append(t.Layers, l)
+	return &l.Days
 }
 
 // StratDef una estrategia como secuencia anual: Primera → Postrera → época seca.
@@ -112,7 +142,12 @@ func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) 
 		mulch = 0
 	}
 	cn := 80.0
-	opts := CropOpts{TAWFactor: tawf, Irrigation: cfg.Irrigation, Mulch: mulch, CN: cn}
+	opts := CropOpts{TAWFactor: tawf, Irrigation: cfg.Irrigation, IrrigMMWeek: cfg.IrrigMMWeek, Mulch: mulch, CN: cn}
+	tr := cfg.Trace
+	if tr != nil {
+		*tr = YearTrace{I0: s.Idx(y, 1, 1)}
+	}
+	opts.Trace = tr.layer(d.Main, sow)
 	if d.Cover != nil {
 		opts.CoverKcAdd, opts.CoverFrom = 0.05, CoverSowDay // la cobertura se siembra en relevo y compite poco al principio
 	}
@@ -123,12 +158,20 @@ func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) 
 	if d.Cover != nil {
 		out.MainQQ *= 0.95 // competencia por luz y nutrientes al inicio (aprox.)
 	}
+	if tr != nil {
+		tr.Layers[0].QQ = out.MainQQ
+	}
 	food := out.MainQQ
 	income := out.MainQQ * PriceQQ[d.Main.ID]
 	stover := out.MainQQ * 45.36 / 1000 / 0.7 * 1.2 // t/ha de rastrojo (índice de cosecha ≈ 0.45)
 	if d.Intercrop {
-		b := RunCrop(s, s.Scaled(fao56.Crops["bean"]), sow, opts)
+		bo := opts
+		bo.Trace = tr.layer(s.Scaled(fao56.Crops["bean"]), sow)
+		b := RunCrop(s, s.Scaled(fao56.Crops["bean"]), sow, bo)
 		bq := 0.35 * fao56.Crops["bean"].YmQQMz * b.YieldRatio
+		if tr != nil {
+			tr.Layers[len(tr.Layers)-1].QQ = bq
+		}
 		food += bq
 		income += bq * PriceQQ["bean"]
 	}
@@ -140,9 +183,12 @@ func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) 
 			ps = sow + d.Main.L[0] + d.Main.L[1] + d.Main.L[2]
 		}
 		out.PostSow = ps
-		po := RunCrop(s, *d.Post, ps, CropOpts{TAWFactor: tawf, Irrigation: cfg.Irrigation, Mulch: 0.5, CN: cn})
+		po := RunCrop(s, *d.Post, ps, CropOpts{TAWFactor: tawf, Irrigation: cfg.Irrigation, IrrigMMWeek: cfg.IrrigMMWeek, Mulch: 0.5, CN: cn, Trace: tr.layer(*d.Post, ps)})
 		if !math.IsNaN(po.YieldRatio) {
 			out.PostQQ = d.Post.YmQQMz * po.YieldRatio
+			if tr != nil {
+				tr.Layers[len(tr.Layers)-1].QQ = out.PostQQ
+			}
 			food += out.PostQQ
 			income += out.PostQQ * PriceQQ[d.Post.ID]
 			out.Runoff += po.Runoff
@@ -155,7 +201,7 @@ func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) 
 		residue = 0
 	}
 	if d.Cover != nil {
-		cv := RunCrop(s, *d.Cover, sow+CoverSowDay, CropOpts{TAWFactor: tawf, Mulch: 0.5, CN: cn})
+		cv := RunCrop(s, *d.Cover, sow+CoverSowDay, CropOpts{TAWFactor: tawf, Mulch: 0.5, CN: cn, Trace: tr.layer(*d.Cover, sow+CoverSowDay)})
 		r := cv.YieldRatio
 		if math.IsNaN(r) {
 			r = 0.6
@@ -176,7 +222,7 @@ func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) 
 	out.IncomeQ = income
 	out.ResidueT = residue
 	// cobertura diaria → factor C y días de suelo desnudo
-	out.ErosionBase, out.CFactor, out.BareDays = s.erosionYear(d, y, sow, out.PostSow, harvest, mulch)
+	out.ErosionBase, out.CFactor, out.BareDays = s.erosionYear(d, y, sow, out.PostSow, harvest, mulch, tr)
 	return out
 }
 
@@ -191,7 +237,7 @@ func groundCover(c fao56.Crop, d int) float64 {
 }
 
 // erosionYear RUSLE diaria: A = Σ EI_d · K · LS · C_d. Devuelve A con C=1, el C medio ponderado y días desnudos.
-func (s *Site) erosionYear(d StratDef, y, sow, postSow, harvest int, mulch float64) (base, cfac float64, bare int) {
+func (s *Site) erosionYear(d StratDef, y, sow, postSow, harvest int, mulch float64, tr *YearTrace) (base, cfac float64, bare int) {
 	i0, i1 := s.Idx(y, 1, 1), s.Idx(y, 12, 31)
 	if i1 >= s.N {
 		i1 = s.N - 1
@@ -242,8 +288,14 @@ func (s *Site) erosionYear(d StratDef, y, sow, postSow, harvest int, mulch float
 		// RUSLE (Renard et al. 1997, AH-703): dosel CC = 1 − Fc·e^(−0.34·H) con H ≈ 1 m (maíz) → 0.72;
 		// cobertura superficial SC = e^(−0.035·%); consolidación del suelo sin labranza (milpa con espeque).
 		c := (1 - 0.72*can) * math.Exp(-0.035*m*100) * SoilConsolidation
-		if can < 0.2 && m < 0.3 {
+		isBare := can < 0.2 && m < 0.3
+		if isBare {
 			bare++
+		}
+		if tr != nil {
+			tr.Mulch = append(tr.Mulch, m)
+			tr.Canopy = append(tr.Canopy, can)
+			tr.Bare = append(tr.Bare, isBare)
 		}
 		ei := 0.0
 		if tot > 0 {

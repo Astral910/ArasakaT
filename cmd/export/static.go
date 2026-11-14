@@ -220,6 +220,10 @@ func metodologia() []map[string]string {
 			"en": "AI vs statistics: logistic regression on data known at planting (ONI, April–May rain and root-zone wetness, temperature) against historical frequency by zone and El Niño; leave-one-year-out validation with the Brier score."},
 		{"id": "validacion", "es": "Validación: 8 sequías documentadas 2001–2025 (FEWS NET, MAGA, SESAN, PMA) que el motor no usa para calibrar; chequeo independiente con NDVI de MODIS (ago–sep) vía NASA GIBS.",
 			"en": "Validation: 8 documented droughts 2001–2025 (FEWS NET, MAGA, SESAN, WFP) never used for calibration; independent check with MODIS NDVI (Aug–Sep) via NASA GIBS."},
+		{"id": "riego", "es": "Riego en el sandbox: mm por semana (nada 0, poco 10, medio 20, mucho 35; 35 ≈ la demanda del maíz en floración, 1.2 × ET0 de 4–4.5 mm/día) repartidos en 2 riegos por semana y limitados a lo que cabe en el suelo.",
+			"en": "Irrigation in the sandbox: mm per week (none 0, little 10, medium 20, a lot 35; 35 ≈ maize demand at flowering, 1.2 × ET0 of 4–4.5 mm/day) split into 2 waterings a week and limited to what the soil can hold."},
+		{"id": "sandbox", "es": "Sandbox 3D: el clima de cada temporada futura es un año real 2001–2025 elegido por percentil (p50 típico, p90 malo, p10 bueno) o remuestreado; 2026 es observado; 2040 suma los cambios CMIP6. Tormenta = lluvia > P95 local de los días de lluvia.",
+			"en": "3D sandbox: each future season uses a real 2001–2025 year chosen by percentile (p50 typical, p90 bad, p10 good) or resampled; 2026 is observed; 2040 adds the CMIP6 changes. Storm = rain above the local P95 of rainy days."},
 		{"id": "limites", "es": "Límites: zona de ~50 km, no la parcela; IMERG (10 km) y SMAP necesitan cuenta Earthdata y se reemplazaron por NASA POWER; los suelos de SoilGrids o típicos deben confirmarse en campo. Apoya, no reemplaza al extensionista.",
 			"en": "Limits: a ~50 km zone, not the plot; IMERG (10 km) and SMAP need an Earthdata account and were replaced by NASA POWER; SoilGrids or typical soils must be confirmed in the field. It supports, not replaces, the extension agent."},
 	}

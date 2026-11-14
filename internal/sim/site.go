@@ -34,6 +34,7 @@ type Site struct {
 
 	rhCache, wsCache, rsCache []float64
 	cycle                     float64
+	climCache                 *Climatology
 }
 
 // CycleFactor alarga las etapas del cultivo con el frío (tiempo térmico, base 10 °C):
@@ -155,6 +156,7 @@ func (s *Site) WithDelta(md data.MonthlyDelta, scen string) *Site {
 	o := *s
 	o.Scenario = scen
 	o.cycle = 0 // más calor → ciclo más corto
+	o.climCache = nil
 	o.Tmax, o.Tmin, o.PR, o.ET0 = make([]float64, s.N), make([]float64, s.N), make([]float64, s.N), make([]float64, s.N)
 	for i := 0; i < s.N; i++ {
 		m := int(s.Date(i).Month()) - 1

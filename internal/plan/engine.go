@@ -236,7 +236,11 @@ func cacheKey(r contract.PlanRequest, muni string) string {
 	if r.ElNino != nil {
 		en = fmt.Sprint(*r.ElNino)
 	}
-	return strings.Join([]string{muni, r.Cultivo, fmt.Sprint(r.AreaValor), r.AreaUnidad, fmt.Sprint(r.Riego), fmt.Sprint(r.Ganado),
+	rmm := ""
+	if r.RiegoMMSemana != nil {
+		rmm = fmt.Sprint(*r.RiegoMMSemana)
+	}
+	return strings.Join([]string{muni, rmm, r.Cultivo, fmt.Sprint(r.AreaValor), r.AreaUnidad, fmt.Sprint(r.Riego), fmt.Sprint(r.Ganado),
 		r.ManoObra, fmt.Sprint(r.SemillaCobertura), r.Prioridad, r.Horizonte, en, r.Idioma, r.FechaSiembra}, "|")
 }
 
