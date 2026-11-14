@@ -1,1 +1,136 @@
-{"municipio":"jocotan-chiquimula","fuente":"NASA POWER daily 2001–2026; documented droughts: FEWS NET, MAGA, SESAN","regla":"z(May–Aug rain) ≤ −0.5, or balance < 0, or Jun–Aug dry spell ≥ 7 days","preliminar":true,"detectadas":5,"total":10,"falsas":4,"detalle":[{"anio":2001,"documentada":true,"detectada":true,"z":-0.71,"lluvia_mm":545,"balance_mm":17,"racha_dias":4},{"anio":2002,"documentada":false,"detectada":true,"z":-0.74,"lluvia_mm":539,"balance_mm":12,"racha_dias":6},{"anio":2003,"documentada":false,"detectada":true,"z":-0.68,"lluvia_mm":551,"balance_mm":34,"racha_dias":3},{"anio":2004,"documentada":false,"detectada":true,"z":-1.46,"lluvia_mm":402,"balance_mm":-132,"racha_dias":10},{"anio":2005,"documentada":false,"detectada":false,"z":-0.48,"lluvia_mm":589,"balance_mm":77,"racha_dias":5},{"anio":2006,"documentada":false,"detectada":false,"z":0.29,"lluvia_mm":735,"balance_mm":267,"racha_dias":4},{"anio":2007,"documentada":false,"detectada":false,"z":0.15,"lluvia_mm":709,"balance_mm":180,"racha_dias":3},{"anio":2008,"documentada":false,"detectada":false,"z":1.29,"lluvia_mm":926,"balance_mm":421,"racha_dias":2},{"anio":2009,"documentada":true,"detectada":false,"z":0.22,"lluvia_mm":721,"balance_mm":225,"racha_dias":4},{"anio":2010,"documentada":false,"detectada":false,"z":1.26,"lluvia_mm":919,"balance_mm":417,"racha_dias":2},{"anio":2011,"documentada":false,"detectada":false,"z":1.33,"lluvia_mm":933,"balance_mm":442,"racha_dias":4},{"anio":2012,"documentada":true,"detectada":false,"z":0.75,"lluvia_mm":823,"balance_mm":337,"racha_dias":2},{"anio":2013,"documentada":false,"detectada":false,"z":0.07,"lluvia_mm":693,"balance_mm":200,"racha_dias":3},{"anio":2014,"documentada":true,"detectada":false,"z":0.26,"lluvia_mm":729,"balance_mm":251,"racha_dias":6},{"anio":2015,"documentada":true,"detectada":true,"z":-1.11,"lluvia_mm":469,"balance_mm":-56,"racha_dias":8},{"anio":2016,"documentada":false,"detectada":false,"z":-0.34,"lluvia_mm":614,"balance_mm":93,"racha_dias":2},{"anio":2017,"documentada":false,"detectada":false,"z":1.14,"lluvia_mm":897,"balance_mm":410,"racha_dias":3},{"anio":2018,"documentada":true,"detectada":false,"z":0,"lluvia_mm":680,"balance_mm":168,"racha_dias":5},{"anio":2019,"documentada":true,"detectada":false,"z":-0.06,"lluvia_mm":669,"balance_mm":138,"racha_dias":5},{"anio":2020,"documentada":false,"detectada":false,"z":0.37,"lluvia_mm":750,"balance_mm":233,"racha_dias":4},{"anio":2021,"documentada":false,"detectada":false,"z":1.19,"lluvia_mm":907,"balance_mm":419,"racha_dias":4},{"anio":2022,"documentada":false,"detectada":false,"z":2.1,"lluvia_mm":1080,"balance_mm":605,"racha_dias":1},{"anio":2023,"documentada":true,"detectada":true,"z":-0.72,"lluvia_mm":543,"balance_mm":-19,"racha_dias":4},{"anio":2024,"documentada":true,"detectada":true,"z":-0.75,"lluvia_mm":537,"balance_mm":-17,"racha_dias":2},{"anio":2025,"documentada":false,"detectada":true,"z":-1.09,"lluvia_mm":473,"balance_mm":-102,"racha_dias":3},{"anio":2026,"documentada":true,"detectada":true,"z":-2.33,"lluvia_mm":236,"balance_mm":-383,"racha_dias":9}]}
+{
+ "municipio": "jocotan-chiquimula",
+ "fuente": "Field Shift engine · FAO-56 with NASA POWER 2001–2025 · FEWS NET, MAGA, SESAN",
+ "regla": "engine water-balance simulation (S0) flags the season as lost",
+ "preliminar": false,
+ "detectadas": 5,
+ "total": 8,
+ "falsas": 4,
+ "detalle": [
+  {
+   "anio": 2001,
+   "documentada": true,
+   "detectada": true
+  },
+  {
+   "anio": 2002,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2003,
+   "documentada": false,
+   "detectada": true
+  },
+  {
+   "anio": 2004,
+   "documentada": false,
+   "detectada": true
+  },
+  {
+   "anio": 2005,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2006,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2007,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2008,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2009,
+   "documentada": true,
+   "detectada": false
+  },
+  {
+   "anio": 2010,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2011,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2012,
+   "documentada": true,
+   "detectada": false
+  },
+  {
+   "anio": 2013,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2014,
+   "documentada": true,
+   "detectada": true
+  },
+  {
+   "anio": 2015,
+   "documentada": true,
+   "detectada": true
+  },
+  {
+   "anio": 2016,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2017,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2018,
+   "documentada": true,
+   "detectada": true
+  },
+  {
+   "anio": 2019,
+   "documentada": true,
+   "detectada": true
+  },
+  {
+   "anio": 2020,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2021,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2022,
+   "documentada": false,
+   "detectada": false
+  },
+  {
+   "anio": 2023,
+   "documentada": true,
+   "detectada": false
+  },
+  {
+   "anio": 2024,
+   "documentada": false,
+   "detectada": true
+  },
+  {
+   "anio": 2025,
+   "documentada": false,
+   "detectada": true
+  }
+ ]
+}

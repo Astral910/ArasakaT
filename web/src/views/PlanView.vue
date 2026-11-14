@@ -9,7 +9,7 @@ import { FsButton, FsCard, Chip, Skeleton, HuipilBand, CountUp, DataTag } from '
 import { usePlanStore, requestFromQuery } from '@/stores/plan'
 import { cardUrl } from '@/api/client'
 import { drawCard } from '@/components/plan/card'
-import { t, lang, fechaCorta } from '@/i18n'
+import { t, lang, fechaCorta, setLang } from '@/i18n'
 import { nombreEstrategia } from '@/components/plan/util'
 
 const store = usePlanStore()
@@ -18,6 +18,8 @@ const bajando = ref(false)
 
 onMounted(async () => {
   store.cargarMunicipios()
+  const idioma = route.query.idioma ?? route.query.lang
+  if (idioma === 'es' || idioma === 'en') setLang(idioma)
   const q = requestFromQuery(route.query as Record<string, unknown>)
   const cambia = Object.entries(q).some(([k, v]) => (store.request as unknown as Record<string, unknown>)[k] !== v)
   if (!store.plan || cambia) await store.calcular(q)
@@ -25,7 +27,7 @@ onMounted(async () => {
 
 const plan = computed(() => store.plan)
 const nombreMuni = computed(() => plan.value ? `${plan.value.municipio.nombre}, ${plan.value.municipio.departamento}` : '')
-const origenTono = computed(() => (store.origen === 'api' ? 'ok' : store.origen === 'static' ? 'anil' : 'warn'))
+const origenTono = computed(() => (store.origen === 'api' || store.origen === 'static' ? 'ok' : store.origen === 'approx' ? 'anil' : 'warn'))
 const ordenadas = computed(() => plan.value?.estrategias ?? [])
 
 function linkPlan() {
@@ -231,7 +233,8 @@ async function descargar() {
 .d-maiz { border-color: var(--maiz) !important; } .d-granada { border-color: var(--granada) !important; } .d-jade { border-color: var(--jade) !important; }
 .strat { padding-top: 3.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .lead { max-width: 720px; }
-.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; margin-top: 1rem; align-items: start; }
+.cards > *, .trust > * { min-width: 0; }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.1rem; margin-top: 1rem; align-items: start; }
 .soil-s { padding-top: 3.5rem; }
 .soil-s h2 { margin-bottom: 0.5rem; }
 .soil-s .lead { margin-bottom: 1.4rem; }
@@ -263,7 +266,10 @@ async function descargar() {
 @media (max-width: 900px) {
   .head-in { grid-template-columns: 1fr; }
   .cal-grid { grid-template-columns: 1fr; justify-items: center; }
-  .cal-grid :deep(svg) { width: min(340px, 86vw); height: auto; }
+  .cal-grid { justify-items: stretch; }
+  .cal-grid :deep(.ring-wrap) { width: 100%; }
+  .cal-grid :deep(.ring-wrap > svg) { width: 100%; max-width: 360px; height: auto; }
+  .sun { width: 80px; height: 80px; right: 4%; top: 9%; opacity: 0.8; }
 }
 @media (max-width: 720px) { .cards, .trust, .sk-cards { grid-template-columns: 1fr; } .acts > * { flex: 1 1 auto; } }
 </style>

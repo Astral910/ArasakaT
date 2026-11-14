@@ -29,6 +29,7 @@ export function requestFromQuery(q: Record<string, unknown>): Partial<PlanReques
   if (s('riego')) r.riego = s('riego') === '1' || s('riego') === 'true'
   if (s('ganado')) r.ganado = s('ganado') === '1' || s('ganado') === 'true'
   if (s('horizonte')) r.horizonte = s('horizonte') as PlanRequest['horizonte']
+  if (s('mano_obra')) r.mano_obra = s('mano_obra') as PlanRequest['mano_obra']
   return r
 }
 

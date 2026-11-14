@@ -108,7 +108,7 @@ func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "JSON inválido")
 		return
 	}
-	if len(store.NormTel(in.Telefono)) < 8 {
+	if !store.TelValido(in.Telefono) {
 		fail(w, 400, "teléfono inválido")
 		return
 	}

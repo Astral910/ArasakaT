@@ -7,16 +7,16 @@ import CropIllustration from '@/components/illus/CropIllustration.vue'
 import { FsButton, FsCard, HuipilBand, CountUp, StatusBadge, DataTag } from '@/components/ui'
 import { useUiStore } from '@/stores/ui'
 import { usePlanStore } from '@/stores/plan'
-import { fixturePlan } from '@/api/client'
+import { fixturePlan, pub } from '@/api/client'
 import { t, lang } from '@/i18n'
 import { nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo } from '@/components/plan/util'
 
 const ui = useUiStore()
 const store = usePlanStore()
 onMounted(() => { if (!store.plan) store.calcular() })
-const plan = computed(() => store.plan ?? fixturePlan())
+const plan = computed(() => store.plan ?? fixturePlan({ idioma: lang.value }))
 // posición de Jocotán sobre la imagen de relieve (calculada por scripts/relieve.py)
-const JOCOTAN = { x: 0.7003, y: 0.7246 }
+const JOCOTAN = { x: 0.7003, y: 0.5579 }
 
 const datos = [
   { icon: Thermometer, name: 'NASA POWER', key: 'data.power', period: '2001–2026' },
@@ -33,7 +33,7 @@ const datos = [
     <section class="hero">
       <div class="sky" aria-hidden="true" />
       <div class="relief" aria-hidden="true">
-        <img src="/img/relieve-gt.webp" alt="" width="1565" height="1666" fetchpriority="high" />
+        <img :src="pub('img/relieve-alto.webp')" alt="" width="1565" height="1038" fetchpriority="high" />
         <span class="marker" :style="{ left: JOCOTAN.x * 100 + '%', top: JOCOTAN.y * 100 + '%' }"><i /><b>{{ t('hero.jocotan') }}</b></span>
       </div>
       <div class="container hero-grid">
@@ -128,10 +128,11 @@ const datos = [
 <style scoped>
 .hero { position: relative; overflow: hidden; padding: clamp(1.5rem, 4vw, 3.5rem) 0 2.5rem; margin-top: -68px; padding-top: calc(68px + clamp(1.5rem, 4vw, 3.5rem)); }
 .sky { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--sky-top) 55%, var(--bg)) 0%, var(--bg) 62%); }
-.relief { position: absolute; right: -6%; top: 2%; width: min(980px, 82vw); aspect-ratio: 1565 / 1666; opacity: 0.95; -webkit-mask-image: radial-gradient(closest-side at 60% 60%, #000 62%, transparent 100%); mask-image: radial-gradient(closest-side at 60% 60%, #000 62%, transparent 100%); }
-[data-theme='dark'] .relief { opacity: 0.55; filter: saturate(0.8) brightness(0.8); }
+.relief { position: absolute; right: -17%; top: 20%; width: min(1180px, 92vw); aspect-ratio: 1565 / 1038;
+  -webkit-mask-image: linear-gradient(180deg, transparent 6%, #000 36%, #000 80%, transparent 100%), linear-gradient(90deg, transparent 4%, #000 42%); -webkit-mask-composite: source-in; mask-image: linear-gradient(180deg, transparent 6%, #000 36%, #000 80%, transparent 100%), linear-gradient(90deg, transparent 4%, #000 42%); mask-composite: intersect; }
+[data-theme='dark'] .relief { opacity: 0.6; filter: saturate(0.8) brightness(0.75); }
 .relief img { width: 100%; height: 100%; }
-.marker { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 6px; }
+.marker { position: absolute; transform: translate(-50%, calc(-100% + 7px)); display: flex; flex-direction: column-reverse; align-items: center; gap: 8px; }
 .marker i { width: 14px; height: 14px; border-radius: 50%; background: var(--granada); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.85); position: relative; }
 .marker i::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--granada); animation: ping 2.4s ease-out infinite; }
 .marker b { font-size: 0.8rem; background: rgba(255, 250, 242, 0.92); color: #2a2118; padding: 2px 8px; border-radius: 99px; box-shadow: var(--shadow-1); white-space: nowrap; }
@@ -144,6 +145,7 @@ const datos = [
 .free { display: flex; align-items: center; gap: 0.45rem; font-size: 0.9rem; color: var(--ink-2); font-weight: 600; }
 .free svg { width: 18px; height: 18px; color: var(--jade); }
 .device { display: flex; justify-content: center; }
+.device :deep(.under) { background: var(--glass); backdrop-filter: blur(8px); padding: 0.3rem 0.4rem 0.3rem 0.9rem; border-radius: 99px; }
 .relief-note { position: relative; margin-top: 1.5rem; font-size: 0.75rem; color: var(--ink-3); text-align: right; }
 
 .stats { background: var(--surface); border-bottom: 1px solid var(--line); }
@@ -151,7 +153,7 @@ const datos = [
 .stat { display: flex; flex-direction: column; gap: 0.25rem; padding: 1.8rem 1.2rem; border-left: 1px solid var(--line); }
 .stat:first-child { border-left: 0; padding-left: 0; }
 .stat strong { font-family: var(--font-display); font-size: clamp(2.2rem, 4vw, 3.1rem); line-height: 1; letter-spacing: -0.02em; }
-.stat span { color: var(--ink-2); font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.stat > span { color: var(--ink-2); font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.2rem; }
 
 .how { padding: 5rem 0 3rem; display: flex; flex-direction: column; gap: 0.8rem; }
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin-top: 1.4rem; }
@@ -181,7 +183,8 @@ const datos = [
 
 @media (max-width: 980px) {
   .hero-grid { grid-template-columns: 1fr; gap: 2.5rem; }
-  .relief { width: 130vw; right: -45%; top: 8%; opacity: 0.55; }
+  .relief { width: 230vw; right: -75%; top: auto; bottom: 4%; opacity: 0.55; }
+  .marker { display: none; }
   .prev-grid { grid-template-columns: 1fr; }
   .data-grid { grid-template-columns: repeat(2, 1fr); }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }

@@ -76,6 +76,11 @@ type Stats struct {
 	AnticipacionMedia *float64 `json:"anticipacion_mediana_dias,omitempty"`
 	Precision         *float64 `json:"precision,omitempty"` // aciertos / emitidas
 	Deteccion         *float64 `json:"deteccion,omitempty"` // detectados / eventos
+	// Episodios: días de lluvia fuerte separados por ≤ 2 días cuentan como un solo temporal (un aviso los cubre).
+	Episodios         int      `json:"episodios_observados,omitempty"`
+	EpisodiosAvisados int      `json:"episodios_detectados,omitempty"`
+	EpisodiosAntes    int      `json:"episodios_avisados_antes,omitempty"`
+	PrecisionAzar     *float64 `json:"precision_por_azar,omitempty"` // aciertos esperados si el aviso cayera en un día al azar
 }
 
 // Timeline resultado de la máquina del tiempo para un municipio.
@@ -104,6 +109,7 @@ type Timeline struct {
 	Dias         []TLDia                `json:"dias"`
 	Fuentes      []contract.Fuente      `json:"fuentes"`
 	Notas        []string               `json:"notas"`
+	Cruzada      *Cruzada               `json:"validacion_cruzada,omitempty"`
 }
 
 // MuniRef municipio en la forma que usa la web.
@@ -126,19 +132,21 @@ type ResumenTipo struct {
 
 // Umbrales usados (para mostrar en "How do we know?").
 type Umbrales struct {
-	CeldaPOWER        string             `json:"celda_power"`
-	P95MM             float64            `json:"p95_mm"`
-	P99MM             float64            `json:"p99_mm"`
-	LluviaFuerteMM    float64            `json:"lluvia_fuerte_dia_mm"`
-	SecoPronMM        float64            `json:"seco_pronostico_mm"`
-	SecoObsMM         float64            `json:"seco_observado_mm"`
-	SecoPronPorModelo map[string]float64 `json:"seco_pronostico_por_modelo_mm"`
-	FrecuenciaSeca    float64            `json:"frecuencia_seca_power"`
-	RachaDias         int                `json:"racha_dias"`
-	InicioMM3         float64            `json:"inicio_mm_3dias"`
-	HeladaC           float64            `json:"helada_c"`
-	ProbMinima        float64            `json:"prob_minima"`
-	CaniculaMediana   float64            `json:"canicula_mediana_dias"`
+	CeldaPOWER          string             `json:"celda_power"`
+	P95MM               float64            `json:"p95_mm"`
+	P99MM               float64            `json:"p99_mm"`
+	LluviaFuerteMM      float64            `json:"lluvia_fuerte_dia_mm"`
+	SecoPronMM          float64            `json:"seco_pronostico_mm"`
+	SecoObsMM           float64            `json:"seco_observado_mm"`
+	SecoPronPorModelo   map[string]float64 `json:"seco_pronostico_por_modelo_mm"`
+	FuertePronPorModelo map[string]float64 `json:"lluvia_fuerte_pronostico_por_modelo_mm"`
+	FrecuenciaFuerte    float64            `json:"frecuencia_fuerte_power"`
+	FrecuenciaSeca      float64            `json:"frecuencia_seca_power"`
+	RachaDias           int                `json:"racha_dias"`
+	InicioMM3           float64            `json:"inicio_mm_3dias"`
+	HeladaC             float64            `json:"helada_c"`
+	ProbMinima          float64            `json:"prob_minima"`
+	CaniculaMediana     float64            `json:"canicula_mediana_dias"`
 }
 
 // BacktestOpts parámetros.
@@ -149,6 +157,8 @@ type BacktestOpts struct {
 	ONI     *data.ONI
 	From    time.Time
 	To      time.Time // inclusive; se recorta a lo que haya observado
+	// CalArchive si no es nil, los umbrales por modelo se calibran con este archivo (validación cruzada entre municipios)
+	CalArchive *forecast.Archive
 }
 
 func ds(t time.Time) string { return t.Format("2006-01-02") }
@@ -169,8 +179,15 @@ func Backtest(o BacktestOpts) Timeline {
 	dT := LapseRate * (o.Muni.ElevM - c.ElevM) // temperatura de la celda llevada a la altitud del municipio
 
 	// 1) correr el motor día por día
-	cal := CalibrateDry(o.Clim, o.Archive)
+	calA := o.Archive
+	if o.CalArchive != nil {
+		calA = o.CalArchive
+	}
+	cal := CalibrateDry(o.Clim, calA)
+	heavy := CalibrateHeavy(o.Clim, calA)
 	tl.Umbrales.SecoPronPorModelo = cal
+	tl.Umbrales.FuertePronPorModelo = heavy
+	tl.Umbrales.FrecuenciaFuerte = o.Clim.HeavyFreq
 	lastBy := map[string]time.Time{}
 	var inicio *time.Time
 	persona := Persona{Municipio: o.Muni.Name, Cultivo: "milpa"}
@@ -181,7 +198,7 @@ func Backtest(o BacktestOpts) Timeline {
 			tl.DiasSinPron++
 			continue
 		}
-		ctx := Ctx{Date: d, Members: ms, Obs: o.Clim.ObsBefore(d, 10), Clim: o.Clim, ONI: o.ONI, InicioEmitido: inicio, DryThr: cal}
+		ctx := Ctx{Date: d, Members: ms, Obs: o.Clim.ObsBefore(d, 10), Clim: o.Clim, ONI: o.ONI, InicioEmitido: inicio, DryThr: cal, HeavyThr: heavy}
 		for _, ev := range Evaluate(ctx) {
 			if lt, ok := lastBy[ev.Tipo]; ok && int(d.Sub(lt).Hours()/24) < Cooldown[ev.Tipo] {
 				continue
@@ -283,6 +300,7 @@ func Backtest(o BacktestOpts) Timeline {
 		"Los modelos de pronóstico lloviznan casi todos los días en el trópico: el umbral de día seco de cada modelo se calibra con su propio cuantil igual a la frecuencia de días secos de NASA POWER 2001–2025 (nunca menos de 1 mm). No usa lo observado en 2026.",
 		"Una racha seca prevista se cuenta como acierto si al menos 4 de sus días caen dentro de una racha seca observada de ≥ 7 días.",
 		"Una lluvia fuerte prevista es acierto si NASA POWER supera su P95 local entre un día antes y un día después de la fecha prevista.",
+		"Lluvia fuerte en el pronóstico: cada modelo usa su propio umbral, el cuantil de su lluvia diaria con la misma frecuencia (≈ 4 % de los días de mayo a octubre) con que NASA POWER pasa su P95 en 2001–2025. Los modelos casi nunca llegan al P99 de POWER (35 mm), por eso la regla fija no avisaba nada. Probado también calibrando con el municipio vecino (validacion_cruzada).",
 		"El ensamble del archivo son 3–4 modelos deterministas (ECMWF IFS, ECMWF AIFS, DWD ICON, JMA GSM): la probabilidad es de cuántos modelos lo muestran; en vivo se usan los 82 miembros de ECMWF ENS + GEFS.",
 		"Las rachas secas a 7–16 días tienen acierto moderado: por eso cada aviso dice qué tan seguro es y termina con 'consultá con tu extensionista'.",
 	}
@@ -448,6 +466,9 @@ func verify(tl *Timeline, o BacktestOpts) {
 			p := data.R2(float64(st.Detectados) / float64(st.Eventos))
 			st.Deteccion = &p
 		}
+		if ty.event == "lluvia_fuerte" {
+			episodes(tl, &st)
+		}
 		if st.Emitidas > 0 || st.Eventos > 0 {
 			tl.Stats = append(tl.Stats, st)
 		}
@@ -505,7 +526,7 @@ func compat(tl *Timeline, o BacktestOpts) {
 		tl.Modelos = append(tl.Modelos, m)
 	}
 	sort.Strings(tl.Modelos)
-	tl.UmbralFuerte, tl.P95 = HeavyThreshold(o.Clim), o.Clim.P95
+	tl.UmbralFuerte, tl.P95 = o.Clim.P95, o.Clim.P95 // línea en la lluvia observada: lo que cuenta como día fuerte en POWER
 	evByID := map[string]*TLEvento{}
 	for i := range tl.Eventos {
 		ev := &tl.Eventos[i]
@@ -551,5 +572,67 @@ func compat(tl *Timeline, o BacktestOpts) {
 		m := data.R1(mean(ls))
 		r.AnticipMedia = &m
 		tl.Resumen[k] = r
+	}
+}
+
+// episodes agrupa los días fuertes observados en temporales y calcula la tasa de acierto por azar.
+func episodes(tl *Timeline, st *Stats) {
+	var days []time.Time
+	det := map[string]bool{}
+	lead := map[string]int{}
+	for _, ev := range tl.Eventos {
+		if ev.Tipo != "lluvia_fuerte" {
+			continue
+		}
+		days = append(days, parse(ev.Inicio))
+		if ev.Detectado {
+			det[ev.Inicio] = true
+			if ev.Anticipacion != nil {
+				lead[ev.Inicio] = *ev.Anticipacion
+			}
+		}
+	}
+	sort.Slice(days, func(i, j int) bool { return days[i].Before(days[j]) })
+	for i := 0; i < len(days); {
+		j := i
+		for j+1 < len(days) && days[j+1].Sub(days[j]) <= 48*time.Hour {
+			j++
+		}
+		st.Episodios++
+		avisado, antes := false, false
+		for k := i; k <= j; k++ {
+			if det[ds(days[k])] {
+				avisado = true
+			}
+		}
+		// avisado antes: algún aviso acertado emitido antes del primer día del temporal
+		for _, a := range tl.Alertas {
+			if a.Tipo == TLluviaFuerte && a.Verificacion == "acierto" && a.Fecha < ds(days[i]) && !parse(a.Inicio).Before(days[i].AddDate(0, 0, -1)) && !parse(a.Inicio).After(days[j].AddDate(0, 0, 1)) {
+				antes = true
+			}
+		}
+		if avisado {
+			st.EpisodiosAvisados++
+		}
+		if antes {
+			st.EpisodiosAntes++
+		}
+		i = j + 1
+	}
+	// azar: fracción de días del periodo cuya ventana ±1 día toca un día fuerte observado
+	desde, hasta := parse(tl.Desde), parse(tl.Hasta)
+	n, hit := 0, 0
+	for d := desde; !d.After(hasta); d = d.AddDate(0, 0, 1) {
+		n++
+		for _, x := range days {
+			if absInt(int(x.Sub(d).Hours()/24)) <= 1 {
+				hit++
+				break
+			}
+		}
+	}
+	if n > 0 {
+		p := data.R2(float64(hit) / float64(n))
+		st.PrecisionAzar = &p
 	}
 }

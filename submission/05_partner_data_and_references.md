@@ -15,7 +15,7 @@
 - Doorenbos, J., Kassam, A.H. (1979). *Yield response to water*. FAO Irrigation and Drainage Paper 33.
 - Saxton, K.E., Rawls, W.J. (2006). Soil water characteristic estimates by texture and organic matter for hydrologic solutions. *Soil Sci. Soc. Am. J.* 70: 1569–1578.
 - Renard, K.G. et al. (1997). *Predicting soil erosion by water: a guide to conservation planning with RUSLE*. USDA Agriculture Handbook 703.
-- Renard, K.G., Freimund, J.R. (1994). Using monthly precipitation data to estimate the R-factor in the revised USLE. *Journal of Hydrology* 157: 287–306.
+- Lo, A., El-Swaify, S.A., Dangler, E.W., Shinshiro, L. (1985). Effectiveness of EI30 as an erosivity index in Hawaii. In: *Soil Erosion and Conservation*, Soil Conservation Society of America, 384–392 (tropical annual R-factor relation used by the engine).
 - Thrasher, B. et al. (2022). NASA Global Daily Downscaled Projections, CMIP6. *Scientific Data* 9: 262.
 - Sivakumar, M.V.K. (1988). Predicting rainy season potential from the onset of rains in Southern Sahelian and Sudanian climatic zones of West Africa. *Agricultural and Forest Meteorology* 42: 295–305.
 - Simmons, C.S., Tárano, J.M., Pinto, J.H. (1959). *Clasificación de reconocimiento de los suelos de la República de Guatemala*; MAGA (2000) soil maps.
@@ -23,7 +23,8 @@
 
 ## Drought and food-security sources (validation and context)
 - FEWS NET Guatemala food security outlooks. https://fews.net/latin-america-and-caribbean/guatemala
-- SESAN / IPC Guatemala Acute Food Insecurity Analysis, May 2025–April 2026. https://portal.sesan.gob.gt/
+- IPC / SESAN Guatemala Acute Food Insecurity Analysis, May 2025–April 2026 (3.4 million people in Phase 3+ in May–Aug 2025). https://www.ipcinfo.org/ipc-country-analysis/details-map/en/c/1159721/
+- CIF / SESAN Guatemala 2026–2027 analysis (3.2 million people in Phase 3+ projected for Jul–Sep 2026). https://portal.siinsan.gob.gt/wp-content/uploads/20260812-CIF-2026-2027.pdf
 - MAGA Guatemala (Ministry of Agriculture) drought and crop-loss reports. https://www.maga.gob.gt/
 - Oxfam (2026). *Informe Centroamérica: Fenómeno de El Niño*. https://lac.oxfam.org/
 - Infobae (2026-09-02). *El Niño 2026 en Guatemala: canículas largas, maíz perdido…* https://www.infobae.com/guatemala/
@@ -32,10 +33,10 @@
 - Go 1.26 standard library · `github.com/fogleman/gg` (MIT) and `github.com/golang/freetype` (FreeType/BSD) for PNG cards · `modernc.org/sqlite` (BSD-3) · `golang.org/x/image`, `golang.org/x/text` (BSD-3) · `github.com/google/uuid` (BSD-3).
 - Vue 3, Vite, TypeScript, Pinia, Vue Router (MIT) · MapLibre GL JS (BSD-3) · GSAP (GreenSock standard license, free) · Lucide icons (ISC) · Vitest, Playwright (MIT / Apache-2.0).
 - Messaging: Meta WhatsApp Cloud API · Twilio WhatsApp Sandbox.
-- Fonts: ⟦TBD: fonts used by the web, with their licenses (e.g. SIL OFL)⟧.
+- Fonts: Fraunces (Undercase Type) and Figtree (Erik Kennedy), both SIL Open Font License 1.1, self-hosted via Fontsource.
 - Hosting: Render / Fly.io (backend), Vercel / GitHub Pages (static site).
 
 ## Images, music, video
 - All illustrations are original SVG drawn for this project. ⟦TBD: list any AI-generated image (must carry a visible watermark) or third-party image⟧.
-- The demo video is a screen recording of our own app; no music. ⟦TBD if music is added: title, author, license⟧.
+- The demo video is a screen recording of our own app (headless browser, `/demo` route); no music and no audio.
 - No NASA logos are used in any generated content.

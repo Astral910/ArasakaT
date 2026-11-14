@@ -1,31 +1,25 @@
 1
-00:00:00,000 --> 00:00:02,000
-Team ⟦TBD⟧ · Guatemala · NASA Space Apps 2026
+00:00:00,000 --> 00:00:06,000
+A farmer in Jocotán shares a location on WhatsApp
 
 2
-00:00:02,000 --> 00:00:04,000
-Field Shift: a long dry spell can wipe out a milpa season.
+00:00:06,000 --> 00:00:11,000
+The plan card arrives in seconds
 
 3
-00:00:04,000 --> 00:00:09,000
-Plan your milpa with NASA satellites,
-on the phone you already have.
+00:00:11,000 --> 00:00:16,000
+NASA terrain and climate data for the area
 
 4
-00:00:09,000 --> 00:00:15,000
-NASA POWER daily climate, 2001–2026,
-run through the FAO-56 water balance.
+00:00:16,000 --> 00:00:21,000
+Three options compared, and the soil in 5 years
 
 5
-00:00:15,000 --> 00:00:21,000
-Three rotations compared:
-risk, water, yield range and soil health.
+00:00:21,000 --> 00:00:25,000
+In 2026 the system would have warned
+7 days before a real dry spell
 
 6
-00:00:21,000 --> 00:00:25,000
-Dry-spell alerts: in 2026,
-5 of 6 alerts in Jocotán came true.
-
-7
-00:00:25,000 --> 00:00:30,000
-Free · on WhatsApp · for farmers facing hunger.
+00:00:25,000 --> 00:00:29,900
+Free · on WhatsApp · for 3.4 million people facing hunger
+(IPC/SESAN 2025)

@@ -18,6 +18,16 @@ var Seasons = map[string]string{
 	"todos-santos-cuchumatan-huehuetenango": "2026-10-01",
 }
 
+// Pares para la validación cruzada: cada municipio se corre también con los umbrales calibrados en su vecino.
+var Pares = map[string]string{"jocotan-chiquimula": "camotan-chiquimula", "camotan-chiquimula": "jocotan-chiquimula"}
+
+// Cruzada resultado de la validación cruzada.
+type Cruzada struct {
+	CalibradoCon string   `json:"calibrado_con"`
+	Umbrales     Umbrales `json:"umbrales"`
+	Stats        []Stats  `json:"stats"`
+}
+
 // BacktestResumen lo que va en backtest.json (sin la serie diaria).
 type BacktestResumen struct {
 	MunicipioID  string     `json:"municipio_id"`
@@ -32,6 +42,8 @@ type BacktestResumen struct {
 	Umbrales     Umbrales   `json:"umbrales"`
 	Eventos      []TLEvento `json:"eventos"`
 	Timeline     string     `json:"timeline"` // archivo de la línea de tiempo
+	// ValidacionCruzada mismo backtest pero con los umbrales por modelo calibrados con el archivo de otro municipio.
+	ValidacionCruzada *Cruzada `json:"validacion_cruzada,omitempty"`
 }
 
 // BacktestAll resultado de todos.
@@ -66,7 +78,14 @@ func RunBacktests(e *Engine, as *forecast.Archives) ([]Timeline, error) {
 		from, _ := time.Parse("2006-01-02", Seasons[id])
 		dates := a.Dates()
 		to, _ := time.Parse("2006-01-02", dates[len(dates)-1])
-		out = append(out, Backtest(BacktestOpts{Muni: m, Clim: cl, Archive: a, ONI: e.ONI, From: from, To: to}))
+		tl := Backtest(BacktestOpts{Muni: m, Clim: cl, Archive: a, ONI: e.ONI, From: from, To: to})
+		if other, ok := Pares[id]; ok {
+			if oa := as.Get(other); oa != nil {
+				x := Backtest(BacktestOpts{Muni: m, Clim: cl, Archive: a, ONI: e.ONI, From: from, To: to, CalArchive: oa})
+				tl.Cruzada = &Cruzada{CalibradoCon: other, Umbrales: x.Umbrales, Stats: x.Stats}
+			}
+		}
+		out = append(out, tl)
 	}
 	return out, nil
 }
@@ -79,7 +98,7 @@ func Summary(tls []Timeline) BacktestAll {
 	for _, t := range tls {
 		all.Municipios = append(all.Municipios, BacktestResumen{MunicipioID: t.MunicipioID, Municipio: t.Municipio, Desde: t.Desde, Hasta: t.Hasta,
 			DiasCorridos: t.DiasCorridos, DiasSinPron: t.DiasSinPron, Titular: t.Titular, TitularEN: t.TitularEN, Stats: t.Stats,
-			Umbrales: t.Umbrales, Eventos: t.Eventos, Timeline: TimelineFile(t.MunicipioID, t.Anio)})
+			Umbrales: t.Umbrales, Eventos: t.Eventos, Timeline: TimelineFile(t.MunicipioID, t.Anio), ValidacionCruzada: t.Cruzada})
 		if len(all.Notas) == 0 {
 			all.Notas = t.Notas
 		}

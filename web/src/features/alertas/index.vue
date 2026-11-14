@@ -10,22 +10,44 @@ import EtiquetaDato from '../mapa/comun/EtiquetaDato.vue'
 import MaquinaTiempo from './MaquinaTiempo.vue'
 import BurbujaWA from './BurbujaWA.vue'
 import PanelExtensionista from './PanelExtensionista.vue'
-import { maquinaRespaldo, panelRespaldo, titular, redactar, type Maquina, type PanelResumen } from './maquina'
+import { maquinaRespaldo, panelRespaldo, titular, redactar, textoDe, verificacion, type Maquina, type PanelResumen } from './maquina'
 
 const BASE = (import.meta.env.BASE_URL as string | undefined) ?? '/'
-const MUNI = 'jocotan-chiquimula'
+// Municipios con máquina del tiempo publicada por ALERTAS (Jocotán viene también empaquetado).
+const MUNIS = [
+  { id: 'jocotan-chiquimula', nombre: 'Jocotán' },
+  { id: 'camotan-chiquimula', nombre: 'Camotán' },
+  { id: 'todos-santos-cuchumatan-huehuetenango', nombre: 'Todos Santos' },
+]
+const muni = ref(MUNIS[0].id)
+const disponibles = ref(MUNIS.slice(0, 1))
 const m = shallowRef<Maquina>(maquinaRespaldo)
 const panel = shallowRef<PanelResumen>(panelRespaldo)
 const elegida = ref<number | null>(null)
 
-onMounted(async () => {
+function cargarMaquina(id: string) {
+  return api.get<Maquina>(`/api/alerts/timeline?municipio=${id}&anio=2026`, `${BASE}static/alertas/timeline_${id}_2026.json`)
+}
+async function elegirMuni(id: string) {
+  muni.value = id
   try {
-    const r = await api.get<Maquina>(`/api/alerts/timeline?municipio=${MUNI}&anio=2026`, `${BASE}static/alertas/timeline_${MUNI}_2026.json`)
-    if (r?.dias?.length && r.alertas) m.value = r
+    const r = await cargarMaquina(id)
+    if (r?.dias?.length && r.alertas) { elegida.value = null; m.value = r; return }
   } catch { /* respaldo */ }
+  if (id === MUNIS[0].id) m.value = maquinaRespaldo
+}
+
+onMounted(async () => {
+  await elegirMuni(MUNIS[0].id)
+  // Solo se ofrecen los municipios que de verdad responden.
+  for (const x of MUNIS.slice(1)) {
+    cargarMaquina(x.id).then((r) => { if (r?.dias?.length) disponibles.value = MUNIS.filter((y) => y === x || disponibles.value.includes(y)) }).catch(() => {})
+  }
   try {
     const r = await api.get<PanelResumen>('/api/admin/resumen', `${BASE}static/alertas/resumen.json`)
-    if (r?.suscriptores) panel.value = r
+    // Sin suscriptores reales todavía: conteos de ejemplo + las alertas activas reales del motor.
+    if (r?.suscriptores?.length) panel.value = r
+    else if (r?.alertas_activas?.length) panel.value = { ...panelRespaldo, alertas_activas: r.alertas_activas, ejemplo: true }
   } catch { /* respaldo */ }
 })
 
@@ -34,24 +56,41 @@ const alertaSel = computed(() => (elegida.value != null ? m.value.alertas[elegid
 const textoSel = computed(() => {
   const a = alertaSel.value
   if (!a) return ''
-  return redactar({ ...a, dias: a.tipo === 'canicula' ? 7 : 1 }, m.value.municipio.nombre, lang.value as Idioma)
+  const l = lang.value as Idioma
+  return redactar({ ...a, texto: textoDe(a, l), dias: a.dias ?? (a.tipo === 'canicula' ? 7 : 1) }, m.value.municipio.nombre, l)
 })
-const filas = computed(() => Object.entries(m.value.resumen).map(([tipo, r]) => ({ tipo, ...r })))
+// Resultado honesto de la lluvia fuerte (precisión contra el azar y temporales de varios días).
+const lluviaRes = computed(() => {
+  const s = m.value.stats?.find((x) => x.tipo === 'lluvia_fuerte')
+  if (!s || !s.emitidas || s.episodios_observados == null) return null
+  return { a: s.aciertos, n: s.emitidas, p: Math.round((s.aciertos / s.emitidas) * 100), z: Math.round((s.precision_por_azar ?? 0) * 100), e: s.episodios_detectados ?? 0, o: s.episodios_observados }
+})
+const filas = computed(() =>
+  Object.entries(m.value.resumen).filter(([, r]) => r.alertas > 0 || r.eventos > 0).map(([tipo, r]) => ({ tipo, ...r })),
+)
+const textoTitular = computed(() => {
+  const l = lang.value as Idioma
+  const propio = l === 'en' ? m.value.titular_en : m.value.titular
+  if (propio) return propio
+  const x = tit.value
+  return x ? t('titular', { m: m.value.municipio.nombre, f: fechaCorta(x.alerta.fecha_emision, l, true), d: x.diasAntes, e: fechaCorta(x.evento.inicio, l) }) : t('titular.sin')
+})
+const estadoSel = computed(() => (alertaSel.value ? verificacion(alertaSel.value) : 'pendiente'))
 </script>
 
 <template>
   <main class="fs-alertas" data-testid="alertas">
     <section class="hero">
       <p class="eyebrow">{{ t('eyebrow') }} · {{ m.municipio.nombre }}, {{ m.municipio.depto }}</p>
-      <h1 v-if="tit" data-testid="titular">
-        {{ t('titular', { m: m.municipio.nombre, f: fechaCorta(tit.alerta.fecha_emision, lang as Idioma, true), d: tit.diasAntes, e: fechaCorta(tit.evento.inicio, lang as Idioma) }) }}
-      </h1>
-      <h1 v-else>{{ t('titular.sin') }}</h1>
+      <h1 data-testid="titular" :class="{ largo: textoTitular.length > 110 }">{{ textoTitular }}</h1>
       <p class="bajada">{{ t('bajada') }}</p>
     </section>
 
     <section class="tarjeta linea">
-      <MaquinaTiempo :m="m" :elegida="elegida" @elegir="elegida = $event" />
+      <div v-if="disponibles.length > 1" class="munis" role="group" aria-label="Municipio">
+        <button v-for="x in disponibles" :key="x.id" :class="{ on: muni === x.id }" :data-testid="'muni-' + x.id" @click="elegirMuni(x.id)">{{ x.nombre }}</button>
+      </div>
+      <MaquinaTiempo :key="m.municipio.id" :m="m" :elegida="elegida" @elegir="elegida = $event" />
       <div class="pie">
         <EtiquetaDato :texto="t('fuente', { f: m.fuente_lluvia, p: 'Open-Meteo archive (' + m.modelos.length + ' models)' })" />
         <span v-if="m.preliminar" class="prelim"><Info :size="14" /> {{ t('preliminar') }}</span>
@@ -71,15 +110,16 @@ const filas = computed(() => Object.entries(m.value.resumen).map(([tipo, r]) => 
                 <th>{{ t('tipo.' + f.tipo) }}</th>
                 <td class="num">{{ f.eventos }}</td>
                 <td class="num"><span class="pill ok">{{ f.avisados }} / {{ f.eventos }}</span></td>
-                <td class="num"><span class="pill" :class="{ malo: f.falsas_alarmas > 0 }">{{ f.falsas_alarmas }} / {{ f.alertas }}</span></td>
+                <td class="num"><span class="pill" :class="{ malo: f.falsas_alarmas > 0 }">{{ f.falsas_alarmas }} / {{ f.alertas }}</span><small v-if="f.sin_verificar" class="sinv">{{ t('sinVerificar', { n: f.sin_verificar }) }}</small></td>
                 <td class="num">{{ f.anticipacion_media_dias != null ? t('dias', { d: numero(f.anticipacion_media_dias, 1) }) : '—' }}</td>
               </tr>
             </tbody>
           </table>
         </div>
         <ul class="reglas">
-          <li>{{ t('regla.canicula') }}</li>
+          <li>{{ t('regla.canicula', { r: m.umbrales?.racha_dias ?? 7, s: m.umbrales?.seco_observado_mm ?? 1 }) }}</li>
           <li>{{ t('regla.lluvia', { u: m.umbral_lluvia_fuerte_mm ?? 50 }) }}</li>
+          <li v-if="lluviaRes"><strong>{{ t('regla.lluviaRes', lluviaRes) }}</strong></li>
         </ul>
         <p class="honesto"><ShieldCheck :size="18" /> <span>{{ t('honesto') }}</span></p>
       </article>
@@ -88,8 +128,8 @@ const filas = computed(() => Object.entries(m.value.resumen).map(([tipo, r]) => 
         <h2>{{ t('mensaje') }}</h2>
         <p class="sub">{{ t('mensaje.sub') }}</p>
         <BurbujaWA v-if="textoSel" :texto="textoSel" :hora="'06:00 · ' + fechaCorta(alertaSel!.fecha_emision)" />
-        <span v-if="alertaSel" class="estado" :class="alertaSel.acierto ? 'ok' : 'falsa'">
-          {{ alertaSel.acierto ? t('acierto') : t('falsa') }}<template v-if="alertaSel.acierto && alertaSel.anticipacion_dias != null && alertaSel.anticipacion_dias > 0"> · {{ t('diasAntes', { d: alertaSel.anticipacion_dias }) }}</template>
+        <span v-if="alertaSel" class="estado" :class="estadoSel === 'acierto' ? 'ok' : 'falsa'">
+          {{ t(estadoSel === 'acierto' ? 'acierto' : estadoSel === 'falsa' ? 'falsa' : 'pendiente') }}<template v-if="alertaSel.acierto && alertaSel.anticipacion_dias != null && alertaSel.anticipacion_dias > 0"> · {{ t('diasAntes', { d: alertaSel.anticipacion_dias }) }}</template>
         </span>
       </article>
     </section>
@@ -106,6 +146,7 @@ const filas = computed(() => Object.entries(m.value.resumen).map(([tipo, r]) => 
 .hero { display: grid; gap: 12px; max-width: 900px; }
 .eyebrow { margin: 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tierra, #8a5a3b); }
 .hero h1 { margin: 0; font-family: var(--font-display, Georgia, serif); font-size: clamp(1.9rem, 4.6vw, 3.4rem); line-height: 1.06; letter-spacing: -0.02em; text-wrap: balance; }
+.hero h1.largo { font-size: clamp(1.6rem, 3.4vw, 2.5rem); }
 .bajada { margin: 0; color: var(--ink-2, #57473a); font-size: 1.05rem; line-height: 1.55; max-width: 70ch; }
 .tarjeta { background: var(--surface, #fffaf2); border-radius: var(--radius-lg, 22px); padding: clamp(14px, 2.4vw, 24px); box-shadow: var(--shadow-1); display: grid; gap: 14px; align-content: start; }
 .tarjeta h2 { margin: 0; font-family: var(--font-display, Georgia, serif); font-size: 1.35rem; }
@@ -119,7 +160,7 @@ table { width: 100%; border-collapse: collapse; font-size: 0.92rem; min-width: 4
 th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line, rgba(42, 33, 24, 0.12)); }
 thead th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); font-weight: 700; }
 tbody th { font-weight: 700; white-space: nowrap; }
-.pill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-weight: 700; background: var(--bg-2, #ece2d0); }
+.pill { display: inline-block; white-space: nowrap; padding: 3px 10px; border-radius: 999px; font-weight: 700; background: var(--bg-2, #ece2d0); }
 .pill.ok { background: color-mix(in srgb, var(--jade, #2a8a66) 16%, transparent); color: var(--jade, #2a8a66); }
 .pill.malo { background: color-mix(in srgb, var(--granada, #b5343c) 12%, transparent); color: var(--granada, #b5343c); }
 .reglas { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 0.84rem; line-height: 1.5; display: grid; gap: 4px; }
@@ -131,7 +172,18 @@ tbody th { font-weight: 700; white-space: nowrap; }
 .estado { font-weight: 800; font-size: 0.86rem; padding: 5px 12px; border-radius: 999px; }
 .estado.ok { color: #0b6b3a; background: #dcf8c6; }
 .estado.falsa { color: var(--ink-2); background: var(--bg-2); }
+.munis { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-2, #ece2d0); width: fit-content; margin-top: 4px; }
+.munis button { border: 0; background: transparent; padding: 7px 14px; border-radius: 9px; font-weight: 700; font-size: 0.86rem; cursor: pointer; color: var(--ink-2); }
+.munis button.on { background: var(--surface, #fffaf2); color: var(--ink); box-shadow: var(--shadow-1); }
+.sinv { display: block; font-size: 0.72rem; color: var(--ink-3); margin-top: 3px; }
 .num { font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) {
+  table { min-width: 0; font-size: 0.8rem; }
+  th, td { padding: 8px 4px; }
+  thead th { font-size: 0.62rem; letter-spacing: 0.02em; }
+  tbody th { white-space: normal; }
+  .pill { padding: 2px 7px; }
+}
 @media (min-width: 900px) {
   .dos { grid-template-columns: 1.35fr 1fr; }
 }

@@ -278,23 +278,16 @@ func cabecera(dc *gg.Context, p *contract.Plan, L string) {
 		cx += w + 36 + 12
 	}
 
-	// sello "datos NASA" a la derecha
-	sx, sy := float64(W-120), 196.0
+	// etiqueta de fuente a la derecha (texto plano, no un sello: sin logos ni aval de la NASA)
+	sx, sy := float64(W-150), 196.0
 	dc.SetColor(cAnil)
-	dc.DrawCircle(sx, sy, 58)
-	dc.Fill()
-	dc.SetColor(cMaiz)
-	dc.SetLineWidth(3)
-	dc.DrawCircle(sx, sy, 50)
+	dc.SetLineWidth(2.5)
+	dc.DrawRoundedRectangle(sx-96, sy-36, 192, 72, 14)
 	dc.Stroke()
-	dc.SetColor(cHueso)
 	dc.SetFontFace(face("med", 15))
-	dc.DrawStringAnchored(pick(L, [2]string{"DATOS", "DATA"}), sx, sy-20, 0.5, 0.5)
-	dc.SetFontFace(face("bold", 26))
-	dc.DrawStringAnchored("NASA", sx, sy+2, 0.5, 0.5)
-	dc.SetColor(cMaiz)
-	dc.SetFontFace(face("med", 14))
-	dc.DrawStringAnchored(pick(L, [2]string{"satélites", "satellites"}), sx, sy+24, 0.5, 0.5)
+	dc.DrawStringAnchored(pick(L, [2]string{"datos abiertos de", "open data from"}), sx, sy-12, 0.5, 0.5)
+	dc.SetFontFace(face("bold", 20))
+	dc.DrawStringAnchored(pick(L, [2]string{"satélites NASA", "NASA satellites"}), sx, sy+14, 0.5, 0.5)
 
 	if p.Generado == "fixture" {
 		dc.SetFontFace(face("bold", 18))
@@ -787,15 +780,23 @@ func ajustar(dc *gg.Context, s string, maxw float64) string {
 	return s
 }
 
-// sinParentesis quita "(…)" final si el texto no cabe: "Milpa con mucuna (frijol abono)" → "Milpa con mucuna".
+// sinParentesis quita los "(…)" si el texto no cabe: "Milpa con mucuna (frijol abono)" → "Milpa con mucuna".
 func sinParentesis(dc *gg.Context, s string, maxw float64) string {
 	if w, _ := dc.MeasureString(s); w <= maxw {
 		return s
 	}
-	if i := strings.LastIndex(s, " ("); i > 0 && strings.HasSuffix(s, ")") {
-		return s[:i]
+	// quita todos los grupos " (…)", estén donde estén
+	for {
+		i := strings.Index(s, " (")
+		if i < 0 {
+			return s
+		}
+		j := strings.Index(s[i:], ")")
+		if j < 0 {
+			return s
+		}
+		s = s[:i] + s[i+j+1:]
 	}
-	return s
 }
 
 // espaciado dibuja texto con espaciado entre letras (versalitas de etiqueta).

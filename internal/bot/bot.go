@@ -66,6 +66,12 @@ func (b *Bot) Responder(e Entrada) []Salida {
 	mu.(*sync.Mutex).Lock()
 	defer mu.(*sync.Mutex).Unlock()
 
+	// Abre la ventana de 24 h de WhatsApp en el store de ALERTAS (dentro: texto normal; fuera: plantilla).
+	if r, ok := b.Subs.(Entrantes); ok {
+		if err := r.RegistrarEntrante(e.Tel, b.ahora()); err != nil {
+			log.Printf("bot: entrante %s: %v", Enmascarar(e.Tel), err)
+		}
+	}
 	se := b.Sesiones.Get(e.Tel)
 	if se.Idioma == "" {
 		se.Idioma = "es"
@@ -211,6 +217,12 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 		}
 		if e.BotonID == "sub_si" || e.BotonID == "sub_no" {
 			return b.respuestaSuscribir(se, e.BotonID)
+		}
+		// Seguimiento contestado por texto (Twilio no tiene botones): "bien", "se está secando"…
+		if se.Suscrito {
+			if r := seguimientoTexto(e.Texto); r != "" {
+				return b.seguimiento(se, "seg:"+r)
+			}
 		}
 		return txt(t(L, "ayuda"))
 	case PasoSembro:
@@ -458,13 +470,13 @@ func (b *Bot) detalle(se *Sesion, i int) []Salida {
 	}
 	if L == "en" {
 		fmt.Fprintf(&w, "📉 Seasons lost: ~%s of 10 (%s–%s)\n", RiesgoTexto(&s), num(s.PerdidasDe10.P10), num(s.PerdidasDe10.P90))
-		fmt.Fprintf(&w, "💧 Water deficit: %s mm (%s–%s)\n", num(s.DeficitAguaMM.P50), num(s.DeficitAguaMM.P10), num(s.DeficitAguaMM.P90))
-		fmt.Fprintf(&w, "🌽 Yield: %s qq/mz (%s–%s)\n", num(s.RendimientoQQMZ.P50), num(s.RendimientoQQMZ.P10), num(s.RendimientoQQMZ.P90))
+		fmt.Fprintf(&w, "💧 Water deficit: %s mm (%s–%s)\n", entero(s.DeficitAguaMM.P50), entero(s.DeficitAguaMM.P10), entero(s.DeficitAguaMM.P90))
+		fmt.Fprintf(&w, "🌽 Yield: %s qq/mz (%s–%s)\n", entero(s.RendimientoQQMZ.P50), entero(s.RendimientoQQMZ.P10), entero(s.RendimientoQQMZ.P90))
 		fmt.Fprintf(&w, "🟫 Bare soil: %d days a year\n", s.SueloDesnudoDias)
 	} else {
 		fmt.Fprintf(&w, "📉 Temporadas perdidas: ~%s de cada 10 (entre %s y %s)\n", RiesgoTexto(&s), num(s.PerdidasDe10.P10), num(s.PerdidasDe10.P90))
-		fmt.Fprintf(&w, "💧 Falta de agua: %s mm (%s–%s)\n", num(s.DeficitAguaMM.P50), num(s.DeficitAguaMM.P10), num(s.DeficitAguaMM.P90))
-		fmt.Fprintf(&w, "🌽 Rendimiento: %s qq/mz (%s–%s)\n", num(s.RendimientoQQMZ.P50), num(s.RendimientoQQMZ.P10), num(s.RendimientoQQMZ.P90))
+		fmt.Fprintf(&w, "💧 Falta de agua: %s mm (%s–%s)\n", entero(s.DeficitAguaMM.P50), entero(s.DeficitAguaMM.P10), entero(s.DeficitAguaMM.P90))
+		fmt.Fprintf(&w, "🌽 Rendimiento: %s qq/mz (%s–%s)\n", entero(s.RendimientoQQMZ.P50), entero(s.RendimientoQQMZ.P10), entero(s.RendimientoQQMZ.P90))
 		fmt.Fprintf(&w, "🟫 Suelo desnudo: %d días al año\n", s.SueloDesnudoDias)
 	}
 	f := s.Ficha
@@ -481,6 +493,10 @@ func (b *Bot) detalle(se *Sesion, i int) []Salida {
 		fmt.Fprintf(&w, "%s %s\n", pick(L, [2]string{"❓ Falta saber:", "❓ Still unknown:"}), strings.Join(f.InfoFaltante, " · "))
 	}
 	for _, a := range s.Advertencias {
+		// la del suelo desnudo ya está arriba con su número
+		if s.SueloDesnudoDias > 0 && strings.Contains(a, strconv.Itoa(s.SueloDesnudoDias)) && strings.Contains(strings.ToLower(a), "desnud") {
+			continue
+		}
 		fmt.Fprintf(&w, "⚠️ %s\n", a)
 	}
 	if fu := FuentesCortas(p); fu != "" {
@@ -573,6 +589,24 @@ func (b *Bot) seguimiento(se *Sesion, id string) []Salida {
 		return txt(t(se.Idioma, "seg_gracias"))
 	}
 	return txt(t(se.Idioma, "seg_gracias") + " " + t(se.Idioma, clave))
+}
+
+// seguimientoTexto reconoce la respuesta escrita al seguimiento semanal.
+func seguimientoTexto(s string) string {
+	s = geo.Slug(s)
+	switch {
+	case s == "":
+		return ""
+	case strings.Contains(s, "amarill") || strings.Contains(s, "yellow"):
+		return "amarillas"
+	case strings.Contains(s, "perdi") || strings.Contains(s, "lost"):
+		return "perdida"
+	case strings.Contains(s, "secando") || s == "seca" || strings.Contains(s, "dry"):
+		return "seca"
+	case s == "bien" || s == "muy-bien" || s == "good" || s == "fine" || s == "va-bien":
+		return "bien"
+	}
+	return ""
 }
 
 // ---------- utilidades ----------
@@ -850,6 +884,9 @@ func RiesgoTexto(s *contract.Estrategia) string {
 	return num(math.Round(Riesgo(s)*10) / 10)
 }
 
+// entero redondea: agua en mm y quintales no tienen decimales con sentido para el agricultor.
+func entero(f float64) string { return strconv.Itoa(int(math.Round(f))) }
+
 func num(f float64) string {
 	if f == float64(int(f)) {
 		return strconv.Itoa(int(f))
@@ -889,15 +926,23 @@ func FuentesCortas(p *contract.Plan) string {
 	var xs []string
 	seen := map[string]bool{}
 	for _, f := range p.Fuentes {
-		if f.Dato == "" || seen[f.Dato] {
+		s := NombreFuente(f.Dato)
+		if s == "" || seen[s] {
 			continue
 		}
-		seen[f.Dato] = true
-		s := NombreFuente(f.Dato)
-		if f.Periodo != "" {
-			s += " (" + f.Periodo + ")"
+		seen[s] = true
+		// el período solo en la primera (la principal, NASA POWER) y si tiene años
+		if len(xs) == 0 && strings.ContainsAny(f.Periodo, "0123456789") {
+			per := f.Periodo
+			if i := strings.Index(per, ","); i > 0 {
+				per = per[:i]
+			}
+			s += " " + per
 		}
 		xs = append(xs, s)
+		if len(xs) == 4 {
+			break
+		}
 	}
 	return strings.Join(xs, " · ")
 }

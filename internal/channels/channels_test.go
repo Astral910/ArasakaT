@@ -222,6 +222,16 @@ func TestCloudPlantillaYLimites(t *testing.T) {
 	if len([]rune(title)) > 20 {
 		t.Fatalf("título de botón > 20: %q", title)
 	}
+	// Seguimiento semanal: 4 botones → lista interactiva (WhatsApp admite 3 botones).
+	seg := []contract.Boton{{ID: "seg:bien:a1", Title: "Bien"}, {ID: "seg:amarillas:a1", Title: "Hojas amarillas"}, {ID: "seg:seca:a1", Title: "Se está secando"}, {ID: "seg:perdida:a1", Title: "Se perdió"}}
+	if err := c.EnviarBotones("502", "🤝 ¿Cómo va tu milpa?", seg); err != nil {
+		t.Fatal(err)
+	}
+	it := g.tomar()[0]["interactive"].(map[string]any)
+	rows := it["action"].(map[string]any)["sections"].([]any)[0].(map[string]any)["rows"].([]any)
+	if it["type"] != "list" || len(rows) != 4 || rows[3].(map[string]any)["id"] != "seg:perdida:a1" {
+		t.Fatalf("seguimiento como lista: %v", it)
+	}
 	sinCred := NewCloud(CloudConfig{}, nil)
 	if err := sinCred.EnviarTexto("502", "hola"); err == nil {
 		t.Fatal("sin credenciales debía fallar")

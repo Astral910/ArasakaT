@@ -17,7 +17,6 @@ import (
 	"fieldshift/internal/contract"
 	"fieldshift/internal/geo"
 	"fieldshift/internal/plan"
-	"fieldshift/internal/store"
 )
 
 // Alertador lo implementa internal/alerts: corrida diaria idempotente.
@@ -47,7 +46,7 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 
 	// MOTOR (internal/plan)
 	var muni *geo.Index
-	if eng, err := plan.Routes(mux, cfg.DataDir); err == nil {
+	if eng, err := plan.Routes(mux, cfg.DataDir, cfg.StaticDir); err == nil {
 		a.planner, muni = eng, eng.Muni
 		a.comp.Motor = "real"
 	} else {
@@ -84,7 +83,7 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 	// BOT (internal/bot, internal/channels, internal/cards)
 	d := channels.DepsDesdeEnv()
 	if alSvc != nil {
-		d.Subs = subsStore{alSvc.Store}
+		d.Subs = alSvc.Store.Bot()
 	}
 	d.Planner, d.Municipios = a.planner, muni
 	if os.Getenv("BOT_SESIONES") == "" {
@@ -119,15 +118,6 @@ func (r alertadorReal) RunDaily(date string) error {
 		log.Printf("alertas: corrida %s → %+v", date, res)
 	}
 	return err
-}
-
-// subsStore adapta store.Store a bot.Suscripciones.
-type subsStore struct{ st *store.Store }
-
-func (s subsStore) Suscribir(x contract.Suscriptor) error { _, err := s.st.Suscribir(x); return err }
-func (s subsStore) Baja(tel string) error                 { return s.st.Baja(tel) }
-func (s subsStore) RegistrarRespuesta(tel, alertaID, respuesta string) error {
-	return s.st.GuardarRespuesta(tel, alertaID, respuesta)
 }
 
 // mensajeroDiferido deja construir alertas antes que los canales del bot.

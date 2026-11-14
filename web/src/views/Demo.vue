@@ -12,13 +12,14 @@ import CropIllustration from '@/components/illus/CropIllustration.vue'
 import BrandMark from '@/components/layout/BrandMark.vue'
 import { Gauge, HuipilBand, StatusBadge } from '@/components/ui'
 import { usePlanStore } from '@/stores/plan'
-import { fixturePlan } from '@/api/client'
+import { fixturePlan, pub } from '@/api/client'
+import { maquina, avisoCanicula } from '@/data/maquina'
 import { t, lang } from '@/i18n'
-import { nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo, cambioSuelo } from '@/components/plan/util'
+import { descEstrategia, nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo, cambioSuelo } from '@/components/plan/util'
 
 const route = useRoute()
 const store = usePlanStore()
-const plan = computed(() => store.plan ?? fixturePlan())
+const plan = computed(() => store.plan ?? fixturePlan({ idioma: lang.value }))
 const escena = ref(-1) // -1 = portada, 0..5 escenas
 const elapsed = ref(0)
 const scale = ref(1)
@@ -29,14 +30,26 @@ const endRef = ref<HTMLElement | null>(null)
 const TOTAL = 30
 // marcas de tiempo (s) del guion de la nota 20
 const CORTES = [0, 4, 9, 15, 21, 25]
-const subt = computed(() => [t('demo.c1'), t('demo.c2'), t('demo.c3'), t('demo.c4'), t('demo.c5'), ''][Math.max(0, escena.value)])
+const subt = computed(() => [t('demo.c1'), t('demo.c2'), t('demo.c3'), t('demo.c4'), t('demo.c5', { n: tm.value.n }), ''][Math.max(0, escena.value)])
 
-// Línea de tiempo de ejemplo para la escena del aviso (se reemplaza por la de ALERTAS cuando exista).
-const lluvia = Array.from({ length: 62 }, (_, i) => {
-  const d = i // 15 jun .. 15 ago
-  const seca = d >= 24 && d <= 33
-  return seca ? 0.4 : 4 + 10 * Math.abs(Math.sin(i * 1.7)) + (i % 5 === 0 ? 9 : 0)
+// Máquina del tiempo 2026: lluvia real y aviso del backtest (WEBDATOS/ALERTAS); si no hay datos, ejemplo marcado.
+const av = avisoCanicula()
+// Ventana de 62 días que deja el aviso a un tercio: se ven la lluvia antes, el aviso y la racha seca real.
+const T0 = new Date(av.emision + 'T12:00:00').getTime() - 22 * 86400000
+const idx = (iso: string) => Math.round((new Date(iso + 'T12:00:00').getTime() - T0) / 86400000)
+const lluvia = computed(() => {
+  const dias = maquina?.dias ?? []
+  const serie = Array.from({ length: 62 }, (_, i) => {
+    const f = new Date(T0 + i * 86400000).toISOString().slice(0, 10)
+    return dias.find((d) => d.fecha === f)?.lluvia_mm
+  })
+  if (serie.some((v) => v !== undefined)) return serie.map((v) => v ?? 0)
+  return Array.from({ length: 62 }, (_, i) => (i >= 31 && i <= 40 ? 0.4 : 4 + 10 * Math.abs(Math.sin(i * 1.7))))
 })
+const escalaLluvia = computed(() => 230 / Math.max(10, ...lluvia.value))
+const tm = computed(() => ({ c0: idx(av.eventoInicio), dias: av.dias, emision: idx(av.emision), n: av.anticipacion, ejemplo: av.ejemplo || !!maquina?.preliminar }))
+const fechaEje = (i: number) => new Date(T0 + i * 86400000).toLocaleDateString(lang.value === 'es' ? 'es-GT' : 'en-US', { day: 'numeric', month: 'short' })
+const rec = !!route.query.rec
 
 let timers: number[] = []
 let raf = 0
@@ -71,16 +84,16 @@ onMounted(() => {
   fit()
   window.addEventListener('resize', fit)
   if (!store.plan) store.calcular()
-  if (route.query.autostart) setTimeout(start, 1500)
+  if (route.query.autostart || rec) setTimeout(start, 1500)
 })
 onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 </script>
 
 <template>
-  <div class="demo-root">
+  <div class="demo-root" :class="{ rec }">
     <div class="stage" :style="{ transform: `translate(-50%, -50%) scale(${scale})` }">
       <div class="bg" :class="'e' + escena" />
-      <img class="relief" src="/img/relieve-gt.webp" alt="" :class="{ dim: escena >= 2 }" />
+      <img class="relief" :src="pub('img/relieve-gt.webp')" alt="" :class="{ dim: escena >= 2 }" />
 
       <header class="top">
         <BrandMark :size="48" /><span>Field Shift</span>
@@ -88,11 +101,11 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
       </header>
 
       <div class="phone-slot" :class="{ out: escena === 5, center: escena <= 1 && escena >= 0 }">
-        <PhoneSim ref="phone" :plan="plan" :autoplay="false" :interactive="false" :speed="0.55" :notif-delay="14200" :auto-open="3000" :scale="1.38" />
+        <PhoneSim ref="phone" :plan="plan" :autoplay="false" :interactive="false" :speed="0.55" :notif-delay="14200" :auto-open="3000" :scale="1.24" />
       </div>
 
       <!-- escena 2–3: mapa + anillo; escena 3: tarjetas -->
-      <div class="panel map-panel" :class="{ show: escena >= 2 && escena <= 3 }">
+      <div class="panel map-panel" :class="{ show: escena === 2 }">
         <TerrainMap ref="mapa" :fly="false" :interactive="false" :duration="5200" />
         <div class="ring-over" :class="{ show: escena === 2 && elapsed > 12 }">
           <CalendarRing v-if="escena === 2 && elapsed > 12" :plan="plan" :size="360" :labels="true" />
@@ -102,9 +115,10 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
       <div class="panel cards-panel" :class="{ show: escena === 3 }">
         <div v-if="escena === 3" class="d-cards">
           <article v-for="(e, i) in plan.estrategias" :key="e.id" class="d-card" :class="{ rec: e.recomendada }" :style="{ animationDelay: i * 450 + 'ms' }">
-            <CropIllustration :crop="cultivoEstrategia(e)" :health="saludDeRiesgo(e.perdidas_de_10.p50)" :size="120" />
+            <CropIllustration :crop="cultivoEstrategia(e)" :health="saludDeRiesgo(e.perdidas_de_10.p50)" :size="170" />
             <h3>{{ nombreEstrategia(e, lang, plan) }}</h3>
             <StatusBadge :level="nivelRiesgo(e.perdidas_de_10.p50)" :label="t('plan.level.' + nivelRiesgo(e.perdidas_de_10.p50))" />
+            <p class="d-desc">{{ descEstrategia(e, lang, plan) }}</p>
             <div class="d-g">
               <Gauge :value="e.perdidas_de_10.p50" :max="10" :p10="e.perdidas_de_10.p10" :p90="e.perdidas_de_10.p90" :level="nivelRiesgo(e.perdidas_de_10.p50)" :label="t('plan.risk')" :unit="t('plan.riskUnit')" :size="120" :delay="i * 450" />
               <Gauge :value="Math.abs(cambioSuelo(e))" :prefix="cambioSuelo(e) > 0 ? '+' : cambioSuelo(e) < 0 ? '−' : ''" :max="40" :level="cambioSuelo(e) > 2 ? 'ok' : cambioSuelo(e) >= -2 ? 'warn' : 'risk'" :label="t('plan.soil')" unit="% MO" :size="120" :delay="i * 450 + 150" />
@@ -115,21 +129,21 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 
       <!-- escena 4: máquina del tiempo -->
       <div class="panel tm-panel" :class="{ show: escena === 4 }">
-        <h2>{{ t('demo.c5') }}</h2>
+        <h2>{{ t('demo.c5', { n: tm.n }) }}</h2>
         <svg viewBox="0 0 1000 340" class="tm">
-          <rect :x="24 * 16 + 20" y="20" :width="10 * 16" height="260" fill="var(--granada)" opacity="0.14" rx="8" />
-          <text :x="24 * 16 + 20 + 80" y="50" text-anchor="middle" class="tm-l granada">{{ t('plan.legend.canicula') }}</text>
-          <rect v-for="(v, i) in lluvia" :key="i" :x="20 + i * 16" :y="280 - v * 9" width="11" :height="v * 9" rx="4" fill="var(--anil)" opacity="0.75" class="bar" :style="{ animationDelay: i * 18 + 'ms' }" />
+          <rect :x="tm.c0 * 16 + 20" y="20" :width="tm.dias * 16" height="260" fill="var(--granada)" opacity="0.14" rx="8" />
+          <text :x="tm.c0 * 16 + 20 + tm.dias * 8" y="50" text-anchor="middle" class="tm-l granada">{{ lang === 'es' ? `Racha seca real · ${tm.dias} días` : `Real dry spell · ${tm.dias} days` }}</text>
+          <rect v-for="(v, i) in lluvia" :key="i" :x="20 + i * 16" :y="280 - v * escalaLluvia" width="11" :height="Math.max(2, v * escalaLluvia)" rx="4" fill="var(--anil)" opacity="0.75" class="bar" :style="{ animationDelay: i * 18 + 'ms' }" />
           <line x1="20" y1="280" x2="1000" y2="280" stroke="var(--line-2)" />
           <g class="bubble-in">
-            <line :x1="19 * 16 + 26" y1="90" :x2="19 * 16 + 26" y2="280" stroke="#1f8f6e" stroke-width="3" stroke-dasharray="6 5" />
-            <rect :x="19 * 16 - 104" y="40" width="260" height="56" rx="16" fill="#d6f5c9" />
-            <text :x="19 * 16 + 26" y="75" text-anchor="middle" class="tm-b">🌵 {{ lang === 'es' ? 'Aviso · 5 días antes' : 'Alert · 5 days ahead' }}</text>
+            <line :x1="tm.emision * 16 + 26" y1="136" :x2="tm.emision * 16 + 26" y2="280" stroke="#1f8f6e" stroke-width="3" stroke-dasharray="6 5" />
+            <rect :x="tm.emision * 16 - 104" y="80" width="260" height="56" rx="16" fill="#d6f5c9" />
+            <text :x="tm.emision * 16 + 26" y="115" text-anchor="middle" class="tm-b">🌵 {{ t('demo.alertAhead', { n: tm.n }) }}</text>
           </g>
-          <text x="20" y="315" class="tm-l">{{ lang === 'es' ? '15 jun' : 'Jun 15' }}</text>
-          <text x="1000" y="315" text-anchor="end" class="tm-l">{{ lang === 'es' ? '15 ago 2026' : 'Aug 15, 2026' }}</text>
+          <text x="20" y="315" class="tm-l">{{ fechaEje(0) }}</text>
+          <text x="1000" y="315" text-anchor="end" class="tm-l">{{ fechaEje(61) }} 2026</text>
         </svg>
-        <p class="note">{{ t('demo.backtestNote') }} · {{ t('demo.example') }}</p>
+        <p class="note">{{ t('demo.backtestNote') }}<template v-if="tm.ejemplo"> · {{ t('demo.preliminar') }}</template></p>
       </div>
 
       <!-- escena 5: cierre -->
@@ -143,10 +157,10 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
       <!-- subtítulos -->
       <div class="subs" :class="{ show: !!subt && escena >= 0 }"><span>{{ subt }}</span></div>
       <div class="progress"><i :style="{ width: (elapsed / TOTAL) * 100 + '%' }" /></div>
-      <p v-if="store.origen === 'fixture'" class="fixture-note">{{ t('demo.example') }}</p>
+      <p v-if="store.origen === 'fixture' && !rec" class="fixture-note">{{ t('demo.example') }}</p>
 
       <!-- portada -->
-      <div v-if="escena === -1 || (!corriendo && escena === 5 && elapsed >= TOTAL)" class="cover" :class="{ ended: escena === 5 }">
+      <div v-if="!rec && (escena === -1 || (!corriendo && escena === 5 && elapsed >= TOTAL))" class="cover" :class="{ ended: escena === 5 }">
         <template v-if="escena === -1">
           <h1>{{ t('demo.title') }}</h1>
           <button type="button" class="go" @click="start"><Play /> {{ t('demo.start') }}</button>
@@ -159,6 +173,8 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 
 <style scoped>
 .demo-root { position: fixed; inset: 0; background: #0f0c09; overflow: hidden; }
+.demo-root.rec, .demo-root.rec * { cursor: none !important; }
+.rec .progress { display: none; }
 .stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform-origin: center; overflow: hidden; background: var(--bg); color: var(--ink); }
 .bg { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--sky-top) 60%, var(--bg)), var(--bg) 70%); transition: background 1s; }
 .bg.e4 { background: linear-gradient(180deg, #fff1d6, var(--bg) 70%); }
@@ -168,7 +184,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 .top { position: absolute; left: 80px; top: 50px; display: flex; align-items: center; gap: 16px; font-family: var(--font-display); font-size: 40px; font-weight: 650; z-index: 4; }
 .tag { font-family: var(--font-ui); font-size: 20px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tierra); margin-left: 12px; }
 .e5 ~ .top, .stage:has(.bg.e5) .top { color: #f5efe4; }
-.phone-slot { position: absolute; left: 120px; top: 120px; z-index: 3; transition: transform 1s var(--ease), opacity 800ms; }
+.phone-slot { position: absolute; left: 130px; top: 140px; z-index: 3; transition: transform 1s var(--ease), opacity 800ms; }
 .phone-slot.center { transform: translateX(560px); }
 .phone-slot.out { transform: translateX(-700px); opacity: 0; }
 .panel { position: absolute; left: 720px; right: 80px; top: 150px; bottom: 170px; opacity: 0; transform: translateY(30px); transition: opacity 700ms var(--ease), transform 700ms var(--ease); pointer-events: none; z-index: 2; }
@@ -178,10 +194,12 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 .ring-over.show { opacity: 1; }
 .ring-over :deep(.legend) { display: none; }
 .d-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; height: 100%; }
-.d-card { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px; border-radius: 32px; background: var(--surface); box-shadow: var(--shadow-2); text-align: center; animation: up 700ms var(--ease) both; border: 2px solid var(--line); }
+.d-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 28px; border-radius: 32px; background: var(--surface); box-shadow: var(--shadow-2); text-align: center; animation: up 700ms var(--ease) both; border: 2px solid var(--line); }
 .d-card.rec { border-color: var(--jade); box-shadow: 0 0 0 6px color-mix(in srgb, var(--jade) 15%, transparent), var(--shadow-2); }
 .d-card h3 { font-size: 30px; }
-.d-g { display: flex; gap: 20px; margin-top: auto; }
+.d-g { display: flex; gap: 20px; margin-top: 12px; }
+.d-desc { font-size: 21px; color: var(--ink-2); line-height: 1.35; max-width: 420px; }
+.cards-panel { top: 190px; bottom: 200px; }
 .d-g :deep(.label) { font-size: 16px; }
 @keyframes up { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: none; } }
 .tm-panel { display: flex; flex-direction: column; gap: 20px; }
@@ -201,7 +219,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
 .big { font-family: var(--font-display); font-size: 110px; font-weight: 650; line-height: 1; letter-spacing: -0.02em; }
 .mid { font-size: 48px; font-weight: 600; max-width: 1300px; }
 .small { font-size: 26px; opacity: 0.8; }
-.subs { position: absolute; left: 0; right: 0; bottom: 70px; display: flex; justify-content: center; z-index: 6; opacity: 0; transition: opacity 400ms; }
+.subs { position: absolute; left: 640px; right: 40px; bottom: 70px; display: flex; justify-content: center; z-index: 6; opacity: 0; transition: opacity 400ms; }
 .subs.show { opacity: 1; }
 .subs span { background: rgba(15, 12, 9, 0.78); color: #fff; font-size: 34px; font-weight: 650; padding: 12px 30px; border-radius: 16px; }
 .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: rgba(0, 0, 0, 0.08); z-index: 6; }

@@ -15,3 +15,4 @@ e2e/playwright-report/
 /fieldshift-server*
 sesiones.json
 var/
+submission/video/*.mp4

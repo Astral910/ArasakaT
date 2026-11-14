@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { MapPin, LocateFixed, Search, Check, ArrowLeft, ArrowRight, Sprout, Droplets, Beef, Leaf, Users, Wheat, Mountain, Coins, Minus, Plus } from 'lucide-vue-next'
 import TerrainMap from '@/components/map/TerrainMap.vue'
 import CropIllustration from '@/components/illus/CropIllustration.vue'
@@ -11,6 +11,9 @@ import { t } from '@/i18n'
 
 const store = usePlanStore()
 const router = useRouter()
+const route = useRoute()
+// El link del bot llega a /plan?municipio_id=…: abrir el plan cargado directamente.
+if (typeof route.query.municipio_id === 'string' || typeof route.query.m === 'string') router.replace({ path: '/my-plan', query: route.query })
 const paso = ref(0)
 const req = ref<PlanRequest>({ ...store.request })
 const q = ref('')
@@ -93,7 +96,7 @@ async function terminar() {
       <FsCard class="panel" pad="lg" band>
         <Transition name="fade" mode="out-in">
           <!-- 1 · DÓNDE -->
-          <div v-if="paso === 0" key="p0" class="q">
+          <div v-if="paso === 0" key="p0" class="q" data-testid="wiz-paso-1">
             <h2>{{ t('wiz.where.t') }}</h2>
             <p class="muted">{{ t('wiz.where.d') }}</p>
             <div class="search">
@@ -121,7 +124,7 @@ async function terminar() {
           </div>
 
           <!-- 2 · QUÉ -->
-          <div v-else-if="paso === 1" key="p1" class="q">
+          <div v-else-if="paso === 1" key="p1" class="q" data-testid="wiz-paso-2">
             <h2>{{ t('wiz.what.t') }}</h2>
             <p class="muted">{{ t('wiz.what.d') }}</p>
             <div class="tiles">
@@ -145,7 +148,7 @@ async function terminar() {
           </div>
 
           <!-- 3 · CON QUÉ -->
-          <div v-else-if="paso === 2" key="p2" class="q">
+          <div v-else-if="paso === 2" key="p2" class="q" data-testid="wiz-paso-3">
             <h2>{{ t('wiz.with.t') }}</h2>
             <p class="muted">{{ t('wiz.with.d') }}</p>
             <div class="toggles">
@@ -171,7 +174,7 @@ async function terminar() {
           </div>
 
           <!-- 4 · QUÉ IMPORTA -->
-          <div v-else key="p3" class="q">
+          <div v-else key="p3" class="q" data-testid="wiz-paso-4">
             <h2>{{ t('wiz.prio.t') }}</h2>
             <p class="muted">{{ t('wiz.prio.d') }}</p>
             <div class="tiles prio">
@@ -187,7 +190,7 @@ async function terminar() {
         <nav class="nav">
           <FsButton v-if="paso > 0" variant="ghost" @click="paso--"><template #icon><ArrowLeft /></template>{{ t('ui.back') }}</FsButton>
           <span class="sp" />
-          <FsButton :disabled="!puede" size="lg" @click="siguiente">
+          <FsButton :disabled="!puede" size="lg" data-testid="wiz-siguiente" @click="siguiente">
             <template #icon><Sprout v-if="paso === 3" /><ArrowRight v-else /></template>{{ paso === 3 ? t('wiz.go') : t('ui.next') }}
           </FsButton>
         </nav>
@@ -209,7 +212,7 @@ async function terminar() {
 </template>
 
 <style scoped>
-.wiz { padding: 1.5rem 0 2rem; }
+.wiz { padding: 2.2rem 0 2rem; }
 .wiz-head { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.4rem; }
 .wiz-head h1 { font-size: clamp(2rem, 4.5vw, 3rem); }
 .stepper { list-style: none; padding: 0; margin: 0.6rem 0 0; display: flex; gap: 0.4rem; counter-reset: s; }

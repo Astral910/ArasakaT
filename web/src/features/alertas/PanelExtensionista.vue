@@ -39,7 +39,7 @@ const idiomaMsg = ref<Idioma>((lang.value as Idioma) ?? 'es')
 const alerta = computed(() => props.p.alertas_activas[elegida.value])
 const texto = computed(() =>
   alerta.value
-    ? redactar({ ...alerta.value, texto: alerta.value.texto || undefined, lluvia_mm: alerta.value.vars?.[0] ? +alerta.value.vars[0] : undefined }, nombre(alerta.value.municipio_id), idiomaMsg.value)
+    ? redactar({ ...alerta.value, texto: (idiomaMsg.value === 'en' ? (alerta.value as { texto_en?: string }).texto_en : alerta.value.texto) || undefined, lluvia_mm: alerta.value.vars?.[0] ? +alerta.value.vars[0] : undefined }, nombre(alerta.value.municipio_id), idiomaMsg.value)
     : '',
 )
 const enviado = ref(false)
@@ -156,7 +156,7 @@ const COLOR: Record<string, string> = { bien: 'var(--jade, #2a8a66)', amarillas:
 .lista-activas li.on button, .lista-activas button:hover { background: var(--bg-2, #ece2d0); }
 .barras, .apiladas { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
 .barras li { display: grid; grid-template-columns: minmax(90px, 1.2fr) 2fr 34px; gap: 10px; align-items: center; font-size: 0.9rem; }
-.nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nom { line-height: 1.2; overflow-wrap: anywhere; }
 .nom small { color: var(--ink-3); }
 .b { height: 10px; border-radius: 5px; background: var(--bg-2, #ece2d0); overflow: hidden; }
 .b i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, var(--jade, #2a8a66), var(--milpa, #5d8a3a)); }
