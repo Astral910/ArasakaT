@@ -108,3 +108,14 @@ Hecho / Falta / Pedidos / Problemas
 - **14-nov 11:40 · merge 5** (todas las ramas): **OK**. Go build/test ✅ todo, vitest 35/35 ✅, build web ✅, binario embebido ✅. e2e: 13/14 (rojo: aviso al simulador por `NormTel`). Recorrido visual 9/9 ✅ (how y mapa 3D ya funcionan). Modo estático (sin backend) ✅. Video v1 grabado (1080p NVENC) pero **no final**: la escena de alertas del /demo usa datos de ejemplo.
 - **14-nov 11:50 · merge 6** (alertas `f76881f`, web `98aec8f`, webdatos `03c3be6`): **integracion OK**. Go ✅, vitest 36/36 ✅, build ✅, **e2e 14/14 ✅** (incluye aviso de canícula llegando al simulador). Modo estático ✅. Video v2 (29.9 s, 1080p NVENC, datos reales) en `submission/video/` (fuera de git). Capturas + GIF en `submission/screenshots/`. Pendientes de otros: "NASA POWER + IMERG" en tarjeta/how (Validez).
 - **14-nov 12:08 · merge 7 FINAL** (`ae6c887`, todas las ramas al día): **integracion OK**. Go build/test ✅ (12 paquetes), vitest 36/36 ✅, build web ✅, e2e 14/14 ✅ con backend, 8/8 ✅ en modo estático sin backend. Video final `submission/video/fieldshift-demo-30s.mp4` (29.9 s, 1920×1080, h264_nvenc; copia en `estado/muestras/e2e/`). Listo para el verificador. Falta solo lo del equipo: nombre, licencia, cuentas y links públicos (`docs/deploy.md`).
+
+## SANDBOX 3D (14-nov 13:00) · vault nota 25
+| Agente | Worktree | Rama | Dueño de |
+|---|---|---|---|
+| **motor** (2ª fase) | `C:\Users\Pc\spaceapps-fieldshift` | `construccion-herramienta` | `internal/sim` (+ `POST /api/simulate`, riego en mm/semana, escenarios, eventos), `web/public/static/sim/`, WASM opcional en `web/public/wasm/` |
+| **escena3d** | `C:\Users\Pc\spaceapps-wt\escena3d` | `feat/escena3d` | `web/src/features/sandbox/escena/**` (three.js: plantilla, plantas, suelo, clima) |
+| **vuelo** | `C:\Users\Pc\spaceapps-wt\vuelo` | `feat/vuelo` | `web/src/features/sandbox/{index.vue,vuelo,ui}/**` (toma continua mapa→terreno→maqueta, línea de tiempo, HUD, controles, comparación, ruta `/sandbox`, botón "Ver en 3D" en Mi plan) |
+| **video** | `C:\Users\Pc\spaceapps-wt\video` | `feat/video` | `web/src/features/sandbox/export/**` (MP4 en el navegador), `internal/simvideo` (render headless + ffmpeg + caché), cambios del bot para VIDEO 🎬 y pregunta de riego |
+- Contrato: `internal/contract` → `SimRequest`, `SimTimeline`, `SimCapa`, `SimEvento`, `SimAnio`. Ruta: `POST /api/simulate` (motor). Estático: `web/public/static/sim/<municipio>_<estrategia>_<escenario>_<riego>.json`.
+- Interfaz escena ↔ vuelo (TS, la define escena3d en `web/src/features/sandbox/escena/api.ts` en su primera hora): `createSandbox(canvas, opts)`, `setTemplate(params)`, `setDay(indice, fraccion)`, `setCamera(preset)`, `dispose()`. Mientras, vuelo usa un stub.
+- Fixture de timeline: el motor publica `contracts/fixtures/sim_jocotan_S2_tipico.json` en < 1 h; mientras, escena y vuelo generan uno sintético.
