@@ -1,0 +1,50 @@
+# Render Blueprint · backend Go (API + webhook de WhatsApp + alertas).
+# Render → New → Blueprint → elegir este repo. Los secretos (sync: false) se llenan en el panel.
+services:
+  - type: web
+    name: fieldshift
+    runtime: docker
+    plan: starter            # el plan free duerme y pierde el disco: el scheduler de las 06:00 no correría
+    region: ohio
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    autoDeploy: true
+    disk:
+      name: fieldshift-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DB_PATH
+        value: /var/data/fieldshift.db
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: SCHEDULER
+        value: "on"
+      - key: SCHEDULER_HORA
+        value: "06:00"
+      - key: ADMIN_TOKEN
+        generateValue: true
+      - key: PUBLIC_URL
+        sync: false          # https://fieldshift.onrender.com
+      - key: WEB_URL
+        sync: false          # URL del front estático (Vercel) o la misma PUBLIC_URL
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_BUSINESS_ACCOUNT_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        generateValue: true
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        sync: false
+      - key: TWILIO_SANDBOX_CODE
+        sync: false
+      - key: LLM_ENABLED
+        value: "false"

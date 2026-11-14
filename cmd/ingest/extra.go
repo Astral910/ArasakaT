@@ -35,7 +35,7 @@ func stepCMIP6() error {
 	vars := []string{"pr", "tasmax", "tasmin"}
 	type job struct {
 		model, scen, v string
-		years         []int
+		years          []int
 	}
 	var jobs []job
 	for _, m := range cmipModels {
@@ -193,11 +193,11 @@ func meanSD(v []float64, def float64) (float64, float64) {
 // ---- Pronósticos archivados 2026 (Open-Meteo Single Runs API) para la máquina del tiempo ----
 
 var fcSites = []struct {
-	ID         string
-	Lat, Lon   float64
-	Elev       float64
-	From, To   string
-	Models     []string
+	ID       string
+	Lat, Lon float64
+	Elev     float64
+	From, To string
+	Models   []string
 }{
 	{"jocotan-chiquimula", 14.8121, -89.3778, 909, "2026-05-01", "", []string{"ecmwf_ifs025", "ecmwf_aifs025_single", "gfs025", "icon_global", "jma_gsm"}},
 	{"todos-santos-cuchumatan-huehuetenango", 15.5726, -91.5851, 3009, "2025-12-01", "2026-02-28", []string{"ecmwf_ifs025", "gfs025", "jma_gsm"}},
@@ -304,55 +304,68 @@ func stepSoil() error {
 		return err
 	}
 	out := map[string]data.Soil{}
+	_ = data.ReadJSON(p("soil.json"), &out) // reanudar
 	ok := 0
-	var mu sync.Mutex
-	parallel(len(ms), func(i int) {
-		m := ms[i]
+	// SoilGrids permite ~5 consultas por minuto: en serie, una cada 13 s, guardando avance.
+	for _, m := range ms {
+		if _, done := out[m.ID]; done {
+			continue
+		}
 		url := fmt.Sprintf("https://rest.isric.org/soilgrids/v2.0/properties/query?lon=%.4f&lat=%.4f&property=clay&property=sand&property=soc&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean", m.Lon, m.Lat)
+		t0 := time.Now()
 		b, err := get(url)
-		if err != nil {
-			return
-		}
-		var r struct {
-			Properties struct {
-				Layers []struct {
-					Name  string `json:"name"`
-					Depths []struct {
-						Values struct {
-							Mean *float64 `json:"mean"`
-						} `json:"values"`
-					} `json:"depths"`
-				} `json:"layers"`
-			} `json:"properties"`
-		}
-		if json.Unmarshal(b, &r) != nil || len(r.Properties.Layers) == 0 {
-			return
-		}
-		vals := map[string]float64{}
-		for _, l := range r.Properties.Layers {
-			s, n := 0.0, 0
-			for _, d := range l.Depths {
-				if d.Values.Mean != nil {
-					s += *d.Values.Mean
-					n++
-				}
+		if err == nil {
+			if s, good := parseSoil(b); good {
+				out[m.ID] = s
+				ok++
+				data.WriteJSON(p("soil.json"), out)
 			}
-			if n > 0 {
-				vals[l.Name] = s / float64(n)
-			}
+		} else {
+			log.Printf("SoilGrids %s: %v", m.ID, err)
 		}
-		if vals["clay"] == 0 || vals["sand"] == 0 {
-			return
+		if d := 13*time.Second - time.Since(t0); d > 0 {
+			time.Sleep(d)
 		}
-		mu.Lock()
-		// SoilGrids: clay/sand en g/kg, soc en dg/kg → % ; MO ≈ 1.724 × COS
-		out[m.ID] = data.Soil{Clay: data.R1(vals["clay"] / 10), Sand: data.R1(vals["sand"] / 10), OM: data.R2(vals["soc"] / 100 * 1.724),
-			Source: "ISRIC SoilGrids 2.0 (0–30 cm, mean)"}
-		ok++
-		mu.Unlock()
-	})
-	log.Printf("SoilGrids: %d/%d municipios", ok, len(ms))
+	}
+	log.Printf("SoilGrids: %d nuevos, %d/%d municipios", ok, len(out), len(ms))
 	return data.WriteJSON(p("soil.json"), out)
+}
+
+func parseSoil(b []byte) (data.Soil, bool) {
+	var r struct {
+		Properties struct {
+			Layers []struct {
+				Name   string `json:"name"`
+				Depths []struct {
+					Values struct {
+						Mean *float64 `json:"mean"`
+					} `json:"values"`
+				} `json:"depths"`
+			} `json:"layers"`
+		} `json:"properties"`
+	}
+	if json.Unmarshal(b, &r) != nil || len(r.Properties.Layers) == 0 {
+		return data.Soil{}, false
+	}
+	vals := map[string]float64{}
+	for _, l := range r.Properties.Layers {
+		s, n := 0.0, 0
+		for _, d := range l.Depths {
+			if d.Values.Mean != nil {
+				s += *d.Values.Mean
+				n++
+			}
+		}
+		if n > 0 {
+			vals[l.Name] = s / float64(n)
+		}
+	}
+	if vals["clay"] == 0 || vals["sand"] == 0 {
+		return data.Soil{}, false
+	}
+	// SoilGrids: arcilla/arena en g/kg, COS en dg/kg → % ; MO ≈ 1.724 × COS
+	return data.Soil{Clay: data.R1(vals["clay"] / 10), Sand: data.R1(vals["sand"] / 10), OM: data.R2(vals["soc"] / 100 * 1.724),
+		Source: "ISRIC SoilGrids 2.0 (0–30 cm, media)"}, true
 }
 
 // ---- MODIS NDVI MOD13Q1 (ORNL DAAC) para validación ----
@@ -369,7 +382,8 @@ func stepNDVI() error {
 	for _, s := range ndviSites {
 		dates, err := get(fmt.Sprintf("https://modis.ornl.gov/rst/api/v1/MOD13Q1/dates?latitude=%.4f&longitude=%.4f", s.Lat, s.Lon))
 		if err != nil {
-			return fmt.Errorf("ORNL DAAC: %v", err)
+			log.Printf("ORNL DAAC no responde (%v): uso NASA GIBS", err)
+			return stepNDVIGIBS()
 		}
 		var dl struct {
 			Dates []struct {
