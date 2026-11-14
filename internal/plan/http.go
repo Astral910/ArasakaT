@@ -20,11 +20,15 @@ func (e *Engine) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/riesgo", e.handleRiesgo)
 }
 
-// Routes para el integrador: carga data/ y monta las rutas.
-func Routes(mux *http.ServeMux, dataDir string) (*Engine, error) {
+// Routes para el integrador: carga dataDir (DATA_DIR) y monta las rutas. staticDir (STATIC_DIR, opcional)
+// es la carpeta con riesgo_*.json precalculados; si no se da, se calcula al vuelo y se cachea.
+func Routes(mux *http.ServeMux, dataDir string, staticDir ...string) (*Engine, error) {
 	e, err := New(dataDir)
 	if err != nil {
 		return nil, err
+	}
+	if len(staticDir) > 0 {
+		e.StaticDir = staticDir[0]
 	}
 	e.Routes(mux)
 	return e, nil
@@ -190,7 +194,7 @@ func (e *Engine) handleRiesgo(w http.ResponseWriter, r *http.Request) {
 		h = "2026"
 	}
 	var cached []RiskRow
-	if readStatic(filepath.Join(e.Dir, "..", "web", "public", "static", "riesgo_"+h+".json"), &cached) {
+	if e.StaticDir != "" && readStatic(filepath.Join(e.StaticDir, "riesgo_"+h+".json"), &cached) {
 		writeJSON(w, http.StatusOK, cached)
 		return
 	}
