@@ -128,8 +128,16 @@ func (cl *Clim) ObsBefore(d time.Time, n int) []float64 {
 
 // ObservedOnset inicio de lluvias de un año en lo observado: primer día desde el 15 de abril con ≥ 20 mm en 3 días.
 func ObservedOnset(c *data.Climate, y int) (time.Time, bool) {
+	return ObservedOnsetBefore(c, y, time.Date(y, 8, 1, 0, 0, 0, 0, time.UTC))
+}
+
+// ObservedOnsetBefore igual, pero solo con lo observado antes de `before` (lo que el motor sabía ese día).
+func ObservedOnsetBefore(c *data.Climate, y int, before time.Time) (time.Time, bool) {
 	i0 := c.Index(time.Date(y, 4, 15, 0, 0, 0, 0, time.UTC))
 	i1 := c.Index(time.Date(y, 7, 31, 0, 0, 0, 0, time.UTC))
+	if b := c.Index(before) - 1; b < i1 {
+		i1 = b
+	}
 	for i := i0 + 2; i <= i1 && i < len(c.PR); i++ {
 		if i-2 < 0 {
 			continue

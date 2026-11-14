@@ -194,7 +194,7 @@ func (e *Engine) Run(date time.Time, force bool) (RunResult, error) {
 		if date.Weekday() == time.Monday && !e.enCooldown(s.ID, TSeguimiento, date) {
 			t, _ := RenderSeguimiento(p, date)
 			out = append(out, contract.Alerta{SuscriptorID: s.ID, MunicipioID: m.ID, Tipo: TSeguimiento, FechaEmision: ds, Inicio: ds,
-				Titulo: t.Titulo, Texto: t.Full(), Acciones: t.Acciones, Plantilla: t.Plantilla, Vars: t.Vars(m.Name)})
+				Titulo: t.Titulo, Texto: t.Full(), Acciones: t.Acciones, Plantilla: t.Plantilla, Vars: SeguimientoVars(p, t)})
 		}
 		for i := range out {
 			a := &out[i]

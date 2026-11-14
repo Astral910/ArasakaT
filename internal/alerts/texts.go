@@ -230,7 +230,7 @@ func Render(e Event, p Persona) Texto {
 		} else {
 			t.QueViene = fmt.Sprintf("Las lluvias se pueden cortar: racha seca de unos *%d días* desde el *%s*", e.Dias, Fecha(e.Inicio, false))
 		}
-		t.Etapa = pick(en, "If you haven't planted, wait: seed sown now could dry out.", "Si no sembraste, esperá: lo que se siembre ahora se puede secar.")
+		t.Etapa = pick(en, "Si no sembraste, esperá: lo que se siembre ahora se puede secar.", "If you haven't planted, wait: seed sown now could dry out.")
 		t.Acciones = []string{pick(en, "esperá para sembrar", "wait to plant"), pick(en, "guardá semilla de reserva", "keep spare seed"),
 			pick(en, "dejá rastrojo sobre el suelo", "leave residue on the soil")}
 		if hasStage && stage >= 0 && stage < 4 {
@@ -240,7 +240,7 @@ func Render(e Event, p Persona) Texto {
 	case TPerspectiva:
 		t.Titulo = pick(en, "☀️ Perspectiva de la temporada · ", "☀️ Season outlook · ") + p.Municipio
 		t.Plantilla = "perspectiva_temporada"
-		t.Seguro = pick(en, "seasonal outlook: it shows a tendency, not a forecast", "perspectiva: muestra una tendencia, no es un pronóstico")
+		t.Seguro = pick(en, "perspectiva: muestra una tendencia, no es un pronóstico", "seasonal outlook: it shows a tendency, not a forecast")
 		years := joinYears(e.Analogos, en)
 		state := map[string][2]string{"nino": {"El Niño", "El Niño"}, "nina": {"La Niña", "La Niña"}}[e.ENSO]
 		if en {
@@ -298,6 +298,15 @@ func RenderSeguimiento(p Persona, d time.Time) (Texto, []contract.Boton) {
 	bs := []contract.Boton{{ID: "seg_bien", Title: pick(en, "Bien", "Good")}, {ID: "seg_amarillas", Title: pick(en, "Hojas amarillas", "Yellow leaves")},
 		{ID: "seg_secando", Title: pick(en, "Se está secando", "Drying out")}, {ID: "seg_perdida", Title: pick(en, "Se perdió", "Lost")}}
 	return t, bs
+}
+
+// SeguimientoVars variables de la plantilla seguimiento_semanal: {{1}} cultivo · {{2}} municipio · {{3}} consejo de la etapa.
+func SeguimientoVars(p Persona, t Texto) []string {
+	et := strings.ReplaceAll(t.Etapa, "*", "")
+	if et == "" {
+		et = pick(p.Idioma == "en", "Revisá cómo van las plantas y contanos.", "Check how the plants are doing and tell us.")
+	}
+	return []string{cropName(p, p.Idioma == "en"), p.Municipio, et}
 }
 
 func joinYears(ys []int, en bool) string {
