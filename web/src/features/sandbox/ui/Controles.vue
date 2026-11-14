@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Controles que recalculan en vivo: estrategia, riego (mm/semana), escenario, caso, años, cultivo, área y comparación.
 import { Columns2, Square, SlidersHorizontal, ChevronDown } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { RIEGO, type Ajustes, type Estrategia, type Escenario, type NivelRiego, type Percentil } from './tipos'
 import { t } from './textos'
 
@@ -9,6 +9,7 @@ import { t } from './textos'
 const props = defineProps<{ modelValue: Ajustes; cargando?: boolean; compacto?: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [v: Ajustes] }>()
 const abierto = ref(!props.compacto)
+watch(() => props.compacto, (c) => (abierto.value = !c))
 const set = <K extends keyof Ajustes>(k: K, v: Ajustes[K]) => emit('update:modelValue', { ...props.modelValue, [k]: v })
 
 const ESTR: Estrategia[] = ['S0', 'S1', 'S2']

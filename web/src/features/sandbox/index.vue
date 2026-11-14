@@ -108,9 +108,18 @@ async function alFinal(c: CamaraMapa) {
     subida.value = suave(k)
     mapaFx.value = suave(Math.min(1, k * 1.3))
   })
+  dia.value = diaInicial()
   fase.value = 'sandbox'
   setTimeout(() => (mapaVivo.value = false), 900)
   jugando.value = true
+  // la cámara sigue bajando despacio hacia la parcela mientras corre el tiempo
+  setTimeout(() => { if (preset.value === 'iso') { durCam.value = 4200; preset.value = 'cerca'; presetSeq.value++ } }, 900)
+}
+
+/** Arranca con la milpa recién nacida (crece en pantalla). */
+function diaInicial() {
+  const s = tl.value?.eventos.find((e) => e.tipo === 'siembra')
+  return s ? s.dia + 8 : 0
 }
 
 function saltar() {
@@ -144,8 +153,10 @@ async function recalcular() {
   if (my !== seq) return
   const nuevo = r1.tl
   if (!tl.value || nuevo.dias !== tl.value.dias) dia.value = Math.min(dia.value, nuevo.dias - 1)
+  const primera = !tl.value
   tl.value = nuevo
   tlB.value = r2?.tl ?? null
+  if (primera && fase.value === 'sandbox') { dia.value = diaInicial(); jugando.value = !reducido }
   origen.value = r1.origen
   cargando.value = false
 }
@@ -153,7 +164,7 @@ let deb: ReturnType<typeof setTimeout> | null = null
 watch(ajustes, (a, b) => {
   if (deb) clearTimeout(deb)
   deb = setTimeout(recalcular, 180)
-  if (a.comparar !== b?.comparar) { presetSeq.value++; durCam.value = 1200 }
+  if (a.comparar !== b?.comparar) { preset.value = 'cerca'; durCam.value = 1200; presetSeq.value++ }
 }, { deep: true })
 
 // ---------- reloj ----------
@@ -184,7 +195,7 @@ function ir(d: number) {
   dia.value = d
 }
 function alEvento(e: SimEvento) {
-  dia.value = Math.max(0, e.dia - 1.5)
+  dia.value = Math.max(0, e.dia - 0.4)
   lento.value = { hasta: e.dia + Math.min(6, Math.max(2, e.dias)) }
   jugando.value = true
   preset.value = presetEvento(e.tipo)
@@ -289,14 +300,18 @@ const mostrarAyuda = ref(false)
           :dia="diaEntero" :fraccion="fraccion" :preset="preset" :seq="presetSeq" :duracion="durCam" :mapa="camMapa" :subida="subida" :calidad="calidad"
           @listo="escenaLista = true"
         />
-        <span v-if="ajustes.comparar" class="rotulo">{{ estrNombre('S0') }}</span>
+        <div v-if="ajustes.comparar && fase === 'sandbox' && estado" class="vidrio hud-mitad">
+          <Hud :estado="estado" :fecha="fecha" :fuente="fuente" :estacion="estacion" :origen="origen" :titulo="estrNombre('S0')" compacto />
+        </div>
       </div>
       <div v-if="ajustes.comparar && tlB" class="panel-escena">
         <Escena
           :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tlB" :cultivo="ajustes.cultivo" :area_m2="area_m2" estrategia="S2"
           :dia="diaEntero" :fraccion="fraccion" :preset="preset === 'llegada' ? 'iso' : preset" :seq="presetSeq" :duracion="0" :subida="1" :calidad="'baja'"
         />
-        <span class="rotulo b">{{ estrNombre('S2') }}</span>
+        <div v-if="fase === 'sandbox' && estadoB" class="vidrio hud-mitad b">
+          <Hud :estado="estadoB" :fecha="fecha" :fuente="fuente" :estacion="estacion" :origen="origen" :titulo="estrNombre('S2')" compacto />
+        </div>
       </div>
     </div>
     <div class="tiltshift" aria-hidden="true" />
@@ -305,7 +320,7 @@ const mostrarAyuda = ref(false)
 
     <!-- letterbox y rótulos de la toma -->
     <div class="cine arriba" aria-hidden="true" /><div class="cine abajo" aria-hidden="true" />
-    <Transition name="rotulo" mode="out-in">
+    <Transition name="rotulo">
       <div v-if="captura" :key="captura.k" class="captura" aria-live="polite">
         <p class="cap-t">{{ captura.t }}</p>
         <p class="cap-s">{{ captura.s }}</p>
@@ -327,18 +342,19 @@ const mostrarAyuda = ref(false)
 
     <!-- 3 · interfaz del sandbox -->
     <Transition name="sube">
-      <aside v-if="fase === 'sandbox' && tl && estado" class="lado">
-        <div class="vidrio hud-caja" :class="{ dos: ajustes.comparar && estadoB }">
-          <Hud :estado="estado" :fecha="fecha" :fuente="fuente" :estacion="estacion" :origen="origen" :titulo="ajustes.comparar ? estrNombre('S0') : estrNombre(ajustes.estrategia)" :compacto="movil" />
-          <Hud v-if="ajustes.comparar && estadoB" :estado="estadoB" :fecha="fecha" :fuente="fuente" :estacion="estacion" :origen="origen" :titulo="estrNombre('S2')" compacto />
-        </div>
-        <div class="vidrio">
-          <Controles v-model="ajustes" :cargando="cargando" :compacto="movil" />
+      <aside v-if="fase === 'sandbox' && tl && estado && !ajustes.comparar" class="lado">
+        <div class="vidrio hud-caja">
+          <Hud :estado="estado" :fecha="fecha" :fuente="fuente" :estacion="estacion" :origen="origen" :titulo="estrNombre(ajustes.estrategia)" :compacto="movil" />
         </div>
         <p class="honesto">
           <Info :size="14" />
           <span>{{ origen === 'ejemplo' ? t('honestoEj') + ' ' : '' }}{{ t('honesto') }}</span>
         </p>
+      </aside>
+    </Transition>
+    <Transition name="sube">
+      <aside v-if="fase === 'sandbox' && tl" class="vidrio lado-der">
+        <Controles v-model="ajustes" :cargando="cargando" :compacto="movil || ajustes.comparar" />
       </aside>
     </Transition>
     <Transition name="sube">
@@ -367,8 +383,9 @@ const mostrarAyuda = ref(false)
 .comparar .escenas { grid-template-columns: 1fr 1fr; }
 .panel-escena { position: relative; min-width: 0; }
 .comparar .panel-escena + .panel-escena { border-left: 2px solid rgba(255,231,168,.6); box-shadow: -8px 0 30px rgba(0,0,0,.25); }
-.rotulo { position: absolute; top: 74px; left: 50%; transform: translateX(-50%); background: rgba(20,16,12,.7); border: 1px solid rgba(255,250,240,.25); padding: 5px 12px; border-radius: 999px; font-weight: 800; font-size: .82rem; backdrop-filter: blur(8px); white-space: nowrap; }
-.rotulo.b { border-color: #2a8a66; }
+.hud-mitad { position: absolute; z-index: 7; top: 64px; left: 50%; transform: translateX(-50%); width: min(440px, 44vw); padding: 10px 14px; }
+.hud-mitad.b { border-color: rgba(42,138,102,.7); }
+.comparar .lado-der { top: auto; bottom: 190px; }
 /* tilt-shift: bandas desenfocadas arriba y abajo (look de maqueta) */
 .tiltshift { position: absolute; inset: 0; pointer-events: none; backdrop-filter: blur(2.5px); -webkit-backdrop-filter: blur(2.5px);
   mask-image: linear-gradient(180deg, #000 0%, transparent 26%, transparent 70%, #000 100%); -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 26%, transparent 70%, #000 100%); opacity: 0; transition: opacity 1.2s; }
@@ -386,7 +403,8 @@ const mostrarAyuda = ref(false)
 .captura { position: absolute; left: 6vw; bottom: calc(9vh + 36px); z-index: 7; max-width: min(640px, 88vw); text-shadow: 0 2px 18px rgba(0,0,0,.65); }
 .cap-t { font-family: var(--font-display); font-size: clamp(1.9rem, 4.6vw, 3.6rem); font-weight: 600; line-height: 1.02; letter-spacing: -.02em; }
 .cap-s { margin-top: 8px; font-size: clamp(.86rem, 1.4vw, 1.02rem); color: #f1e4cc; max-width: 52ch; }
-.rotulo-enter-active, .rotulo-leave-active { transition: opacity .7s ease, transform .9s var(--ease); }
+.rotulo-enter-active, .rotulo-leave-active { transition: opacity .55s ease, transform .7s var(--ease); }
+.rotulo-leave-active { position: absolute; }
 .rotulo-enter-from { opacity: 0; transform: translateY(16px); }
 .rotulo-leave-to { opacity: 0; transform: translateY(-10px); }
 .progreso { position: absolute; left: 6vw; right: 6vw; bottom: calc(9vh + 16px); height: 2px; background: rgba(255,250,240,.18); z-index: 7; border-radius: 2px; overflow: hidden; }
@@ -400,8 +418,8 @@ const mostrarAyuda = ref(false)
 .chip:hover { background: rgba(20,16,12,.75); }
 .saltar { border-color: #ffe7a8; }
 .vidrio { background: rgba(22,17,12,.6); border: 1px solid rgba(255,250,240,.14); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); border-radius: 18px; padding: 14px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
-.lado { position: absolute; z-index: 7; top: 64px; left: 18px; width: min(360px, 32vw); display: grid; gap: 10px; max-height: calc(100vh - 64px - 190px); overflow: auto; scrollbar-width: thin; }
-.hud-caja.dos { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.lado { position: absolute; z-index: 7; top: 64px; left: 18px; width: min(330px, 28vw); display: grid; gap: 10px; align-content: start; max-height: calc(100vh - 64px - 190px); overflow: auto; scrollbar-width: thin; }
+.lado-der { position: absolute; z-index: 7; top: 64px; right: 18px; width: min(330px, 28vw); max-height: calc(100vh - 64px - 190px); overflow: auto; scrollbar-width: thin; }
 .honesto { display: flex; gap: 7px; font-size: .72rem; line-height: 1.4; color: #e9dcc6; background: rgba(22,17,12,.5); border-radius: 12px; padding: 8px 10px; backdrop-filter: blur(8px); }
 .honesto svg { flex: none; margin-top: 2px; }
 .abajo-ui { position: absolute; z-index: 7; left: 18px; right: 18px; bottom: 16px; padding: 10px 14px 8px; }
@@ -417,7 +435,9 @@ const mostrarAyuda = ref(false)
 .sube-leave-to { opacity: 0; }
 
 /* celular: HUD arriba compacto, controles plegables, línea de tiempo abajo */
-.movil .lado { top: 58px; left: 10px; right: 10px; width: auto; max-height: calc(100vh - 58px - 170px); }
+.movil .lado { top: 58px; left: 10px; right: 10px; width: auto; max-height: 40vh; }
+.movil .lado .honesto { display: none; }
+.movil .lado-der { top: auto; bottom: 178px; left: 10px; right: 10px; width: auto; max-height: 46vh; }
 .movil .abajo-ui { left: 8px; right: 8px; bottom: 8px; padding: 8px 10px 6px; }
 .movil .vidrio { padding: 10px 12px; border-radius: 14px; }
 .movil .top { padding: 10px; }
@@ -426,7 +446,7 @@ const mostrarAyuda = ref(false)
 .movil .captura { left: 5vw; }
 .movil.comparar .escenas { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
 .movil.comparar .panel-escena + .panel-escena { border-left: 0; border-top: 2px solid rgba(255,231,168,.6); }
-.movil .rotulo { top: auto; bottom: 10px; }
-.movil .hud-caja.dos { grid-template-columns: 1fr 1fr; gap: 8px; }
+.movil .hud-mitad { top: 52px; width: calc(100% - 20px); padding: 6px 10px; }
+.movil .panel-escena + .panel-escena .hud-mitad { top: 8px; }
 @media (prefers-reduced-motion: reduce) { .tormenta.f-sandbox .flash { animation: none; } }
 </style>

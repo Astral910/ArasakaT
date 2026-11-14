@@ -27,22 +27,22 @@ const cultivo = computed(() => (props.estado.cultivo ? t(`c.${props.estado.culti
     </header>
     <dl>
       <div>
-        <dt><Droplet :size="14" />{{ t('agua') }}</dt>
+        <dt><Droplet :size="14" />{{ t(compacto ? 'agua_c' : 'agua') }}</dt>
         <dd class="num"><CountUp :value="estado.agua * 100" :duration="250" /><small>%</small></dd>
         <i class="barra"><b :style="{ width: estado.agua * 100 + '%', background: '#7fb2d9' }" /></i>
       </div>
       <div :class="nivelEstres">
-        <dt><Gauge :size="14" />{{ t('estres') }}</dt>
+        <dt><Gauge :size="14" />{{ t(compacto ? 'estres_c' : 'estres') }}</dt>
         <dd class="num"><CountUp :value="estado.estres * 100" :duration="250" /><small>%</small></dd>
         <i class="barra"><b :style="{ width: estado.estres * 100 + '%' }" /></i>
       </div>
       <div>
-        <dt><Wheat :size="14" />{{ t('cosecha') }}</dt>
+        <dt><Wheat :size="14" />{{ t(compacto ? 'cosecha_c' : 'cosecha') }}</dt>
         <dd class="num"><CountUp :value="estado.anual?.grano_qq_mz ?? 0" :decimals="1" /><small>{{ t('qq') }}</small></dd>
         <i v-if="estado.anual?.perdida" class="aviso">{{ t('perdida') }}</i>
       </div>
       <div>
-        <dt><Layers :size="14" />{{ t('mo') }}</dt>
+        <dt><Layers :size="14" />{{ t(compacto ? 'mo_c' : 'mo') }}</dt>
         <dd class="num"><CountUp :value="estado.anual?.mo ?? 0" :decimals="2" /><small>%</small></dd>
       </div>
     </dl>

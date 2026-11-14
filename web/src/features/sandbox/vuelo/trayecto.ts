@@ -19,7 +19,7 @@ const lonDe = (x: number) => x * 360 - 180
 const latDe = (y: number) => (Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180) / Math.PI
 
 /** Zoom final para que la maqueta (lado_m) ocupe `fraccion` del lado corto útil de la pantalla. */
-export function zoomFinal(lado_m: number, lat: number, ancho: number, alto: number, fraccion = 0.55) {
+export function zoomFinal(lado_m: number, lat: number, ancho: number, alto: number, fraccion = 0.6) {
   const px = Math.min(ancho, alto * 1.4) * fraccion
   const m = lado_m / px
   return Math.log2((2 * Math.PI * 6378137 * Math.cos((lat * Math.PI) / 180)) / (512 * m))
@@ -41,15 +41,16 @@ export function toma(a: Toma, b: Toma, u: number): Toma {
   const x = mx(b.lon) + (mx(a.lon) - mx(b.lon)) * f
   const y = my(b.lat) + (my(a.lat) - my(b.lat)) * f
   // pitch: sube hasta ~62° a media toma y se asienta en el final
-  const pMedio = Math.max(a.pitch, b.pitch) + 8
+  const pMedio = Math.max(a.pitch, b.pitch) + 9
   const pitch = k < 0.6 ? a.pitch + (pMedio - a.pitch) * easeInOutSine(k / 0.6) : pMedio + (b.pitch - pMedio) * easeInOutSine((k - 0.6) / 0.4)
   const bearing = a.bearing + (b.bearing - a.bearing) * easeInOutSine(k)
   return { lon: lonDe(x), lat: latDe(y), zoom, pitch, bearing }
 }
 
-/** Lado de la maqueta en metros: ~800 m (≈ 1 km² con el marco), menos en pantallas chicas. */
+/** Lado de la maqueta en metros: con 1.8 km el zoom final queda ≈ z15 (las teselas SRTM/Sentinel-2 se ven nítidas
+ *  y entra el relieve que rodea al terreno); en celular 1.1 km. */
 export function ladoMaqueta(ancho: number) {
-  return ancho < 600 ? 640 : 800
+  return ancho < 600 ? 1100 : 1800
 }
 
 export { mpp }

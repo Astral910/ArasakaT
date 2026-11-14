@@ -21,14 +21,15 @@ function imagen(url: string): Promise<HTMLImageElement> {
   })
 }
 
-/** Mosaico 2×2 de teselas alrededor del punto: canvas + píxel del punto + metros por píxel. */
+/** Mosaico 3×3 de teselas centrado en la del punto: canvas + píxel del punto + metros por píxel. */
 async function mosaico(url: (z: number, x: number, y: number) => string, z: number, lon: number, lat: number) {
   const t = tesela(lon, lat, z)
-  const x0 = Math.floor(t.x - 0.5), y0 = Math.floor(t.y - 0.5)
+  const x0 = Math.floor(t.x) - 1, y0 = Math.floor(t.y) - 1
   const c = document.createElement('canvas')
-  c.width = c.height = 512
+  c.width = c.height = 768
   const g = c.getContext('2d', { willReadFrequently: true })!
-  await Promise.all([0, 1].flatMap((dx) => [0, 1].map(async (dy) => g.drawImage(await imagen(url(z, x0 + dx, y0 + dy)), dx * 256, dy * 256))))
+  const k = [0, 1, 2]
+  await Promise.all(k.flatMap((dx) => k.map(async (dy) => g.drawImage(await imagen(url(z, x0 + dx, y0 + dy)), dx * 256, dy * 256))))
   return { canvas: c, px: (t.x - x0) * 256, py: (t.y - y0) * 256, m: (2 * Math.PI * R * Math.cos((lat * Math.PI) / 180)) / (256 * 2 ** z) }
 }
 
@@ -36,7 +37,7 @@ const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
 const mezcla = (a: THREE.Color, b: THREE.Color, t: number) => a.clone().lerp(b, Math.min(1, Math.max(0, t)))
 
 const VERDE = new THREE.Color('#4c8a35'), AMARILLO = new THREE.Color('#c8b04a'), CAFE = new THREE.Color('#8a6a3c'), PAJA = new THREE.Color('#cdb67a')
-const MO = new THREE.Color('#2f2117'), TIERRA = new THREE.Color('#7a4c2c'), ARCILLA = new THREE.Color('#b0703f'), MADERA = new THREE.Color('#5a3d28')
+const MO = new THREE.Color('#2a1c12'), TIERRA = new THREE.Color('#8f5a33'), ARCILLA = new THREE.Color('#c98a52'), MADERA = new THREE.Color('#6b4a30')
 
 function geoMaiz() {
   const tallo = new THREE.CylinderGeometry(0.018, 0.03, 1, 5).translate(0, 0.5, 0)
@@ -79,7 +80,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
   controles.maxDistance = L * 3
   controles.enabled = false
 
-  const cielo = new THREE.HemisphereLight('#dfeefc', '#6b4a2e', 1.1)
+  const cielo = new THREE.HemisphereLight('#e4f0fb', '#8a6a4c', 1.25)
   const sol = new THREE.DirectionalLight('#fff1d6', 2.4)
   sol.castShadow = true
   sol.shadow.mapSize.set(movil ? 1024 : 2048, movil ? 1024 : 2048)
@@ -144,10 +145,10 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
   async function cargarTerreno() {
     try {
       const dem = await mosaico(DEM_URL, 14, o.lon, o.lat)
-      const d = dem.canvas.getContext('2d')!.getImageData(0, 0, 512, 512).data
+      const d = dem.canvas.getContext('2d')!.getImageData(0, 0, 768, 768).data
       const h = (px: number, py: number) => {
-        const x = Math.min(511, Math.max(0, Math.round(px))), y = Math.min(511, Math.max(0, Math.round(py)))
-        const k = (y * 512 + x) * 4
+        const x = Math.min(767, Math.max(0, Math.round(px))), y = Math.min(767, Math.max(0, Math.round(py)))
+        const k = (y * 768 + x) * 4
         return d[k] * 256 + d[k + 1] + d[k + 2] / 256 - 32768
       }
       // bilineal sobre la malla
@@ -183,14 +184,14 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
   const base = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: MADERA, roughness: 0.7 }))
   base.castShadow = base.receiveShadow = true
   grupo.add(base)
-  const sombra = new THREE.Mesh(new THREE.PlaneGeometry(L * 6, L * 6).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: 0.32 }))
+  const sombra = new THREE.Mesh(new THREE.PlaneGeometry(L * 6, L * 6).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: 0.18 }))
   sombra.receiveShadow = true
   escena.add(sombra)
   let subida = 0
   let moPct = 3.6
 
   function construirParedes() {
-    const prof = (L * 0.16) * Math.max(0.001, subida)
+    const prof = (L * 0.12) * Math.max(0.001, subida)
     const fondo = hMin - prof
     const moEsp = Math.min(prof * 0.5, L * (0.006 + Math.max(0, moPct - 2.6) * 0.012)) * Math.max(0.001, subida)
     const pos: number[] = [], col: number[] = []
@@ -225,7 +226,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
     base.scale.set(L * 1.03, esp, L * 1.03)
     base.position.y = fondo - esp / 2
     base.visible = subida > 0.02
-    sombra.position.y = hMin - L * 0.16 - L * 0.025 - 0.5
+    sombra.position.y = hMin - L * 0.12 - L * 0.025 - 0.5
   }
 
   // ---- parcela ----
@@ -389,18 +390,18 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
   }
 
   // ---- lluvia ----
-  const NL = movil ? 1500 : 4500
+  const NL = movil ? 1200 : 3000
   const lluviaPos = new Float32Array(NL * 6)
   const lluviaVel = new Float32Array(NL)
-  const alturaLluvia = L * 0.35
+  const alturaLluvia = L * 0.22
   for (let i = 0; i < NL; i++) {
     const x = (Math.random() - 0.5) * L, z = (Math.random() - 0.5) * L, y = Math.random() * alturaLluvia
-    lluviaPos.set([x, y, z, x, y - L * 0.012, z], i * 6)
+    lluviaPos.set([x, y, z, x, y - L * 0.006, z], i * 6)
     lluviaVel[i] = 0.8 + Math.random() * 0.4
   }
   const lluviaGeo = new THREE.BufferGeometry()
   lluviaGeo.setAttribute('position', new THREE.BufferAttribute(lluviaPos, 3))
-  const lluviaMat = new THREE.LineBasicMaterial({ color: '#cfe3f2', transparent: true, opacity: 0, depthWrite: false })
+  const lluviaMat = new THREE.LineBasicMaterial({ color: '#b9d4ea', transparent: true, opacity: 0, depthWrite: false })
   const lluvia = new THREE.LineSegments(lluviaGeo, lluviaMat)
   lluvia.frustumCulled = false
   grupo.add(lluvia)
@@ -414,20 +415,27 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
       return [new THREE.Vector3(t.x + r * Math.cos(el) * Math.sin(a), t.y + r * Math.sin(el), t.z + r * Math.cos(el) * Math.cos(a)), t] as [THREE.Vector3, THREE.Vector3]
     }
     const y0 = altura(0, 0)
-    const ancho = camara.aspect < 1 ? 1.5 : 1 // celular vertical: más lejos
+    const ancho = camara.aspect < 1.3 ? Math.max(1, 1.15 / Math.max(0.42, camara.aspect)) : 1 // pantallas angostas: más lejos
     switch (preset) {
-      case 'cerca': return sph(lado * 1.25 * ancho, 24, 35, new THREE.Vector3(0, y0 + lado * 0.05, 0))
-      case 'suelo': return sph(lado * 0.95 * ancho, 13, 20, new THREE.Vector3(0, y0, lado * 0.1))
-      case 'cielo': return sph(L * 0.95 * ancho, 9, 40, new THREE.Vector3(0, y0 + L * 0.14, 0))
-      case 'cenital': return sph(L * 1.5 * ancho, 82, 0, new THREE.Vector3(0, y0, 0))
-      default: return sph(L * 1.32 * ancho, 33, 38, new THREE.Vector3(0, y0 - L * 0.03, 0))
+      case 'cerca': return sph(Math.max(lado * 3.4, L * 0.78) * ancho, 38, 35, new THREE.Vector3(0, y0 + lado * 0.04, 0))
+      case 'suelo': return sph(Math.max(lado * 2.2, L * 0.5) * ancho, 24, 20, new THREE.Vector3(0, y0, lado * 0.1))
+      case 'cielo': return sph(L * 1.5 * ancho, 15, 40, new THREE.Vector3(0, y0 + L * 0.1, 0))
+      case 'cenital': return sph(L * 2.3 * ancho, 80, 0, new THREE.Vector3(0, y0, 0))
+      default: return sph(L * 2.05 * ancho, 31, 38, new THREE.Vector3(0, (hMin + hMax) / 2 - L * 0.05, 0))
     }
   }
 
+  let alza = 0, alzaObj = 0 // fracción del alto que se sube el encuadre
+  function encuadre() {
+    const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1
+    if (Math.abs(alza) < 1e-4) camara.clearViewOffset()
+    else camara.setViewOffset(w, h, 0, alza * h, w, h)
+  }
   function tamano() {
     const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1
     renderer.setSize(w, h, false)
     camara.aspect = w / h
+    encuadre()
     camara.updateProjectionMatrix()
   }
   const ro = new ResizeObserver(tamano)
@@ -442,6 +450,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
     const dt = Math.min(0.05, (now - tPrev) / 1000)
     tPrev = now
     tiempo.value += dt
+    if (Math.abs(alzaObj - alza) > 1e-4) { alza += (alzaObj - alza) * Math.min(1, dt * 2.5); encuadre() }
     if (tween) {
       const k = Math.min(1, (now - tween.t0) / tween.dur)
       const ek = ease(k)
@@ -453,7 +462,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
     } else if (controles.enabled) controles.update()
     // lluvia
     const nVis = Math.floor(NL * Math.min(1, fx.lluvia / 30))
-    lluviaMat.opacity += ((nVis > 0 ? 0.55 : 0) - lluviaMat.opacity) * 0.1
+    lluviaMat.opacity += ((nVis > 0 ? 0.22 + Math.min(0.2, fx.lluvia / 200) : 0) - lluviaMat.opacity) * 0.1
     if (lluviaMat.opacity > 0.01) {
       const v = L * 0.9 * dt
       for (let i = 0; i < NL; i++) {
@@ -461,7 +470,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
         if (y < -L * 0.05) y += alturaLluvia
         const hide = i >= nVis ? -1e5 : 0
         lluviaPos[i * 6 + 1] = y
-        lluviaPos[i * 6 + 4] = y - L * 0.014 + hide
+        lluviaPos[i * 6 + 4] = y - L * 0.007 + hide
         lluviaPos[i * 6 + 3] = lluviaPos[i * 6] + fx.viento * L * 0.002
       }
       lluviaGeo.attributes.position.needsUpdate = true
@@ -515,6 +524,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
         camara.position.copy(p1); mira.copy(m1); camara.lookAt(m1); controles.target.copy(m1); tween = null
       } else tween = { p0: camara.position.clone(), p1, m0: mira.clone(), m1, t0: performance.now(), dur }
       controles.enabled = preset !== 'llegada'
+      alzaObj = preset === 'llegada' || canvas.clientHeight < 500 ? 0 : 0.07
     },
     levantar(t) {
       subida = t

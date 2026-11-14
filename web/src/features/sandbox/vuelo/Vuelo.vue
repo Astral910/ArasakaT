@@ -30,7 +30,7 @@ function cuadrado(lon: number, lat: number, lado: number) {
 
 function destino(): Toma {
   const el = caja.value!
-  return { lon: props.lon, lat: props.lat, zoom: zoomFinal(props.lado, props.lat, el.clientWidth, el.clientHeight), pitch: 52, bearing: 24 }
+  return { lon: props.lon, lat: props.lat, zoom: zoomFinal(props.lado, props.lat, el.clientWidth, el.clientHeight), pitch: 47, bearing: 24 }
 }
 
 function camaraFinal(): CamaraMapa {
@@ -92,10 +92,10 @@ onMounted(async () => {
       sources: { dem: DEM, sombra: { ...DEM }, sat: SATELITE },
       layers: [
         { id: 'fondo', type: 'background', paint: { 'background-color': '#e9dfcc' } },
-        { id: 'sat', type: 'raster', source: 'sat', paint: { 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0.0, 9.5, 0.75, 12, 1], 'raster-saturation': -0.12, 'raster-contrast': 0.08 } },
+        { id: 'sat', type: 'raster', source: 'sat', paint: { 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 7.5, 0.0, 9.5, 0.8, 11.5, 1], 'raster-saturation': -0.12, 'raster-contrast': 0.08 } },
         {
           id: 'sombra', type: 'hillshade', source: 'sombra',
-          paint: { 'hillshade-shadow-color': '#4a3626', 'hillshade-highlight-color': '#fffaf0', 'hillshade-accent-color': '#8a5a3b', 'hillshade-exaggeration': ['interpolate', ['linear'], ['zoom'], 7, 0.6, 13, 0.25] },
+          paint: { 'hillshade-shadow-color': '#4a3626', 'hillshade-highlight-color': '#fffaf0', 'hillshade-accent-color': '#8a5a3b', 'hillshade-exaggeration': ['interpolate', ['linear'], ['zoom'], 7, 0.6, 9.5, 0.3, 11.5, 0] },
         },
       ],
     },
