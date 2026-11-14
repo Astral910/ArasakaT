@@ -35,7 +35,7 @@ func stepCMIP6() error {
 	vars := []string{"pr", "tasmax", "tasmin"}
 	type job struct {
 		model, scen, v string
-		years         []int
+		years          []int
 	}
 	var jobs []job
 	for _, m := range cmipModels {
@@ -193,11 +193,11 @@ func meanSD(v []float64, def float64) (float64, float64) {
 // ---- Pronósticos archivados 2026 (Open-Meteo Single Runs API) para la máquina del tiempo ----
 
 var fcSites = []struct {
-	ID         string
-	Lat, Lon   float64
-	Elev       float64
-	From, To   string
-	Models     []string
+	ID       string
+	Lat, Lon float64
+	Elev     float64
+	From, To string
+	Models   []string
 }{
 	{"jocotan-chiquimula", 14.8121, -89.3778, 909, "2026-05-01", "", []string{"ecmwf_ifs025", "ecmwf_aifs025_single", "gfs025", "icon_global", "jma_gsm"}},
 	{"todos-santos-cuchumatan-huehuetenango", 15.5726, -91.5851, 3009, "2025-12-01", "2026-02-28", []string{"ecmwf_ifs025", "gfs025", "jma_gsm"}},
@@ -316,7 +316,7 @@ func stepSoil() error {
 		var r struct {
 			Properties struct {
 				Layers []struct {
-					Name  string `json:"name"`
+					Name   string `json:"name"`
 					Depths []struct {
 						Values struct {
 							Mean *float64 `json:"mean"`

@@ -31,6 +31,8 @@ type Site struct {
 	PR, ET0, GW    []float64
 	N              int // días válidos
 	Scenario       string
+
+	rhCache, wsCache, rsCache []float64
 }
 
 // NewSite construye el sitio: corrige temperatura por altitud y calcula ET0 FAO-56 diaria.
@@ -86,11 +88,22 @@ func (s *Site) Idx(y int, m time.Month, d int) int {
 	return int(time.Date(y, m, d, 0, 0, 0, 0, time.UTC).Sub(s.Start).Hours() / 24)
 }
 
-// Years años completos disponibles para temporadas (hasta el último con noviembre completo).
+// Years años con temporada completa (hasta el 31 de octubre) disponibles.
 func (s *Site) Years() []int {
 	var ys []int
 	last := s.Date(s.N - 1)
 	for y := s.Start.Year(); y <= last.Year(); y++ {
+		if s.Idx(y, 10, 31) < s.N {
+			ys = append(ys, y)
+		}
+	}
+	return ys
+}
+
+// ClimYears años calendario completos (para climatología y Monte Carlo).
+func (s *Site) ClimYears() []int {
+	var ys []int
+	for _, y := range s.Years() {
 		if s.Idx(y, 12, 31) < s.N {
 			ys = append(ys, y)
 		}
@@ -113,6 +126,15 @@ func (s *Site) WithDelta(md data.MonthlyDelta, scen string) *Site {
 			DOY: s.Date(i).YearDay()}, math.Max(s.ElevM, 0), s.Lat)
 	}
 	return &o
+}
+
+// SoilDepth profundidad efectiva de raíces (m): los suelos de ladera del Corredor Seco son poco profundos
+// (Simmons et al. 1959: series de ladera con 30–60 cm sobre roca). Pendiente > 15 % → 0.6 m; si no, 1.0 m.
+func (s *Site) SoilDepth() float64 {
+	if s.SlopePct > 15 {
+		return 0.6
+	}
+	return 1.0
 }
 
 // Hydro propiedades hidráulicas del suelo (Saxton & Rawls 2006).
