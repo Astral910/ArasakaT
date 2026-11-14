@@ -69,7 +69,7 @@ const progreso = ref(0)
 const mapaVivo = ref(!saltarIntro)
 const sinWebgl = ref(false)
 const camMapa = shallowRef<CamaraMapa | null>(null)
-const preset = ref(saltarIntro ? 'iso' : 'llegada')
+const preset = ref(saltarIntro ? 'cerca' : 'llegada')
 const presetSeq = ref(0)
 const durCam = ref(0)
 const subida = ref(saltarIntro ? 1 : 0)
@@ -274,7 +274,7 @@ const BotonExportar = botones['./export/BotonExportar.vue'] ? defineAsyncCompone
 function metaVideo() {
   const a = ajustes.value
   const url = new URL(location.href)
-  for (const k of ['rec', 'calidad', 'vertical', 'fps', 'dur', 'desde', 'hasta']) url.searchParams.delete(k)
+  for (const k of ['rec', 'intro', 'calidad', 'vertical', 'fps', 'dur', 'desde', 'hasta']) url.searchParams.delete(k)
   return {
     municipio: lugar.nombre || lugar.id, departamento: lugar.depto, cultivo: a.cultivo, estrategia: a.estrategia,
     estrategiaNombre: t(a.estrategia), escenario: a.escenario, riegoMMSemana: RIEGO[a.riego], idioma: lang.value, url: url.toString(),
@@ -349,10 +349,21 @@ function volver() {
   router.push({ path: '/my-plan', query: { m: lugar.id } })
 }
 const mostrarAyuda = ref(false)
+// alto real de la línea de tiempo: los paneles de arriba se apoyan sobre ella (en celular cambia con el contenido)
+const pie = ref<HTMLElement | null>(null)
+const pieAlto = ref(170)
+let roPie: ResizeObserver | null = null
+watch(pie, (el) => {
+  roPie?.disconnect()
+  if (!el) return
+  roPie = new ResizeObserver(([e]) => (pieAlto.value = Math.round(e.borderBoxSize?.[0]?.blockSize ?? e.contentRect.height + 20)))
+  roPie.observe(el)
+})
+onBeforeUnmount(() => roPie?.disconnect())
 </script>
 
 <template>
-  <div class="sandbox" :class="['f-' + fase, { rec, movil, comparar: ajustes.comparar, tormenta: cielo.tormenta, calor: cielo.calor, real: !alineable }]" :style="{ '--cielo-a': cielo.a, '--cielo-b': cielo.b }">
+  <div class="sandbox" :class="['f-' + fase, { rec, movil, comparar: ajustes.comparar, tormenta: cielo.tormenta, calor: cielo.calor, real: !alineable }]" :style="{ '--cielo-a': cielo.a, '--cielo-b': cielo.b, '--pie-h': pieAlto + 'px' }">
     <h1 class="sr-only">{{ t('titulo') }} · {{ lugar.nombre }}</h1>
     <div class="cielo" :style="{ opacity: mapaVivo ? mapaFx : 1 }" aria-hidden="true"><i class="sol" /></div>
 
@@ -408,7 +419,7 @@ const mostrarAyuda = ref(false)
       <p class="lugar"><b>{{ lugar.nombre }}</b><span v-if="lugar.depto">, {{ lugar.depto }}</span></p>
       <div class="der">
         <button class="chip idioma" type="button" :aria-label="lang === 'es' ? 'English' : 'Español'" @click="setLang(lang === 'es' ? 'en' : 'es')">{{ lang === 'es' ? 'EN' : 'ES' }}</button>
-        <BotonExportar v-if="BotonExportar && fase === 'sandbox' && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" />
+        <BotonExportar v-if="BotonExportar && !movil && fase === 'sandbox' && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" />
         <button v-if="fase === 'vuelo'" class="chip saltar" type="button" @click="saltar"><SkipForward :size="16" />{{ t('saltar') }}</button>
       </div>
     </header>
@@ -433,12 +444,13 @@ const mostrarAyuda = ref(false)
       </aside>
     </Transition>
     <Transition name="sube">
-      <footer v-if="fase === 'sandbox' && tl" class="vidrio abajo-ui">
+      <footer v-if="fase === 'sandbox' && tl" ref="pie" class="vidrio abajo-ui">
         <Linea :tl="tl" :textos-motor="origen !== 'ejemplo'" :bandas="bandas" :dia="dia" :jugando="jugando" :velocidad="velocidad" :compacto="movil" @ir="ir" @evento="alEvento" @play="toggle" @velocidad="velocidad = $event" />
         <p class="pie">
           <button class="mini" type="button" :aria-expanded="mostrarAyuda" @click="mostrarAyuda = !mostrarAyuda"><Keyboard :size="13" /></button>
           <span v-if="mostrarAyuda || !movil" class="kbd">{{ t('teclado') }}</span>
           <span class="org">{{ t('origen_' + origen) }} · {{ t('fuente') }}</span>
+          <BotonExportar v-if="BotonExportar && movil && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" class="exp-movil" />
         </p>
       </footer>
     </Transition>
@@ -464,7 +476,7 @@ const mostrarAyuda = ref(false)
 .comparar .panel-escena + .panel-escena { border-left: 2px solid rgba(255,231,168,.6); box-shadow: -8px 0 30px rgba(0,0,0,.25); }
 .hud-mitad { position: absolute; z-index: 7; top: 64px; left: 50%; transform: translateX(-50%); width: min(440px, 44vw); padding: 10px 14px; }
 .hud-mitad.b { border-color: rgba(42,138,102,.7); }
-.comparar .lado-der { top: auto; bottom: 190px; }
+.comparar .lado-der { top: auto; bottom: calc(var(--pie-h, 170px) + 28px); }
 /* tilt-shift: bandas desenfocadas arriba y abajo (look de maqueta) */
 .tiltshift { position: absolute; inset: 0; pointer-events: none; backdrop-filter: blur(2.5px); -webkit-backdrop-filter: blur(2.5px);
   mask-image: linear-gradient(180deg, #000 0%, transparent 26%, transparent 70%, #000 100%); -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 26%, transparent 70%, #000 100%); opacity: 0; transition: opacity 1.2s; }
@@ -484,7 +496,7 @@ const mostrarAyuda = ref(false)
 .cap-t { font-family: var(--font-display); font-size: clamp(1.9rem, 4.6vw, 3.6rem); font-weight: 600; line-height: 1.02; letter-spacing: -.02em; }
 .cap-s { margin-top: 8px; font-size: clamp(.86rem, 1.4vw, 1.02rem); color: #f1e4cc; max-width: 52ch; }
 .rotulo-enter-active, .rotulo-leave-active { transition: opacity .55s ease, transform .7s var(--ease); }
-.rotulo-leave-active { position: absolute; }
+.rotulo-leave-active { position: absolute; transition-duration: .3s; }
 .rotulo-enter-from { opacity: 0; transform: translateY(16px); }
 .rotulo-leave-to { opacity: 0; transform: translateY(-10px); }
 .progreso { position: absolute; left: 6vw; right: 6vw; bottom: calc(9vh + 16px); height: 2px; background: rgba(255,250,240,.18); z-index: 7; border-radius: 2px; overflow: hidden; }
@@ -498,13 +510,19 @@ const mostrarAyuda = ref(false)
 .chip:hover { background: rgba(20,16,12,.75); }
 .saltar { border-color: #ffe7a8; }
 .vidrio { background: rgba(22,17,12,.6); border: 1px solid rgba(255,250,240,.14); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); border-radius: 18px; padding: 14px 16px; box-shadow: 0 18px 50px rgba(0,0,0,.35); }
-.lado { position: absolute; z-index: 7; top: 64px; left: 18px; width: min(330px, 28vw); display: grid; gap: 10px; align-content: start; max-height: calc(100vh - 64px - 190px); overflow: auto; scrollbar-width: thin; }
-.lado-der { position: absolute; z-index: 7; top: 64px; right: 18px; width: min(330px, 28vw); max-height: calc(100vh - 64px - 190px); overflow: auto; scrollbar-width: thin; }
+.lado { position: absolute; z-index: 7; top: 64px; left: 18px; width: min(330px, 28vw); display: grid; gap: 10px; align-content: start; max-height: calc(100vh - 64px - var(--pie-h, 170px) - 30px); overflow: auto; scrollbar-width: thin; }
+.lado-der { position: absolute; z-index: 7; top: 64px; right: 18px; width: min(330px, 28vw); max-height: calc(100vh - 64px - var(--pie-h, 170px) - 30px); overflow: auto; scrollbar-width: thin; }
 .honesto { display: flex; gap: 7px; font-size: .72rem; line-height: 1.4; color: #e9dcc6; background: rgba(22,17,12,.5); border-radius: 12px; padding: 8px 10px; backdrop-filter: blur(8px); }
 .honesto svg { flex: none; margin-top: 2px; }
 .abajo-ui { position: absolute; z-index: 7; left: 18px; right: 18px; bottom: 16px; padding: 10px 14px 8px; }
 .pie { display: flex; gap: 10px; align-items: center; margin-top: 4px; font-size: .7rem; color: #bfae94; }
 .pie .org { margin-left: auto; }
+.movil .pie .org { font-size: .62rem; }
+/* el panel de Exportar abre hacia abajo desde la barra superior y hacia arriba desde el pie */
+.top :deep(.fsx-panel) { top: calc(100% + 8px) !important; bottom: auto !important; right: 0; left: auto; z-index: 20; }
+.exp-movil { flex: none; }
+.exp-movil :deep(button) { white-space: nowrap; padding: 6px 11px; font-size: .74rem; min-height: 0; }
+.exp-movil :deep(svg) { width: 14px; height: 14px; }
 .mini { border: 0; background: transparent; color: inherit; padding: 2px; cursor: pointer; display: grid; }
 .cargando { position: absolute; inset: 0; display: grid; place-items: center; z-index: 9; font-weight: 700; }
 .aviso-webgl { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); z-index: 9; background: rgba(20,16,12,.85); padding: 14px 18px; border-radius: 14px; max-width: 420px; text-align: center; }
@@ -517,7 +535,7 @@ const mostrarAyuda = ref(false)
 /* celular: HUD arriba compacto, controles plegables, línea de tiempo abajo */
 .movil .lado { top: 58px; left: 10px; right: 10px; width: auto; max-height: 40vh; }
 .movil .lado .honesto { display: none; }
-.movil .lado-der { top: auto; bottom: 178px; left: 10px; right: 10px; width: auto; max-height: 46vh; }
+.movil .lado-der { top: auto; bottom: calc(var(--pie-h, 170px) + 18px); left: 10px; right: 10px; width: auto; max-height: 46vh; }
 .movil .abajo-ui { left: 8px; right: 8px; bottom: 8px; padding: 8px 10px 6px; }
 .movil .vidrio { padding: 10px 12px; border-radius: 14px; }
 .movil .top { padding: 10px; }
