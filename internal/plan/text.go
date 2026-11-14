@@ -86,7 +86,7 @@ func (l lang) describe(est *contract.Estrategia, r sim.StratResult, req contract
 		post := l.cropName(*r.Def.Post)
 		est.Nombre = l.f("Relevo de %s en Postrera", "%s relay in Postrera", post)
 		if l == "en" {
-			est.Nombre = capital(est.Nombre)
+			est.Nombre = capital(strings.Replace(est.Nombre, "beans relay", "bean relay", 1))
 		}
 		est.Descripcion = l.f("%s en Primera y %s sembrado en relevo cuando el maíz dobla; se deja la mitad del rastrojo sobre el suelo.",
 			"%s in Primera and %s relay-planted when the maize is doubled over; half of the residue stays on the soil.", capital(ml), post)
@@ -168,8 +168,8 @@ func (l lang) fichas(p *contract.Plan, res []sim.StratResult, req contract.PlanR
 				l.f("Cosecha típica: %.0f qq/mz de grano (rango %.0f–%.0f).", "Typical harvest: %.0f qq/mz of grain (range %.0f–%.0f).", r.FoodQQ[1], r.FoodQQ[0], r.FoodQQ[2])}
 			f.InfoFaltante = []string{l.t("Tu fecha real de siembra y la variedad de maíz.", "Your actual planting date and maize variety."),
 				l.t("Profundidad y textura de tu suelo (usamos valores típicos de la zona).", "Your soil depth and texture (we used typical values for the area).")}
-			f.Riesgos = []string{l.f("La %s cae en la canícula en muchos años: revisá con tu extensionista si conviene correr la siembra.",
-				"%s often falls in the canícula: check with your extension agent whether to shift planting.", l.stage(main, r.WorstStage)),
+			f.Riesgos = []string{capital(l.f("la %s cae en la canícula en muchos años: revisá con tu extensionista si conviene correr la siembra.",
+				"%s often falls in the canícula: check with your extension agent whether to shift planting.", l.stage(main, r.WorstStage))),
 				l.f("Suelo desnudo ~%d días al año: erosión en la ladera y pérdida de materia orgánica (%.1f %% → %.1f %% en 5 años, aprox.).",
 					"Bare soil ~%d days a year: hillside erosion and organic matter loss (%.1f%% → %.1f%% in 5 years, approx.).", r.BareDays, r.OM[0], r.OM[5])}
 		case "S1":
@@ -263,7 +263,7 @@ func (l lang) mlNote(r *MLResult, st string) string {
 	}
 	return l.f("IA: regresión logística con 4 datos conocidos al sembrar (%s) entrenada con %d temporadas (33 zonas NASA POWER × 2001–2025). Estadística: frecuencia de pérdidas por zona y estado de El Niño. Validación dejando un año fuera: error de Brier IA %.3f vs estadística %.3f (menor es mejor) → acá gana %s. Probabilidad de perder la próxima Primera si El Niño sigue al sembrar: las dos se muestran; el motor usa la estadística.",
 		"AI: logistic regression on 4 inputs known at planting (%s) trained on %d seasons (33 NASA POWER zones × 2001–2025). Statistics: loss frequency by zone and El Niño state. Leave-one-year-out validation: Brier error AI %.3f vs statistics %.3f (lower is better) → here %s wins. Probability of losing next Primera if El Niño persists at planting: both are shown; the engine uses statistics.",
-		strings.Join(r.Features, ", "), len(r.Samples), r.Eval.BrierIA, r.Eval.BrierEst, better)
+		strings.Join(l.features(r.Features), ", "), len(r.Samples), r.Eval.BrierIA, r.Eval.BrierEst, better)
 }
 
 func (l lang) uncertainty(p *contract.Plan, s *sim.Site, req contract.PlanRequest) string {
@@ -324,3 +324,10 @@ func (l lang) summary(p *contract.Plan, m *geo.Municipio) []string {
 }
 
 var _ = math.Round
+
+func (l lang) features(fs []string) []string {
+	if l != "en" {
+		return fs
+	}
+	return []string{"ONI AMJ", "rain Apr 15–May 31 (z)", "root-zone wetness GWETROOT May (z)", "Tmax Apr–May (z)"}
+}

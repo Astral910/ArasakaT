@@ -48,7 +48,8 @@ func LSFactor(slopePct float64) float64 {
 // ΔC = h·Cin − k(T)·C − pérdida por erosión. Aproximado: sirve para la dirección y el orden de magnitud.
 const (
 	soilMassT  = 2600.0 // t de suelo por ha en 0–20 cm (densidad aparente 1.3)
-	humif      = 0.15   // coeficiente de humificación del residuo fresco
+	humif      = 0.15   // coeficiente de humificación del residuo aéreo fresco (ICBM, Andrén & Kätterer 1997)
+	humifRoot  = 0.35   // raíces: se humifican más (ICBM)
 	kDecomp20  = 0.018  // descomposición anual a 20 °C
 	carbonFrac = 0.45
 )
@@ -61,7 +62,7 @@ func OMFromSOC(soc float64) float64 { return soc / soilMassT * 100 * 1.724 }
 
 // SoilStep avanza un año: residuo (t MS/ha), erosión (t/ha), temperatura media (°C).
 func SoilStep(soc, residueT, rootsT, erosionT, tmean float64) float64 {
-	in := humif * carbonFrac * (residueT + rootsT)
+	in := carbonFrac * (humif*residueT + humifRoot*rootsT)
 	k := kDecomp20 * math.Pow(2, (tmean-20)/10)
 	conc := soc / soilMassT
 	ero := erosionT * conc * 0.3 // el subsuelo (más pobre) reemplaza buena parte de lo perdido

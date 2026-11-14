@@ -31,6 +31,7 @@ func Routes(mux *http.ServeMux, dataDir string, staticDir ...string) (*Engine, e
 		e.StaticDir = staticDir[0]
 	}
 	e.Routes(mux)
+	go e.ML() // precalienta IA vs estadística para que el primer plan tarde < 1 s
 	return e, nil
 }
 

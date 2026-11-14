@@ -59,16 +59,16 @@
       },
       "rendimiento_qq_mz": {
         "p10": 9.7,
-        "p50": 26.1,
-        "p90": 32.7
+        "p50": 26.2,
+        "p90": 32.8
       },
       "suelo_mo": [
         2.5,
-        2.39,
+        2.4,
         2.29,
         2.19,
-        2.09,
-        1.99
+        2.1,
+        2.01
       ],
       "erosion_t_ha": [
         198,
@@ -129,7 +129,7 @@
       },
       "ingreso_q_mz": {
         "p10": 3000,
-        "p50": 7200,
+        "p50": 7300,
         "p90": 9100
       },
       "postrera_qq_mz": {
@@ -147,18 +147,18 @@
       "suelo_mo_p10": [
         2.5,
         2.36,
-        2.19,
-        2.07,
-        1.97,
-        1.87
+        2.2,
+        2.08,
+        1.98,
+        1.89
       ],
       "suelo_mo_p90": [
         2.5,
         2.42,
-        2.32,
-        2.23,
-        2.14,
-        2.05
+        2.33,
+        2.24,
+        2.15,
+        2.06
       ],
       "anios": [
         {
@@ -358,17 +358,17 @@
         "p90": 125
       },
       "rendimiento_qq_mz": {
-        "p10": 20.4,
-        "p50": 39.1,
+        "p10": 20.5,
+        "p50": 39.2,
         "p90": 46.2
       },
       "suelo_mo": [
         2.5,
-        2.44,
-        2.39,
-        2.33,
-        2.27,
-        2.22
+        2.45,
+        2.4,
+        2.34,
+        2.29,
+        2.24
       ],
       "erosion_t_ha": [
         43,
@@ -431,22 +431,22 @@
       "puntajes": {
         "agua": 5.9,
         "comida": 7,
-        "ingreso": 7.3,
-        "suelo": 5.1
+        "ingreso": 7.4,
+        "suelo": 5.2
       },
       "ingreso_q_mz": {
-        "p10": 8900,
+        "p10": 9000,
         "p50": 14700,
         "p90": 17200
       },
       "postrera_qq_mz": {
         "p10": 5.3,
         "p50": 10.8,
-        "p90": 12.1
+        "p90": 12.2
       },
       "total_qq": {
         "p10": 10.2,
-        "p50": 19.5,
+        "p50": 19.6,
         "p90": 23.1
       },
       "escorrentia_mm": 28,
@@ -454,18 +454,18 @@
       "suelo_mo_p10": [
         2.5,
         2.43,
-        2.34,
-        2.25,
-        2.2,
-        2.14
+        2.35,
+        2.27,
+        2.22,
+        2.17
       ],
       "suelo_mo_p90": [
         2.5,
         2.45,
-        2.39,
-        2.34,
-        2.29,
-        2.24
+        2.4,
+        2.36,
+        2.31,
+        2.26
       ],
       "anios": [
         {
@@ -665,17 +665,17 @@
         "p90": 133
       },
       "rendimiento_qq_mz": {
-        "p10": 9.7,
-        "p50": 29.5,
-        "p90": 37
+        "p10": 10,
+        "p50": 30.1,
+        "p90": 37.8
       },
       "suelo_mo": [
         2.5,
-        2.48,
-        2.46,
-        2.44,
-        2.42,
-        2.4
+        2.51,
+        2.52,
+        2.53,
+        2.54,
+        2.54
       ],
       "erosion_t_ha": [
         13,
@@ -703,7 +703,7 @@
       "ficha": {
         "por_que": [
           "La mucuna (frijol abono) cubre el suelo casi todo el año: menos evaporación y más agua que entra a la tierra (escorrentía 29 → 11 mm).",
-          "Es la que más cuida el suelo: erosión ≈ 13 t/ha/año (vs 198 hoy) y materia orgánica -0.10 puntos en 5 años."
+          "Es la que más cuida el suelo: erosión ≈ 13 t/ha/año (vs 198 hoy) y materia orgánica +0.04 puntos en 5 años."
         ],
         "evidencia": [
           "Balance de agua FAO-56 día por día con el clima real de 25 temporadas (NASA POWER 2001–2025): canícula típica del 12 jul al 1 ago.",
@@ -715,7 +715,7 @@
           "Fija nitrógeno: el rendimiento del maíz puede subir con los años (hasta +15 %, aprox.); cosecha típica 30 qq/mz.",
           "Suelo desnudo: solo ~11 días al año (vs 266 hoy).",
           "Menos maleza y no hay que quemar.",
-          "Temporadas perdidas: 2.6 de cada 10 (vs 3.3 hoy)."
+          "Temporadas perdidas: 2.4 de cada 10 (vs 3.3 hoy)."
         ],
         "info_faltante": [
           "Dónde conseguir semilla de mucuna (frijol abono) y cuánta.",
@@ -730,17 +730,17 @@
       },
       "recomendada": false,
       "advertencias": [],
-      "riesgo_de_10": 2.6,
+      "riesgo_de_10": 2.4,
       "puntajes": {
         "agua": 7.4,
-        "comida": 4,
-        "ingreso": 4.1,
-        "suelo": 7
+        "comida": 4.2,
+        "ingreso": 4.2,
+        "suelo": 7.9
       },
       "ingreso_q_mz": {
-        "p10": 3100,
-        "p50": 8200,
-        "p90": 10300
+        "p10": 3200,
+        "p50": 8400,
+        "p90": 10600
       },
       "postrera_qq_mz": {
         "p10": 0,
@@ -748,27 +748,27 @@
         "p90": 0
       },
       "total_qq": {
-        "p10": 4.9,
-        "p50": 14.8,
-        "p90": 18.5
+        "p10": 5,
+        "p50": 15,
+        "p90": 18.9
       },
       "escorrentia_mm": 11,
       "etapa_vulnerable": "floración",
       "suelo_mo_p10": [
         2.5,
-        2.46,
-        2.43,
-        2.4,
-        2.38,
-        2.36
+        2.49,
+        2.49,
+        2.49,
+        2.5,
+        2.5
       ],
       "suelo_mo_p90": [
         2.5,
-        2.49,
-        2.47,
-        2.46,
-        2.44,
-        2.42
+        2.52,
+        2.54,
+        2.55,
+        2.56,
+        2.58
       ],
       "anios": [
         {
@@ -1132,7 +1132,7 @@
       "uso": "cambios mensuales de lluvia y temperatura a 2040"
     }
   ],
-  "generado": "2026-11-14T16:57:18Z",
+  "generado": "2026-11-14T17:06:36Z",
   "siembra_aqui": "05-14",
   "periodos": [
     {
