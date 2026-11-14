@@ -102,18 +102,19 @@ func (e *Engine) handleMunicipios(w http.ResponseWriter, r *http.Request) {
 
 // RiskRow riesgo básico de un municipio (milpa de temporal, sin riego).
 type RiskRow struct {
-	ID           string  `json:"id"`
-	Nombre       string  `json:"nombre"`
-	Departamento string  `json:"departamento"`
-	Riesgo       float64 `json:"riesgo_de_10"` // S0: temporadas perdidas de cada 10
-	RiesgoS2     float64 `json:"riesgo_s2_de_10"`
-	RiesgoNino   float64 `json:"riesgo_nino_de_10"` // S0 en años El Niño
-	DeficitMM    float64 `json:"deficit_mm"`
-	ErosionTHa   float64 `json:"erosion_t_ha"`
-	HeladaDe10   float64 `json:"helada_de_10"`
-	CaniculaDias float64 `json:"canicula_dias"`
-	Siembra      string  `json:"siembra_aqui"`
-	Ranking      int     `json:"ranking"` // 1 = más riesgo
+	ID           string         `json:"id"`
+	Nombre       string         `json:"nombre"`
+	Departamento string         `json:"departamento"`
+	Riesgo       float64        `json:"riesgo_de_10"`   // S0: temporadas perdidas de cada 10
+	Perdidas     contract.Rango `json:"perdidas_de_10"` // S0: P10/P50/P90 de temporadas perdidas de cada 10
+	RiesgoS2     float64        `json:"riesgo_s2_de_10"`
+	RiesgoNino   float64        `json:"riesgo_nino_de_10"` // S0 en años El Niño
+	DeficitMM    float64        `json:"deficit_mm"`
+	ErosionTHa   float64        `json:"erosion_t_ha"`
+	HeladaDe10   float64        `json:"helada_de_10"`
+	CaniculaDias float64        `json:"canicula_dias"`
+	Siembra      string         `json:"siembra_aqui"`
+	Ranking      int            `json:"ranking"` // 1 = más riesgo
 }
 
 // Risk calcula (y cachea) el riesgo de los 342 municipios para un horizonte.
@@ -175,11 +176,38 @@ func (e *Engine) riskRow(m *geo.Municipio, horizon string) RiskRow {
 	}})[0]
 	r1 := func(x float64) float64 { return math.Round(x*10) / 10 }
 	row.Riesgo, row.RiesgoS2, row.RiesgoNino = r1(res[0].LossRate*10), r1(res[2].LossRate*10), r1(rn.LossRate*10)
+	row.Perdidas = rango(res[0].Losses10, 1)
 	row.DeficitMM, row.ErosionTHa = math.Round(res[0].DeficitMM[1]), math.Round(res[0].ErosionT[1])
 	row.HeladaDe10 = r1(frostYears(s) * 10)
 	row.CaniculaDias = cl.CaniculaDays[1]
 	row.Siembra = sim.MMDD(cl.PrimeraDOY[1])
 	return row
+}
+
+// RiskDoc respuesta de /api/riesgo y de static/riesgo_<horizonte>.json.
+type RiskDoc struct {
+	Fuente     string    `json:"fuente"`
+	Periodo    string    `json:"periodo"`
+	Horizonte  string    `json:"horizonte"`
+	Nota       string    `json:"nota"`
+	Municipios []RiskRow `json:"municipios"`
+}
+
+// RiskDocFor arma el documento de riesgo de un horizonte.
+func (e *Engine) RiskDocFor(h string) RiskDoc {
+	if h == "" {
+		h = "2026"
+	}
+	if h == "2040" {
+		h = "2040-ssp245"
+	}
+	d := RiskDoc{Fuente: "NASA POWER diario (zonas ~50 km) + SRTM; motor FAO-56/FAO-33, Monte Carlo 2001–2025", Periodo: "2001–2025", Horizonte: h,
+		Nota: "Milpa de temporal sin riego (S0, lo de hoy). Riesgo = temporadas perdidas (grano < 70 %) de cada 10. Nivel zona climática, no parcela.", Municipios: e.Risk(h)}
+	if h != "2026" {
+		d.Fuente += "; NASA NEX-GDDP-CMIP6 " + h[5:]
+		d.Periodo = "2001–2025 ajustado a 2040"
+	}
+	return d
 }
 
 func (e *Engine) handleRiesgo(w http.ResponseWriter, r *http.Request) {
@@ -194,10 +222,13 @@ func (e *Engine) handleRiesgo(w http.ResponseWriter, r *http.Request) {
 	if h == "" {
 		h = "2026"
 	}
-	var cached []RiskRow
-	if e.StaticDir != "" && readStatic(filepath.Join(e.StaticDir, "riesgo_"+h+".json"), &cached) {
+	if h == "2040" {
+		h = "2040-ssp245"
+	}
+	var cached RiskDoc
+	if e.StaticDir != "" && readStatic(filepath.Join(e.StaticDir, "riesgo_"+h+".json"), &cached) && len(cached.Municipios) > 0 {
 		writeJSON(w, http.StatusOK, cached)
 		return
 	}
-	writeJSON(w, http.StatusOK, e.Risk(h))
+	writeJSON(w, http.StatusOK, e.RiskDocFor(h))
 }

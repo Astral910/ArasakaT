@@ -157,3 +157,26 @@ func TestRiskRow(t *testing.T) {
 		t.Fatalf("Todos Santos (3000 m) debe tener heladas: %+v", hi)
 	}
 }
+
+func TestRiesgoStatic(t *testing.T) {
+	e := engine(t)
+	dir := t.TempDir()
+	doc := RiskDoc{Fuente: "x", Horizonte: "2026", Municipios: []RiskRow{e.riskRow(e.Muni.ByID["jocotan-chiquimula"], "2026")}}
+	b, _ := json.Marshal(doc)
+	os.WriteFile(dir+"/riesgo_2026.json", b, 0o644)
+	e.StaticDir = dir
+	defer func() { e.StaticDir = "" }()
+	mux := http.NewServeMux()
+	e.Routes(mux)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/riesgo?horizonte=2026", nil))
+	var got RiskDoc
+	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &got) != nil || len(got.Municipios) != 1 || got.Municipios[0].Perdidas.P90 < got.Municipios[0].Perdidas.P10 {
+		t.Fatalf("%d %s", rec.Code, rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest("GET", "/api/riesgo?horizonte=1999", nil))
+	if rec.Code != 400 {
+		t.Fatal("horizonte inválido")
+	}
+}

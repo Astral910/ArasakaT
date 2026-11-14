@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -306,6 +307,12 @@ func stepSoil() error {
 	out := map[string]data.Soil{}
 	_ = data.ReadJSON(p("soil.json"), &out) // reanudar
 	ok := 0
+	// primero los municipios héroe
+	sort.SliceStable(ms, func(i, j int) bool {
+		hi := ms[i].ID == "jocotan-chiquimula" || ms[i].ID == "camotan-chiquimula"
+		hj := ms[j].ID == "jocotan-chiquimula" || ms[j].ID == "camotan-chiquimula"
+		return hi && !hj
+	})
 	// SoilGrids permite ~5 consultas por minuto: en serie, una cada 13 s, guardando avance.
 	for _, m := range ms {
 		if _, done := out[m.ID]; done {

@@ -91,6 +91,15 @@ type YearOut struct {
 
 // RunYear simula un año: siembra de Primera = inicio de lluvias + offset días.
 func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) YearOut {
+	d.Main = s.Scaled(d.Main)
+	if d.Post != nil {
+		p := s.Scaled(*d.Post)
+		d.Post = &p
+	}
+	if d.Cover != nil {
+		c := s.Scaled(*d.Cover)
+		d.Cover = &c
+	}
 	yc := s.YearCal(y)
 	sow := yc.PrimeraOnset
 	if sow < 0 {
@@ -118,7 +127,7 @@ func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) 
 	income := out.MainQQ * PriceQQ[d.Main.ID]
 	stover := out.MainQQ * 45.36 / 1000 / 0.7 * 1.2 // t/ha de rastrojo (índice de cosecha ≈ 0.45)
 	if d.Intercrop {
-		b := RunCrop(s, fao56.Crops["bean"], sow, opts)
+		b := RunCrop(s, s.Scaled(fao56.Crops["bean"]), sow, opts)
 		bq := 0.35 * fao56.Crops["bean"].YmQQMz * b.YieldRatio
 		food += bq
 		income += bq * PriceQQ["bean"]

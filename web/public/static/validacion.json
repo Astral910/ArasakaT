@@ -1,0 +1,734 @@
+{
+  "documentadas": [
+    {
+      "year": 2001,
+      "event": "Canícula prolongada; crisis alimentaria en Jocotán y Camotán",
+      "source": "FAO/PMA 2001; SESAN"
+    },
+    {
+      "year": 2009,
+      "event": "El Niño: sequía y declaratoria de calamidad pública",
+      "source": "MAGA/SESAN 2009; FEWS NET"
+    },
+    {
+      "year": 2012,
+      "event": "Canícula irregular con pérdidas de Primera en el oriente",
+      "source": "FEWS NET Guatemala 2012"
+    },
+    {
+      "year": 2014,
+      "event": "Canícula prolongada: estado de calamidad en 16 departamentos",
+      "source": "MAGA 2014; FEWS NET"
+    },
+    {
+      "year": 2015,
+      "event": "El Niño fuerte: pérdidas de maíz y frijol de Primera",
+      "source": "FEWS NET 2015; PMA"
+    },
+    {
+      "year": 2018,
+      "event": "Canícula prolongada en el Corredor Seco",
+      "source": "FEWS NET 2018; MAGA"
+    },
+    {
+      "year": 2019,
+      "event": "Lluvias irregulares y pérdidas de Primera",
+      "source": "FEWS NET 2019; PMA"
+    },
+    {
+      "year": 2023,
+      "event": "El Niño: déficit de lluvias en la Primera",
+      "source": "FEWS NET 2023"
+    }
+  ],
+  "municipios": [
+    {
+      "municipio": "jocotan-chiquimula",
+      "detectadas": 5,
+      "total": 8,
+      "falsas_alarmas": 4,
+      "anios": [
+        {
+          "year": 2001,
+          "documented": true,
+          "detected": true
+        },
+        {
+          "year": 2002,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2003,
+          "documented": false,
+          "detected": true
+        },
+        {
+          "year": 2004,
+          "documented": false,
+          "detected": true
+        },
+        {
+          "year": 2005,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2006,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2007,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2008,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2009,
+          "documented": true,
+          "detected": false
+        },
+        {
+          "year": 2010,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2011,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2012,
+          "documented": true,
+          "detected": false
+        },
+        {
+          "year": 2013,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2014,
+          "documented": true,
+          "detected": true
+        },
+        {
+          "year": 2015,
+          "documented": true,
+          "detected": true
+        },
+        {
+          "year": 2016,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2017,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2018,
+          "documented": true,
+          "detected": true
+        },
+        {
+          "year": 2019,
+          "documented": true,
+          "detected": true
+        },
+        {
+          "year": 2020,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2021,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2022,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2023,
+          "documented": true,
+          "detected": false
+        },
+        {
+          "year": 2024,
+          "documented": false,
+          "detected": true
+        },
+        {
+          "year": 2025,
+          "documented": false,
+          "detected": true
+        }
+      ],
+      "ndvi_modis": {
+        "anios": [
+          {
+            "year": 2001,
+            "ndvi": 0.69,
+            "z": 0.58,
+            "bajo": false,
+            "motor_ratio": 0.62,
+            "motor_detecta": true
+          },
+          {
+            "year": 2002,
+            "ndvi": 0.667,
+            "z": -0.72,
+            "bajo": false,
+            "motor_ratio": 0.73,
+            "motor_detecta": false
+          },
+          {
+            "year": 2003,
+            "ndvi": 0.679,
+            "z": -0.04,
+            "bajo": false,
+            "motor_ratio": 0.62,
+            "motor_detecta": true
+          },
+          {
+            "year": 2004,
+            "ndvi": 0.661,
+            "z": -1.08,
+            "bajo": true,
+            "motor_ratio": 0.11,
+            "motor_detecta": true
+          },
+          {
+            "year": 2005,
+            "ndvi": 0.681,
+            "z": 0.05,
+            "bajo": false,
+            "motor_ratio": 0.88,
+            "motor_detecta": false
+          },
+          {
+            "year": 2006,
+            "ndvi": 0.692,
+            "z": 0.65,
+            "bajo": false,
+            "motor_ratio": 1.12,
+            "motor_detecta": false
+          },
+          {
+            "year": 2007,
+            "ndvi": 0.704,
+            "z": 1.35,
+            "bajo": false,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2008,
+            "ndvi": 0.698,
+            "z": 1.03,
+            "bajo": false,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2009,
+            "ndvi": 0.652,
+            "z": -1.59,
+            "bajo": true,
+            "motor_ratio": 1.12,
+            "motor_detecta": false
+          },
+          {
+            "year": 2010,
+            "ndvi": 0.672,
+            "z": -0.46,
+            "bajo": false,
+            "motor_ratio": 0.95,
+            "motor_detecta": false
+          },
+          {
+            "year": 2011,
+            "ndvi": 0.703,
+            "z": 1.28,
+            "bajo": false,
+            "motor_ratio": 1.13,
+            "motor_detecta": false
+          },
+          {
+            "year": 2012,
+            "ndvi": 0.667,
+            "z": -0.76,
+            "bajo": false,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2013,
+            "ndvi": 0.659,
+            "z": -1.22,
+            "bajo": true,
+            "motor_ratio": 0.93,
+            "motor_detecta": false
+          },
+          {
+            "year": 2014,
+            "ndvi": 0.634,
+            "z": -2.63,
+            "bajo": true,
+            "motor_ratio": 0.7,
+            "motor_detecta": true
+          },
+          {
+            "year": 2015,
+            "ndvi": 0.683,
+            "z": 0.16,
+            "bajo": false,
+            "motor_ratio": 0.37,
+            "motor_detecta": true
+          },
+          {
+            "year": 2016,
+            "ndvi": 0.679,
+            "z": -0.08,
+            "bajo": false,
+            "motor_ratio": 1.13,
+            "motor_detecta": false
+          },
+          {
+            "year": 2017,
+            "ndvi": 0.666,
+            "z": -0.8,
+            "bajo": true,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2018,
+            "ndvi": 0.674,
+            "z": -0.33,
+            "bajo": false,
+            "motor_ratio": 0.58,
+            "motor_detecta": true
+          },
+          {
+            "year": 2019,
+            "ndvi": 0.673,
+            "z": -0.42,
+            "bajo": false,
+            "motor_ratio": 0.64,
+            "motor_detecta": true
+          },
+          {
+            "year": 2020,
+            "ndvi": 0.7,
+            "z": 1.11,
+            "bajo": false,
+            "motor_ratio": 1.05,
+            "motor_detecta": false
+          },
+          {
+            "year": 2021,
+            "ndvi": 0.689,
+            "z": 0.52,
+            "bajo": false,
+            "motor_ratio": 1.07,
+            "motor_detecta": false
+          },
+          {
+            "year": 2022,
+            "ndvi": 0.703,
+            "z": 1.28,
+            "bajo": false,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2023,
+            "ndvi": 0.701,
+            "z": 1.2,
+            "bajo": false,
+            "motor_ratio": 0.83,
+            "motor_detecta": false
+          },
+          {
+            "year": 2024,
+            "ndvi": 0.695,
+            "z": 0.84,
+            "bajo": false,
+            "motor_ratio": 0.65,
+            "motor_detecta": true
+          },
+          {
+            "year": 2025,
+            "ndvi": 0.682,
+            "z": 0.09,
+            "bajo": false,
+            "motor_ratio": 0.04,
+            "motor_detecta": true
+          }
+        ],
+        "correlacion": 0.24,
+        "anios_ndvi_bajo": 5,
+        "coinciden": 2,
+        "documentadas_con_ndvi_bajo": 2,
+        "fuente": "MODIS/Terra MOD13Q1 NDVI 16 días 250 m vía NASA GIBS (MODIS_Terra_L3_NDVI_16Day), paleta MODIS_L3_NDVI invertida; media 3×3 km"
+      },
+      "detectadas_motor_o_ndvi": 6
+    },
+    {
+      "municipio": "camotan-chiquimula",
+      "detectadas": 4,
+      "total": 8,
+      "falsas_alarmas": 4,
+      "anios": [
+        {
+          "year": 2001,
+          "documented": true,
+          "detected": true
+        },
+        {
+          "year": 2002,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2003,
+          "documented": false,
+          "detected": true
+        },
+        {
+          "year": 2004,
+          "documented": false,
+          "detected": true
+        },
+        {
+          "year": 2005,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2006,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2007,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2008,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2009,
+          "documented": true,
+          "detected": false
+        },
+        {
+          "year": 2010,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2011,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2012,
+          "documented": true,
+          "detected": false
+        },
+        {
+          "year": 2013,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2014,
+          "documented": true,
+          "detected": false
+        },
+        {
+          "year": 2015,
+          "documented": true,
+          "detected": true
+        },
+        {
+          "year": 2016,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2017,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2018,
+          "documented": true,
+          "detected": true
+        },
+        {
+          "year": 2019,
+          "documented": true,
+          "detected": true
+        },
+        {
+          "year": 2020,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2021,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2022,
+          "documented": false,
+          "detected": false
+        },
+        {
+          "year": 2023,
+          "documented": true,
+          "detected": false
+        },
+        {
+          "year": 2024,
+          "documented": false,
+          "detected": true
+        },
+        {
+          "year": 2025,
+          "documented": false,
+          "detected": true
+        }
+      ],
+      "ndvi_modis": {
+        "anios": [
+          {
+            "year": 2001,
+            "ndvi": 0.739,
+            "z": 0.18,
+            "bajo": false,
+            "motor_ratio": 0.56,
+            "motor_detecta": true
+          },
+          {
+            "year": 2002,
+            "ndvi": 0.737,
+            "z": 0.09,
+            "bajo": false,
+            "motor_ratio": 0.78,
+            "motor_detecta": false
+          },
+          {
+            "year": 2003,
+            "ndvi": 0.732,
+            "z": -0.13,
+            "bajo": false,
+            "motor_ratio": 0.66,
+            "motor_detecta": true
+          },
+          {
+            "year": 2004,
+            "ndvi": 0.717,
+            "z": -0.87,
+            "bajo": true,
+            "motor_ratio": 0.17,
+            "motor_detecta": true
+          },
+          {
+            "year": 2005,
+            "ndvi": 0.724,
+            "z": -0.51,
+            "bajo": false,
+            "motor_ratio": 0.93,
+            "motor_detecta": false
+          },
+          {
+            "year": 2006,
+            "ndvi": 0.725,
+            "z": -0.5,
+            "bajo": false,
+            "motor_ratio": 1.12,
+            "motor_detecta": false
+          },
+          {
+            "year": 2007,
+            "ndvi": 0.728,
+            "z": -0.35,
+            "bajo": false,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2008,
+            "ndvi": 0.745,
+            "z": 0.45,
+            "bajo": false,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2009,
+            "ndvi": 0.719,
+            "z": -0.75,
+            "bajo": false,
+            "motor_ratio": 1.13,
+            "motor_detecta": false
+          },
+          {
+            "year": 2010,
+            "ndvi": 0.705,
+            "z": -1.44,
+            "bajo": true,
+            "motor_ratio": 0.98,
+            "motor_detecta": false
+          },
+          {
+            "year": 2011,
+            "ndvi": 0.773,
+            "z": 1.78,
+            "bajo": false,
+            "motor_ratio": 1.13,
+            "motor_detecta": false
+          },
+          {
+            "year": 2012,
+            "ndvi": 0.753,
+            "z": 0.84,
+            "bajo": false,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2013,
+            "ndvi": 0.695,
+            "z": -1.91,
+            "bajo": true,
+            "motor_ratio": 0.93,
+            "motor_detecta": false
+          },
+          {
+            "year": 2014,
+            "ndvi": 0.696,
+            "z": -1.83,
+            "bajo": true,
+            "motor_ratio": 0.73,
+            "motor_detecta": false
+          },
+          {
+            "year": 2015,
+            "ndvi": 0.745,
+            "z": 0.48,
+            "bajo": false,
+            "motor_ratio": 0.41,
+            "motor_detecta": true
+          },
+          {
+            "year": 2016,
+            "ndvi": 0.755,
+            "z": 0.93,
+            "bajo": false,
+            "motor_ratio": 1.12,
+            "motor_detecta": false
+          },
+          {
+            "year": 2017,
+            "ndvi": 0.736,
+            "z": 0.04,
+            "bajo": false,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2018,
+            "ndvi": 0.74,
+            "z": 0.21,
+            "bajo": false,
+            "motor_ratio": 0.56,
+            "motor_detecta": true
+          },
+          {
+            "year": 2019,
+            "ndvi": 0.726,
+            "z": -0.42,
+            "bajo": false,
+            "motor_ratio": 0.65,
+            "motor_detecta": true
+          },
+          {
+            "year": 2020,
+            "ndvi": 0.784,
+            "z": 2.28,
+            "bajo": false,
+            "motor_ratio": 1.05,
+            "motor_detecta": false
+          },
+          {
+            "year": 2021,
+            "ndvi": 0.744,
+            "z": 0.42,
+            "bajo": false,
+            "motor_ratio": 1.07,
+            "motor_detecta": false
+          },
+          {
+            "year": 2022,
+            "ndvi": 0.761,
+            "z": 1.23,
+            "bajo": false,
+            "motor_ratio": 1.14,
+            "motor_detecta": false
+          },
+          {
+            "year": 2023,
+            "ndvi": 0.712,
+            "z": -1.09,
+            "bajo": true,
+            "motor_ratio": 0.84,
+            "motor_detecta": false
+          },
+          {
+            "year": 2024,
+            "ndvi": 0.747,
+            "z": 0.56,
+            "bajo": false,
+            "motor_ratio": 0.69,
+            "motor_detecta": true
+          },
+          {
+            "year": 2025,
+            "ndvi": 0.742,
+            "z": 0.32,
+            "bajo": false,
+            "motor_ratio": 0.09,
+            "motor_detecta": true
+          }
+        ],
+        "correlacion": 0.19,
+        "anios_ndvi_bajo": 5,
+        "coinciden": 1,
+        "documentadas_con_ndvi_bajo": 2,
+        "fuente": "MODIS/Terra MOD13Q1 NDVI 16 días 250 m vía NASA GIBS (MODIS_Terra_L3_NDVI_16Day), paleta MODIS_L3_NDVI invertida; media 3×3 km"
+      },
+      "detectadas_motor_o_ndvi": 6
+    }
+  ],
+  "regla": "Temporada detectada como mala si el grano de la milpa (S0, siembra al inicio de lluvias) < 70 % de lo normal según FAO-56/FAO-33 con NASA POWER.",
+  "regla_ndvi": "Chequeo independiente: NDVI MODIS medio de ago–sep con anomalía z ≤ −0.8 respecto a 2001–2025 (vegetación estresada)."
+}

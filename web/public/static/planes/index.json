@@ -1,0 +1,30 @@
+{
+  "cultivos": [
+    "milpa",
+    "maiz",
+    "frijol",
+    "sorgo"
+  ],
+  "formato": "planes/<municipio_id>/<cultivo>-<riego 0|1>-<prioridad>-<horizonte>-<idioma>.json",
+  "heroes": [
+    "jocotan-chiquimula",
+    "camotan-chiquimula"
+  ],
+  "horizontes": [
+    "2026",
+    "2040-ssp245",
+    "2040-ssp585"
+  ],
+  "idiomas": [
+    "es",
+    "en"
+  ],
+  "por_defecto": "milpa-0-comida-2026-es.json (y -en) para todos los municipios",
+  "prioridades": [
+    "comida",
+    "agua",
+    "suelo",
+    "ingreso"
+  ],
+  "supuestos": "area 1 manzana, sin ganado, mano de obra normal, con semilla de cobertura, El Niño según todos los años. La web escala total_qq con area_manzanas."
+}

@@ -108,7 +108,7 @@ func exportStatic(e *plan.Engine, out string) error {
 	}, true)
 
 	for _, h := range horizontes {
-		write(filepath.Join(out, "riesgo_"+h+".json"), e.Risk(h), false)
+		write(filepath.Join(out, "riesgo_"+h+".json"), e.RiskDocFor(h), false)
 		log.Printf("riesgo %s listo (%s)", h, time.Since(t0).Round(time.Second))
 	}
 
