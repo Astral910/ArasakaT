@@ -1,3 +1,4 @@
 ﻿data/raw/
 web/node_modules/
 .env
+.cache/
