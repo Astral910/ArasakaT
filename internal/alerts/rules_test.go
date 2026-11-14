@@ -100,6 +100,20 @@ func TestLluviaFuerte(t *testing.T) {
 	if RuleLluviaFuerte(c) != nil {
 		t.Fatal("lluvia fuerte al día 9 queda fuera del horizonte")
 	}
+	// calibrado por modelo: 18 mm es fuerte para un modelo con umbral 15 y no para uno con 25
+	m := runs(cat(rep(5, 2), []float64{18}, rep(5, 13)), cat(rep(5, 2), []float64{18}, rep(5, 13)))
+	m[0].Model, m[1].Model = "jma_gsm", "icon_global"
+	c.Members, c.HeavyThr = m, map[string]float64{"jma_gsm": 15, "icon_global": 25}
+	if e := RuleLluviaFuerte(c); e == nil || e.Miembros != 1 || e.Prob != 0.5 || e.Inicio != day("2026-09-03") {
+		t.Fatalf("lluvia fuerte calibrada: %+v", e)
+	}
+	c.HeavyThr = map[string]float64{"jma_gsm": 20, "icon_global": 25}
+	if RuleLluviaFuerte(c) != nil {
+		t.Fatal("con umbrales altos no avisa")
+	}
+	if got := CalibrateHeavy(&Clim{HeavyFreq: 0.04}, &forecast.Archive{Runs: map[string]map[string]forecast.Run{"m": calRuns()}}); got["m"] < HeavyMinMM || got["m"] > HeavyMaxMM {
+		t.Fatalf("umbral calibrado fuera de límites: %v", got)
+	}
 	if HeavyThreshold(&Clim{P99: 70}) != 50 {
 		t.Fatal("el umbral diario nunca pasa de 50 mm")
 	}
@@ -249,4 +263,21 @@ func TestSinInicioSiYaLlovio(t *testing.T) {
 	if e := RuleInicio(ctx); e == nil || e.Tipo != TInicio {
 		t.Fatalf("a los pocos días del inicio sí avisa: %+v", e)
 	}
+}
+
+// calRuns 60 corridas de mayo con lluvia de 0 a 30 mm.
+func calRuns() map[string]forecast.Run {
+	out := map[string]forecast.Run{}
+	for i := 0; i < 60; i++ {
+		d := day("2026-05-01").AddDate(0, 0, i%31).Format("2006-01-02")
+		if i >= 31 {
+			d = day("2026-06-01").AddDate(0, 0, i-31).Format("2006-01-02")
+		}
+		pr := make([]float64, 7)
+		for k := range pr {
+			pr[k] = float64((i*7 + k) % 31)
+		}
+		out[d] = forecast.Run{PR: pr}
+	}
+	return out
 }

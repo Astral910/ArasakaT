@@ -45,10 +45,11 @@ type Clim struct {
 	Years       []int           `json:"years"`
 	P95         float64         `json:"p95_mm"` // percentil 95 de días con lluvia (≥ 1 mm), mayo–octubre
 	P99         float64         `json:"p99_mm"`
-	Canicula    map[int]int     `json:"canicula"`        // racha seca más larga (POWER < 2 mm) 15-jun..31-ago por año
-	LluviaJO    map[int]float64 `json:"lluvia_jo"`       // lluvia total junio–octubre por año (mm)
-	Onset       map[int]string  `json:"onset"`           // fecha de inicio de lluvias por la regla de 3 días
-	DryFreq     float64         `json:"frecuencia_seca"` // fracción de días mayo–octubre con < 2 mm (POWER 2001–2025)
+	Canicula    map[int]int     `json:"canicula"`          // racha seca más larga (POWER < 2 mm) 15-jun..31-ago por año
+	LluviaJO    map[int]float64 `json:"lluvia_jo"`         // lluvia total junio–octubre por año (mm)
+	Onset       map[int]string  `json:"onset"`             // fecha de inicio de lluvias por la regla de 3 días
+	DryFreq     float64         `json:"frecuencia_seca"`   // fracción de días mayo–octubre con < 2 mm (POWER 2001–2025)
+	HeavyFreq   float64         `json:"frecuencia_fuerte"` // fracción de días mayo–octubre por encima del P95 de días con lluvia
 	CaniculaMed float64         `json:"canicula_mediana"`
 	LluviaJOMed float64         `json:"lluvia_jo_mediana"`
 	climate     *data.Climate
@@ -79,6 +80,15 @@ func NewClim(c *data.Climate) *Clim {
 		cl.DryFreq = data.R2(float64(dry) / float64(all))
 	}
 	cl.P95, cl.P99 = data.R1(percentile(wet, 95)), data.R1(percentile(wet, 99))
+	if all > 0 {
+		heavy := 0
+		for _, v := range wet {
+			if v > cl.P95 {
+				heavy++
+			}
+		}
+		cl.HeavyFreq = math.Round(float64(heavy)/float64(all)*1000) / 1000
+	}
 	var cans, rains []float64
 	for y := start.Year(); y <= 2025; y++ {
 		pr := c.PR
@@ -279,6 +289,45 @@ func CalibrateDry(cl *Clim, a *forecast.Archive) map[string]float64 {
 			continue
 		}
 		out[model] = data.R1(math.Max(FcDryMM, math.Min(5, percentile(xs, cl.DryFreq*100))))
+	}
+	return out
+}
+
+// HeavyMinMM / HeavyMaxMM límites del umbral de lluvia fuerte calibrado por modelo.
+const (
+	HeavyMinMM = 10.0
+	HeavyMaxMM = 50.0
+)
+
+// CalibrateHeavy umbral de "lluvia fuerte" por modelo: el cuantil de la lluvia diaria del propio modelo (corridas
+// mayo–octubre, días 0–6) con la misma frecuencia que NASA POWER pasa su P95 local en 2001–2025 (≈ 4 % de los días).
+// Así un día "fuerte" del modelo es tan raro en el modelo como un día fuerte en POWER, sin importar que el modelo sea un
+// punto y POWER un promedio de ~50 km. No usa lo observado en 2026. Límites 10–50 mm.
+func CalibrateHeavy(cl *Clim, a *forecast.Archive) map[string]float64 {
+	out := map[string]float64{}
+	if cl == nil || a == nil || cl.HeavyFreq <= 0 {
+		return out
+	}
+	for model, runs := range a.Runs {
+		var xs []float64
+		for d, r := range runs {
+			if len(d) < 7 {
+				continue
+			}
+			if m := d[5:7]; m < "05" || m > "10" {
+				continue
+			}
+			for i, v := range r.PR {
+				if i >= HeavyHorizon {
+					break
+				}
+				xs = append(xs, v)
+			}
+		}
+		if len(xs) < 100 {
+			continue
+		}
+		out[model] = data.R1(math.Max(HeavyMinMM, math.Min(HeavyMaxMM, percentile(xs, (1-cl.HeavyFreq)*100))))
 	}
 	return out
 }
