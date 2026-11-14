@@ -41,6 +41,8 @@ type Sesion struct {
 	Estrategia  string               `json:"estrategia,omitempty"`  // la última que miró en detalle
 	RiegoNivel  string               `json:"riego_nivel,omitempty"` // nada | poco | medio | mucho
 	Suscrito    bool                 `json:"suscrito"`
+	Audios      bool                 `json:"audios,omitempty"` // también contesta con notas de voz
+	OfrecioVoz  bool                 `json:"ofrecio_voz,omitempty"`
 	Actualizado time.Time            `json:"actualizado"`
 }
 

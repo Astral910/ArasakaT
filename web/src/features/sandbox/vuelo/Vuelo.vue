@@ -108,10 +108,11 @@ function pintado(tope = 900): Promise<void> {
   })
 }
 
-/** Capa de riesgo de Mesoamérica (MOTOR, opcional): static/riesgo_mesoamerica.geojson con `riesgo` por polígono. */
-async function mesoamerica(): Promise<any | null> {
+/** Capas de riesgo fuera de Guatemala (agente riesgo, opcionales): static/riesgo_mundo.geojson (países) y
+ *  static/riesgo_mesoamerica.geojson (estados), con `riesgo` (0–10) y `color` ya pintado por polígono. */
+async function capaRiesgo(nombre: 'mundo' | 'mesoamerica'): Promise<any | null> {
   try {
-    const r = await fetch(pub('static/riesgo_mesoamerica.geojson'))
+    const r = await fetch(pub(`static/riesgo_${nombre}.geojson`))
     if (!r.ok || !/json/.test(r.headers.get('content-type') || '')) return null
     const g = await r.json()
     return g?.type === 'FeatureCollection' && Array.isArray(g.features) && g.features.length ? g : null
@@ -199,12 +200,13 @@ onMounted(async () => {
   mapa.on('load', async () => {
     try { mapa.setProjection?.({ type: 'globe' }) } catch { /* ya viene en el estilo */ }
     mapa.setTerrain({ source: 'dem', exaggeration: EXAG })
-    // Mesoamérica (si el motor la publica) debajo de Guatemala
-    const meso = await mesoamerica()
-    if (meso) {
-      mapa.addSource('meso', { type: 'geojson', data: meso })
-      mapa.addLayer({ id: 'meso-relleno', type: 'fill', source: 'meso', paint: { 'fill-color': RIESGO_COLOR, 'fill-opacity': OPAC_RIESGO } })
-      mapa.addLayer({ id: 'meso-borde', type: 'line', source: 'meso', paint: { 'line-color': '#fffaf2', 'line-width': 0.4, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0, 5, 0.5, 11, 0.15] } })
+    // riesgo del mundo (países) debajo, Mesoamérica (estados) encima y Guatemala (municipios) arriba de todo
+    const [mundo, meso] = await Promise.all([capaRiesgo('mundo'), capaRiesgo('mesoamerica')])
+    for (const [id, g] of [['mundo', mundo], ['meso', meso]] as const) {
+      if (!g) continue
+      mapa.addSource(id, { type: 'geojson', data: g })
+      mapa.addLayer({ id: `${id}-relleno`, type: 'fill', source: id, paint: { 'fill-color': ['coalesce', ['get', 'color'], RIESGO_COLOR], 'fill-opacity': OPAC_RIESGO } })
+      mapa.addLayer({ id: `${id}-borde`, type: 'line', source: id, paint: { 'line-color': '#fffaf2', 'line-width': id === 'mundo' ? 0.5 : 0.4, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0, 4, 0.45, 11, 0.15] } })
     }
     try {
       const [geo, datos] = await Promise.all([cargarGeo(), cargarRiesgo('2026')])

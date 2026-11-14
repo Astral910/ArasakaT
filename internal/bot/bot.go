@@ -20,6 +20,7 @@ import (
 	"fieldshift/internal/contract"
 	"fieldshift/internal/geo"
 	"fieldshift/internal/simvideo"
+	"fieldshift/internal/voz"
 )
 
 // Entrada: un mensaje del usuario, ya traducido por el canal.
@@ -30,6 +31,7 @@ type Entrada struct {
 	BotonID string // id del botón o fila de lista tocada
 	Lat     *float64
 	Lon     *float64
+	Audio   []byte // nota de voz (OGG/Opus); el canal la transcribe con internal/voz antes de llamar a Responder
 }
 
 // Salida: un mensaje del bot, que cada canal dibuja a su manera.
@@ -90,6 +92,31 @@ func (b *Bot) Responder(e Entrada) []Salida {
 	return out
 }
 
+// IdiomaDe: idioma de la sesión de ese teléfono (es por defecto). Lo usa el canal para transcribir y hablar.
+func (b *Bot) IdiomaDe(tel string) string {
+	if se := b.Sesiones.Get(tel); se.Idioma == "en" {
+		return "en"
+	}
+	return "es"
+}
+
+// AudiosDe: si esa persona pidió que el bot también conteste con notas de voz (AUDIOS / TEXTO).
+func (b *Bot) AudiosDe(tel string) bool { return b.Sesiones.Get(tel).Audios }
+
+// OfrecerAudios: true solo la primera vez (marca la sesión), para ofrecer las respuestas en audio una vez.
+func (b *Bot) OfrecerAudios(tel string) bool {
+	mu, _ := b.locks.LoadOrStore(tel, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	defer mu.(*sync.Mutex).Unlock()
+	se := b.Sesiones.Get(tel)
+	if se.OfrecioVoz || se.Audios {
+		return false
+	}
+	se.OfrecioVoz = true
+	b.Sesiones.Put(se)
+	return true
+}
+
 // IdiomaInicial fija el idioma de una sesión que todavía no empezó (el simulador web lo manda).
 func (b *Bot) IdiomaInicial(tel, idioma string) {
 	mu, _ := b.locks.LoadOrStore(tel, &sync.Mutex{})
@@ -113,9 +140,14 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 	if strings.HasPrefix(e.BotonID, "seg:") {
 		return b.seguimiento(se, e.BotonID)
 	}
-	// Notas de voz: todavía sin transcripción.
+	// Notas de voz: el canal ya las transcribió (internal/voz); si llega una cruda es que no hay servicio de voz.
 	if e.Tipo == "audio" {
-		return txt(t(L, "voz"))
+		return txt(voz.TextoSinVoz(L))
+	}
+	// Respuestas también en audio (AUDIOS) o solo texto (TEXTO).
+	if cmd == "AUDIOS" || cmd == "TEXTO" || cmd == "TEXT" {
+		se.Audios = cmd == "AUDIOS"
+		return txt(voz.TextoAudios(L, se.Audios))
 	}
 	// Ubicación en cualquier momento: fija el municipio y sigue con el cultivo.
 	if e.Lat != nil && e.Lon != nil {

@@ -66,6 +66,8 @@ export interface OpcionesVideo {
   rango?: [number, number]
   /** con marca (huipil, nombre, municipio) y fuentes al final; por defecto true */
   marca?: boolean
+  /** ambiente y narración (renderizados cuadro a cuadro, AAC); por defecto true */
+  audio?: boolean
   bitrate?: number // bps; por defecto según calidad, para quedar < 16 MB
   onProgreso?: (p: number, fase: 'grabando' | 'cerrando') => void
   signal?: AbortSignal

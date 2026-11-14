@@ -26,6 +26,7 @@ type SiteBundle struct {
 	Pron       *PronInput         `json:"pron,omitempty"`
 	ONI        map[string]float64 `json:"oni,omitempty"`
 	Habilidad  string             `json:"habilidad,omitempty"`
+	NivelMax   string             `json:"nivel_max,omitempty"`
 	ValidHits  int                `json:"valid_hits,omitempty"`
 	ValidTotal int                `json:"valid_total,omitempty"`
 	CMIPFuente string             `json:"cmip_fuente,omitempty"`
@@ -56,6 +57,7 @@ func (e *Engine) Bundle(id string) (*SiteBundle, error) {
 	b.Pron = e.Pron(m.Lat, m.Lon)
 	b.ONI = e.ONI.Values
 	b.Habilidad, b.ValidHits, b.ValidTotal = e.habilidad(m)
+	_, b.NivelMax = e.hindcastDe(m)
 	b.CMIPFuente = e.cmipFuente(m)
 	if s.Cal.Generic {
 		c := s.Cal
@@ -75,7 +77,7 @@ func (b *SiteBundle) Env() SimEnv {
 	return SimEnv{Name: b.Name, Dept: b.Dept,
 		Pron:      func() *PronInput { return b.Pron },
 		ONIVal:    func(k string) (float64, bool) { v, ok := b.ONI[k]; return v, ok },
-		Habilidad: b.Habilidad, ValidHits: b.ValidHits, ValidTotal: b.ValidTotal, CMIPFuente: b.CMIPFuente,
+		Habilidad: b.Habilidad, ValidHits: b.ValidHits, ValidTotal: b.ValidTotal, CMIPFuente: b.CMIPFuente, NivelMax: b.NivelMax,
 		Site: func(h string) (*sim.Site, error) {
 			if s, ok := sites[h]; ok {
 				return s, nil

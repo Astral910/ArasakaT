@@ -68,6 +68,7 @@ func (r *ChromeFFmpeg) EncoderElegido() string {
 		defer cancel()
 		cmd := exec.CommandContext(ctx, r.ffmpeg(), "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=black:s=256x256:d=0.2",
 			"-c:v", "h264_nvenc", "-f", "null", "-")
+		ocultar(cmd)
 		if err := cmd.Run(); err == nil {
 			r.encoder = "h264_nvenc"
 		}
@@ -213,6 +214,9 @@ func (r *ChromeFFmpeg) Render(ctx context.Context, pagina, dst string) error {
 		}
 		return fmt.Errorf("ffmpeg: %w (%s)", errF, recorte(stderr.String()))
 	}
+	if os.Getenv("SIMVIDEO_AUDIO") != "0" {
+		r.ponerAudio(ctx, bctx, tmp)
+	}
 	st, err := os.Stat(tmp)
 	if err != nil {
 		return err
@@ -266,6 +270,7 @@ func (r *ChromeFFmpeg) ffmpegCmd(ctx context.Context, enc string, fps, bitrate i
 	}
 	args = append(args, "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out)
 	cmd := exec.CommandContext(ctx, r.ffmpeg(), args...)
+	ocultar(cmd)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, nil, nil, err
@@ -284,4 +289,34 @@ func recorte(s string) string {
 		return s[len(s)-400:]
 	}
 	return s
+}
+
+// ponerAudio: pide a la página el sonido del video (ambiente + narración, renderizado offline con el día de cada
+// cuadro) y lo mezcla al MP4 con ffmpeg (AAC). Si algo falla, el video queda mudo: no se pierde el render.
+func (r *ChromeFFmpeg) ponerAudio(ctx, bctx context.Context, mp4 string) {
+	b64, err := chromedp.Run(bctx, chromedp.Evaluate[string](`(window.__fsRec && window.__fsRec.audio) ? window.__fsRec.audio() : ''`, chromedp.EvalAwaitPromise))
+	if err != nil || b64 == "" {
+		if err != nil {
+			log.Printf("simvideo: sin audio: %v", err)
+		}
+		return
+	}
+	wav, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil || len(wav) < 64 {
+		return
+	}
+	fw, fo := mp4+".wav", mp4+".a.mp4"
+	defer os.Remove(fw)
+	defer os.Remove(fo)
+	if os.WriteFile(fw, wav, 0o644) != nil {
+		return
+	}
+	cmd := exec.CommandContext(ctx, r.ffmpeg(), "-hide_banner", "-loglevel", "error", "-y", "-i", mp4, "-i", fw,
+		"-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "128k", "-shortest", "-movflags", "+faststart", fo)
+	ocultar(cmd)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Printf("simvideo: mezclar audio: %v (%s)", err, recorte(string(out)))
+		return
+	}
+	_ = os.Rename(fo, mp4)
 }

@@ -5,6 +5,7 @@ import { ArrayBufferTarget, Muxer } from 'mp4-muxer'
 import { Compositor } from './marca'
 import { nombreArchivo, planCuadros, type PlanCuadros } from './plan'
 import type { OpcionesVideo, ResultadoVideo, SandboxGrabable } from './tipos'
+import { codecAudioMP4, codificarAudio, renderizarAudio } from '../audio'
 
 // High → Main → Baseline; el nivel según la resolución (4.0 alcanza 1080p30).
 const PERFILES = ['avc1.640028', 'avc1.4d0028', 'avc1.42e028', 'avc1.64001f', 'avc1.42001f']
@@ -47,9 +48,14 @@ export async function exportarVideo(sb: SandboxGrabable, opciones: OpcionesVideo
 
 async function mp4(sb: SandboxGrabable, plan: PlanCuadros, cfg: VideoEncoderConfig, o: OpcionesVideo): Promise<ResultadoVideo> {
   const comp = new Compositor(sb, plan)
+  // sonido: ambiente + narración renderizados offline con el día de cada cuadro (sin timeline o sin AudioEncoder: mudo)
+  const conAudio = o.audio !== false && !!sb.timeline && typeof OfflineAudioContext !== 'undefined'
+  const ac = conAudio ? await codecAudioMP4(48000, 2).catch(() => null) : null
+  const dias: ({ dia: number; fraccion?: number } | null)[] = []
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
     video: { codec: 'avc', width: plan.ancho, height: plan.alto, frameRate: plan.fps },
+    ...(ac ? { audio: { codec: ac.muxer, numberOfChannels: 2, sampleRate: 48000 } } : {}),
     fastStart: 'in-memory', // moov al principio: WhatsApp y los celulares lo reproducen al vuelo
     firstTimestampBehavior: 'offset',
   })
@@ -65,6 +71,8 @@ async function mp4(sb: SandboxGrabable, plan: PlanCuadros, cfg: VideoEncoderConf
       if (o.signal?.aborted) throw cancelado()
       if (error) throw error
       const lienzo = await comp.cuadro(k)
+      const u = comp.ultimo
+      dias[k] = u.fase === 'sandbox' && u.dia != null && k < plan.escena ? { dia: u.dia, fraccion: u.fraccion } : null
       const vf = new VideoFrame(lienzo, { timestamp: k * dur, duration: dur })
       enc.encode(vf, { keyFrame: k % (plan.fps * 2) === 0 })
       vf.close()
@@ -75,6 +83,17 @@ async function mp4(sb: SandboxGrabable, plan: PlanCuadros, cfg: VideoEncoderConf
     o.onProgreso?.(1, 'cerrando')
     await enc.flush()
     if (error) throw error
+    if (ac) {
+      try {
+        const { buffer } = await renderizarAudio(sb.timeline as any, {
+          duracion: plan.total / plan.fps, idioma: sb.meta.idioma === 'en' ? 'en' : 'es',
+          diaEn: (t) => dias[Math.min(dias.length - 1, Math.round(t * plan.fps))] ?? null,
+        })
+        await codificarAudio(buffer, ac.cfg, (c, m) => muxer.addAudioChunk(c, m))
+      } catch (e) {
+        console.warn('video: sin audio', e) // el MP4 sale mudo antes que no salir
+      }
+    }
     muxer.finalize()
   } finally {
     if (enc.state !== 'closed') enc.close()

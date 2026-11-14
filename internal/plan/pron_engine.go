@@ -105,7 +105,11 @@ func (e *Engine) oniRecent(n int) (string, float64, []ONITrimestre) {
 
 // habilidad texto de validación del motor para el lugar (Guatemala: sequías documentadas + Brier IA vs estadística).
 func (e *Engine) habilidad(m *geo.Municipio) (string, int, int) {
+	hc, _ := e.hindcastDe(m)
 	if m.Global {
+		if hc != "" {
+			return hc, 0, 0
+		}
 		return "sin validación local, solo series NASA (fuera de Guatemala no hay registro de sequías documentadas para comparar)", 0, 0
 	}
 	s, err := e.Site(m, "2026")
@@ -116,6 +120,9 @@ func (e *Engine) habilidad(m *geo.Municipio) (string, int, int) {
 	txt := fmt.Sprintf("detectó %d de %d sequías documentadas", v.Hits, v.Total)
 	if mlr := e.ML(); mlr.Model != nil {
 		txt += fmt.Sprintf(" · Brier IA %.3f vs estadística %.3f", mlr.Eval.BrierIA, mlr.Eval.BrierEst)
+	}
+	if hc != "" {
+		txt = hc + " · " + txt
 	}
 	return txt, v.Hits, v.Total
 }

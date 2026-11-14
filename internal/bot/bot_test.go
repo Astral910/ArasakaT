@@ -182,7 +182,15 @@ func TestTextoLibreYEntradasRaras(t *testing.T) {
 	say(Entrada{Texto: "Jocotan"})
 	debe(t, say(Entrada{Texto: "banano"}), "No te entendí", "¿Qué sembrás?")
 	debe(t, say(Entrada{Texto: "maíz"}), "tamaño")
-	debe(t, say(Entrada{Tipo: "audio"}), "notas de voz")
+	debe(t, say(Entrada{Tipo: "audio"}), "audios")
+	debe(t, say(Entrada{Texto: "AUDIOS"}), "audios")
+	if !b.AudiosDe(tel) {
+		t.Fatal("AUDIOS no activó las notas de voz")
+	}
+	debe(t, say(Entrada{Texto: "TEXTO"}), "solo texto")
+	if b.AudiosDe(tel) || !b.OfrecerAudios(tel) || b.OfrecerAudios(tel) {
+		t.Fatal("TEXTO u OfrecerAudios mal")
+	}
 	debe(t, say(Entrada{Texto: "un terreno grande"}), "No te entendí", "tamaño")
 	debe(t, say(Entrada{Texto: "media manzana"}), "regás")
 	out := say(Entrada{Texto: "sí"})

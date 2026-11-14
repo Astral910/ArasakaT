@@ -5,6 +5,7 @@
 import { Compositor } from './marca'
 import { planCuadros } from './plan'
 import type { OpcionesVideo, SandboxGrabable } from './tipos'
+import { audioBufferAWav, renderizarAudio } from '../audio'
 
 export interface GrabadorRemoto {
   version: 1
@@ -17,6 +18,8 @@ export interface GrabadorRemoto {
   duracion: number
   /** JPEG del cuadro k en base64 (sin el prefijo data:) */
   cuadro: (k: number) => Promise<string>
+  /** WAV (base64) con ambiente + narración del video ya grabado ('' si no hay sonido); después del último cuadro */
+  audio?: () => Promise<string>
 }
 
 declare global {
@@ -56,9 +59,23 @@ export async function activarModoGrabacion(sb: SandboxGrabable, opciones: Opcion
     await document.fonts?.ready
     await sb.prepararGrabacion?.(plan.ancho, plan.alto)
     const comp = new Compositor(sb, plan, new URLSearchParams(location.search).get('url_publica') ?? undefined)
+    const dias: ({ dia: number; fraccion?: number } | null)[] = []
     rec.cuadro = async (k: number) => {
       const c = await comp.cuadro(k)
+      const u = comp.ultimo
+      dias[k] = u.fase === 'sandbox' && u.dia != null && k < plan.escena ? { dia: u.dia, fraccion: u.fraccion } : null
       return c.toDataURL('image/jpeg', 0.93).slice('data:image/jpeg;base64,'.length)
+    }
+    rec.audio = async () => {
+      if (!sb.timeline || typeof OfflineAudioContext === 'undefined') return ''
+      const { buffer } = await renderizarAudio(sb.timeline as any, {
+        duracion: plan.total / plan.fps, idioma: sb.meta.idioma === 'en' ? 'en' : 'es',
+        diaEn: (t) => dias[Math.min(dias.length - 1, Math.round(t * plan.fps))] ?? null,
+      })
+      const b = new Uint8Array(await audioBufferAWav(buffer).arrayBuffer())
+      let bin = ''
+      for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode(...b.subarray(i, i + 0x8000))
+      return btoa(bin)
     }
     rec.listo = true
   } catch (e) {

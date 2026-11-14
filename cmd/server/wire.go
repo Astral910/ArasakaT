@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sync"
@@ -22,6 +23,7 @@ import (
 	"fieldshift/internal/geo"
 	"fieldshift/internal/informe"
 	"fieldshift/internal/plan"
+	"fieldshift/internal/voz"
 )
 
 // Alertador lo implementa internal/alerts: corrida "ahora" (cada 3 h), sin duplicar.
@@ -98,7 +100,19 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 	if cfg.Geo {
 		d.Geo = bot.NewGeoWeb() // lugares del mundo por nombre / nombre de la ubicación
 	}
-	d.InformeBase = baseLocal(cfg.Addr) // el PDF del informe sale del propio servidor
+	// INFORME (internal/informe): GET /api/informe.pdf (Chromium imprime /informe?print=1); el bot lo pide
+	// en el mismo proceso (informe.Generar), sin volver a entrar por HTTP.
+	inf := informe.Nuevo(informe.ConfigDesdeEnv())
+	informe.Routes(mux, inf)
+	d.InformeBase = baseLocal(cfg.Addr)
+	d.Informes = informeLocal{inf}
+	if muni != nil { // VOZ: nombres de municipios para corregir lo que Whisper oye mal
+		nombres := make([]string, 0, len(muni.List))
+		for _, m := range muni.List {
+			nombres = append(nombres, m.Name)
+		}
+		voz.Vocabulario(nombres)
+	}
 	wa := vinculado(cfg)
 	if wa != nil {
 		d.Vinculado = wa
@@ -126,10 +140,18 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 	}
 	a.comp.Twilio = activo(d.Twilio.Activo())
 
-	// INFORME (internal/informe): GET /api/informe.pdf (Chromium imprime /informe?print=1)
-	informe.Routes(mux, informe.Nuevo(informe.ConfigDesdeEnv()))
-
 	return a
+}
+
+// informeLocal: el PDF del informe para el bot, generado en el mismo proceso (caché de internal/informe).
+type informeLocal struct{ s *informe.Servicio }
+
+func (f informeLocal) PDF(ctx context.Context, q url.Values) ([]byte, error) {
+	ruta, err := f.s.PDF(ctx, informe.DesdeQuery(q))
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(ruta)
 }
 
 // alertadorReal adapta internal/alerts al scheduler del servidor.

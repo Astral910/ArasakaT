@@ -21,6 +21,7 @@ import { insignia as armarInsignia } from './ui/confianza'
 import { cargarSitio, enGuatemala, leerRuta, municipioCercano, nombrePais } from './ui/ruta'
 import { RIEGO, type Escenario, type OrigenSim, type SimEvento, type SimRequest, type SimTimeline, type Estrategia } from './ui/tipos'
 import { t } from './ui/textos'
+import { createAudio, BotonSonido, Subtitulos, type ControlAudio } from './audio'
 import { usePlanStore, requestFromQuery } from '@/stores/plan'
 import { lang, setLang } from '@/i18n'
 import type { PlanRequest } from '@/api/types'
@@ -176,6 +177,7 @@ async function recalcular() {
   if (!tl.value || nuevo.dias !== tl.value.dias) dia.value = Math.min(dia.value, nuevo.dias - 1)
   const primera = !tl.value
   tl.value = nuevo
+  ponerAudio(nuevo)
   tlB.value = r2?.tl ?? null
   origen.value = r1.origen
   escenarioReal.value = r1.escenario
@@ -191,6 +193,16 @@ watch(ajustes, (a, b) => {
   deb = setTimeout(recalcular, 180)
   if (a.comparar !== b?.comparar) { preset.value = 'cerca'; durCam.value = 1200; presetSeq.value++ }
 }, { deep: true })
+
+// ---------- sonido y narración (arranca en silencio; subtítulos aunque esté muteado) ----------
+const audio = shallowRef<ControlAudio | null>(null)
+function ponerAudio(nuevo: SimTimeline) {
+  if (rec) return // el MP4 lleva su propio audio renderizado cuadro a cuadro
+  try {
+    if (audio.value) audio.value.setTimeline(nuevo as any)
+    else audio.value = createAudio(nuevo as any, { idioma: lang.value === 'en' ? 'en' : 'es', muted: true, volumen: 0.5 })
+  } catch { audio.value = null /* sin Web Audio: la guía sigue muda */ }
+}
 
 // ---------- reloj de la guía ----------
 const dia = ref(0)
@@ -219,6 +231,10 @@ function tick(now: number) {
   raf = requestAnimationFrame(tick)
   const dt = Math.min(0.1, (now - (prev || now)) / 1000)
   prev = now
+  if (audio.value) {
+    if (fase.value !== 'sandbox') audio.value.setDay(-1) // viento suave durante el vuelo
+    else if (jugando.value) audio.value.setDay(Math.floor(dia.value), dia.value % 1)
+  }
   if (!tl.value || !jugando.value || fase.value !== 'sandbox') return
   const [d0, d1] = rango.value
   let v = velocidadGuia(d0, d1, pars.value, dia.value, movil.value ? GUIA_S_MOVIL : GUIA_S) * ritmo.value
@@ -245,6 +261,9 @@ function tick(now: number) {
   }
   if (dia.value >= tl.value.dias - 1e-2) jugando.value = false
 }
+watch(jugando, (j) => { if (j) audio.value?.play(); else audio.value?.pause() })
+watch(finVisible, (f) => { if (f) audio.value?.decir('fin') })
+watch(lang, (l) => audio.value?.setIdioma(l === 'en' ? 'en' : 'es'))
 const fraccion = computed(() => (jugando.value ? dia.value % 1 : 0.5))
 const diaEntero = computed(() => Math.floor(dia.value))
 
@@ -447,6 +466,7 @@ onMounted(async () => {
 })
 onBeforeUnmount(() => {
   cancelAnimationFrame(raf)
+  audio.value?.dispose()
   window.removeEventListener('keydown', tecla)
   window.removeEventListener('resize', onResize)
 })
@@ -526,6 +546,7 @@ onBeforeUnmount(() => roPie?.disconnect())
       <button class="chip redondo" type="button" :aria-label="t('volver')" :title="t('volver')" @click="volver"><ArrowLeft :size="17" /></button>
       <p class="lugar"><b>{{ lugar.nombre }}</b><span v-if="region">, {{ region }}</span></p>
       <div class="der">
+        <BotonSonido v-if="audio" :audio="audio" :idioma="lang === 'en' ? 'en' : 'es'" class="chip sonido" />
         <button class="chip idioma" type="button" :aria-label="lang === 'es' ? 'English' : 'Español'" @click="setLang(lang === 'es' ? 'en' : 'es')">{{ lang === 'es' ? 'EN' : 'ES' }}</button>
         <button v-if="fase === 'sandbox' && tl" class="chip ajustar" :class="{ on: ajustarAbierto }" type="button" :aria-expanded="ajustarAbierto" aria-controls="panel-ajustar" @click="ajustarAbierto = !ajustarAbierto">
           <SlidersHorizontal :size="16" /><span>{{ t('ajustar') }}</span>
@@ -540,6 +561,7 @@ onBeforeUnmount(() => roPie?.disconnect())
     <Ajustar v-if="fase === 'sandbox' && tl" v-model="ajustes" :abierto="ajustarAbierto" :cargando="cargando" :movil="movil" :recomendada="recomendada" :origen="origen" :aviso="avisoPronostico" @cerrar="ajustarAbierto = false">
       <BotonExportar v-if="BotonExportar && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" class="exp" />
     </Ajustar>
+    <Subtitulos v-if="audio && fase === 'sandbox'" :audio="audio" class="subtitulos" :style="{ bottom: pieAlto + 22 + 'px' }" />
     <Transition name="sube">
       <footer v-if="fase === 'sandbox' && tl && insignia" ref="pie" class="vidrio abajo-ui">
         <Guia
@@ -610,6 +632,8 @@ onBeforeUnmount(() => roPie?.disconnect())
 .lugar { font-size: .98rem; text-shadow: 0 1px 8px rgba(0,0,0,.6); opacity: 0; transition: opacity .8s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .f-sandbox .lugar { opacity: 1; }
 .der { margin-left: auto; display: flex; gap: 8px; flex: none; }
+.subtitulos { position: absolute; left: 0; right: 0; z-index: 8; transition: bottom .3s ease; }
+.f-sandbox.comparar .subtitulos, .rec .subtitulos { display: none; }
 .chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid rgba(255,250,240,.28); background: rgba(20,16,12,.55); color: #f4ebdb; backdrop-filter: blur(10px); border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: .84rem; cursor: pointer; }
 .chip:hover { background: rgba(20,16,12,.75); }
 .chip:focus-visible { outline: 3px solid #e0a526; outline-offset: 2px; }

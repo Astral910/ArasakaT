@@ -17,6 +17,7 @@ import (
 
 	"fieldshift/internal/bot"
 	"fieldshift/internal/contract"
+	"fieldshift/internal/voz"
 )
 
 // Transporte: lo que hace el cliente vinculado (lo cumple whatsmeow.Cliente; en tests, uno falso).
@@ -118,13 +119,65 @@ func (v *Vinculado) Recibir(id string, e bot.Entrada) {
 		mu.(*sync.Mutex).Lock()
 		defer mu.(*sync.Mutex).Unlock()
 		log.Printf("vinculado: ← %s %s", bot.Enmascarar(e.Tel), e.Tipo)
-		Entregar(v, e.Tel, v.Bot.Responder(e))
+		oyo := false
+		if e.Tipo == "audio" && len(e.Audio) > 0 {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			texto, _, aviso := voz.EntradaDeAudio(ctx, e.Audio, v.Bot.IdiomaDe(e.Tel))
+			cancel()
+			if aviso != "" {
+				_ = v.T.EnviarTexto(e.Tel, aviso)
+				return
+			}
+			e.Tipo, e.Texto, e.Audio, oyo = "text", texto, nil, true
+		}
+		out := v.Bot.Responder(e)
+		Entregar(v, e.Tel, out)
+		v.hablar(e.Tel, out, oyo)
 	}
 	if v.Sync {
 		proc()
 		return
 	}
 	go proc()
+}
+
+// NotaVoz: transportes que mandan notas de voz (whatsmeow.Cliente).
+type NotaVoz interface {
+	EnviarNota(tel string, ogg []byte) error
+}
+
+// hablar: si la persona pidió AUDIOS, cada texto del bot sale también como nota de voz (el texto va igual,
+// por los enlaces y opciones). Primera nota entendida con los audios apagados → se ofrecen una vez.
+func (v *Vinculado) hablar(tel string, out []bot.Salida, oyo bool) {
+	nv, ok := v.T.(NotaVoz)
+	if !ok {
+		return
+	}
+	L := v.Bot.IdiomaDe(tel)
+	if !v.Bot.AudiosDe(tel) {
+		if oyo && v.Bot.OfrecerAudios(tel) {
+			_ = v.T.EnviarTexto(tel, voz.TextoOfrecerAudios(L))
+		}
+		return
+	}
+	for _, s := range out {
+		switch s.Tipo {
+		case "text", "buttons", "list", "location_request", "":
+		default:
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		ogg, err := voz.Hablar(ctx, s.Texto, L)
+		cancel()
+		if err != nil {
+			log.Printf("vinculado: voz para %s: %v → solo texto", bot.Enmascarar(tel), err)
+			return
+		}
+		if err := nv.EnviarNota(tel, ogg); err != nil {
+			log.Printf("vinculado: nota a %s: %v", bot.Enmascarar(tel), err)
+			return
+		}
+	}
 }
 
 // ---------- Canal + Mensajero ----------

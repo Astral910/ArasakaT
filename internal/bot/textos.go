@@ -96,10 +96,6 @@ var textos = map[string][2]string{
 	"cambiar":   {"Empecemos de nuevo 🔄", "Let's start over 🔄"},
 	"idioma_ok": {"Listo, seguimos en español 🇬🇹", "Okay, switching to English 🇬🇧"},
 	"sin_plan":  {"Todavía no tenemos tu plan. Empecemos 👇", "We don't have your plan yet. Let's start 👇"},
-	"voz": {
-		"Todavía no puedo escuchar notas de voz 🙏 ¿Me lo escribís, por favor?",
-		"I can't listen to voice notes yet 🙏 Could you type it, please?",
-	},
 	"seg_gracias": {"Gracias por contarme 🙏", "Thanks for letting me know 🙏"},
 	"seg_bien": {
 		"¡Qué bueno! 🌽 Seguí cuidando la humedad: dejá el rastrojo sobre el suelo.",

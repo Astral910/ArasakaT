@@ -81,7 +81,7 @@ function espaciado(g: CanvasRenderingContext2D, texto: string, x: number, y: num
 export class Compositor {
   readonly lienzo: HTMLCanvasElement
   private g: CanvasRenderingContext2D
-  private ultimo: EstadoCuadro = {}
+  ultimo: EstadoCuadro = {}
 
   /** urlPublica: reemplaza meta.url en la tarjeta final (el servidor la pasa con ?url_publica=). */
   constructor(private sb: SandboxGrabable, readonly plan: PlanCuadros, private urlPublica?: string) {

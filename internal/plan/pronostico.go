@@ -581,9 +581,12 @@ func buildConfianza(env SimEnv, s *sim.Site, def sim.StratDef, cfg sim.Config, c
 	if ca.metodo == "cmip6" && c.Nivel == "alta" {
 		c.Nivel = "media" // escenario climático, no pronóstico
 	}
+	if ca.metodo != "observado" {
+		c.Nivel = topeNivel(c.Nivel, env.NivelMax) // nunca más confianza que la medida en el hindcast del lugar
+	}
 	c.Regla = "Puntos: probabilidad del escenario ≥ 60 % → 2 (≥ 40 % → 1); validación local con ≥ 60 % de sequías documentadas detectadas → 1; " +
 		"temporada armada con pronóstico (o clima observado) → 1; rango de cosecha estrecho ((P90−P10)/P50 ≤ 0.5) → 1. " +
-		"alta ≥ 4, media 2–3, baja ≤ 1. Clima observado = alta; escenarios CMIP6 a 2040 como máximo media."
+		"alta ≥ 4, media 2–3, baja ≤ 1. Clima observado = alta; escenarios CMIP6 a 2040 como máximo media; nunca por encima del nivel medido en el hindcast 2001–2025 del lugar (static/validacion/habilidad.json)."
 	c.Fuentes = []string{"NASA POWER diario 2001–2025 (community AG)", "NOAA CPC Oceanic Niño Index (ONI)", "Motor FAO-56 (balance de agua) + FAO-33 (rendimiento)"}
 	switch ca.metodo {
 	case "analogo-pronostico":

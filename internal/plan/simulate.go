@@ -94,6 +94,7 @@ type SimEnv struct {
 	ValidHits  int
 	ValidTotal int
 	CMIPFuente string
+	NivelMax   string           // tope de la confianza según el hindcast del lugar (alta|media|baja; "" sin tope)
 	Hoy        func() time.Time // fecha real de hoy (por defecto: la del pronóstico o time.Now)
 }
 
@@ -116,8 +117,9 @@ func (e *Engine) Env(m *geo.Municipio) SimEnv {
 	}
 	_, st26 := e.ONI.ENSOYear(2026)
 	hab, vh, vt := e.habilidad(m)
+	_, nivelMax := e.hindcastDe(m)
 	return SimEnv{Name: m.Name, Dept: m.Dept, Site: func(h string) (*sim.Site, error) { return e.Site(m, h) },
-		Habilidad: hab, ValidHits: vh, ValidTotal: vt, CMIPFuente: e.cmipFuente(m),
+		Habilidad: hab, ValidHits: vh, ValidTotal: vt, CMIPFuente: e.cmipFuente(m), NivelMax: nivelMax,
 		ONIVal: func(k string) (float64, bool) { v, ok := e.ONI.Values[k]; return v, ok },
 		Pron:   func() *PronInput { return e.Pron(m.Lat, m.Lon) },
 		IsNino: func(y int) bool {

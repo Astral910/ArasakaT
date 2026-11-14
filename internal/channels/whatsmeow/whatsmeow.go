@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"fieldshift/internal/voz"
+
 	qrcode "github.com/skip2/go-qrcode"
 	wm "go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
@@ -356,6 +358,17 @@ func (c *Cliente) recibir(ev *events.Message) {
 		return // reacciones, acuses, protocolo…
 	}
 	e.Tel = tel
+	if am := ev.Message.GetAudioMessage(); am != nil {
+		if cli := c.cliente(); cli != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			if a, err := cli.Download(ctx, am); err == nil {
+				e.Audio = a
+			} else {
+				log.Printf("whatsapp: no pude bajar la nota de voz: %v", err)
+			}
+			cancel()
+		}
+	}
 	if cli := c.cliente(); cli != nil {
 		_ = cli.MarkRead(context.Background(), []types.MessageID{ev.Info.ID}, ev.Info.Timestamp, ev.Info.Chat, ev.Info.Sender)
 	}
@@ -488,6 +501,21 @@ func (c *Cliente) EnviarVideo(tel string, mp4 []byte, caption string) error {
 	}
 	return c.mandar(tel, &waE2E.Message{VideoMessage: &waE2E.VideoMessage{
 		Caption: proto.String(recortar(caption, 1024)), Mimetype: proto.String("video/mp4"),
+		URL: &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey, FileEncSHA256: up.FileEncSHA256, FileSHA256: up.FileSHA256, FileLength: &up.FileLength,
+	}})
+}
+
+// EnviarNota: nota de voz (PTT) OGG/Opus mono 48 kHz, la que arma voz.Hablar.
+func (c *Cliente) EnviarNota(tel string, ogg []byte) error {
+	if _, _, err := c.destino(tel); err != nil {
+		return err
+	}
+	up, err := c.subir(ogg, wm.MediaAudio)
+	if err != nil {
+		return err
+	}
+	return c.mandar(tel, &waE2E.Message{AudioMessage: &waE2E.AudioMessage{
+		PTT: proto.Bool(true), Mimetype: proto.String(voz.MimeNota), Seconds: proto.Uint32(uint32(voz.Duracion(ogg) + 0.5)),
 		URL: &up.URL, DirectPath: &up.DirectPath, MediaKey: up.MediaKey, FileEncSHA256: up.FileEncSHA256, FileSHA256: up.FileSHA256, FileLength: &up.FileLength,
 	}})
 }
