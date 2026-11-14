@@ -27,6 +27,14 @@ Encargo general: vault `C:\Users\Pc\SpaceApps2026-Cerebro\` notas **19** (brief)
 - **Modo estático** (link que nunca falla): el motor exporta a `web/public/static/` los municipios, el riesgo de los 340 y planes precalculados de Jocotán y Camotán para las combinaciones comunes; las alertas exportan la línea de tiempo 2026 y el backtest. La web usa la API si responde y si no, esos JSON.
 - Front: Vue 3 + Vite + TS, Pinia, vue-router, maplibre-gl, gsap, lucide-vue-next, vitest, @playwright/test. Sin otras dependencias pesadas sin anotarlo aquí.
 
+## Modo estático del motor (`web/public/static/`, lo genera `go run ./cmd/export -static`)
+- `municipios.json`: `[{id,nombre,departamento,lat,lon,elev_m,pendiente_pct,celda}]` (342). `municipios.geojson`: polígonos (props `id,name,dept`).
+- `riesgo_2026.json`, `riesgo_2040-ssp245.json`, `riesgo_2040-ssp585.json`: `[{id,nombre,departamento,riesgo_de_10,riesgo_s2_de_10,riesgo_nino_de_10,deficit_mm,erosion_t_ha,helada_de_10,canicula_dias,siembra_aqui,ranking}]` (= `GET /api/riesgo?horizonte=`).
+- `planes/<municipio_id>/<cultivo>-<riego 0|1>-<prioridad>-<horizonte>-<idioma>.json` = `contract.Plan` (= `POST /api/plan`). Jocotán y Camotán: todas las combinaciones (cultivo milpa|maiz|frijol|sorgo × riego × prioridad comida|agua|suelo|ingreso × horizonte 2026|2040-ssp245|2040-ssp585 × es|en). Los otros 340: solo `milpa-0-comida-2026-es.json` y `-en.json`. Supuestos fijos: 1 manzana, sin ganado, mano de obra normal, con semilla; la web escala `total_qq` = `rendimiento_qq_mz × area_manzanas`. Índice: `planes/index.json`.
+- `validacion.json` (sequías documentadas + tabla por año, Jocotán y Camotán), `ia_vs_estadistica.json` (Brier, acierto, coeficientes), `cmip6_deltas.json`.
+- `otro` como cultivo = `maiz`. Para un combo que no existe en estático: usar el `milpa-0-comida-2026-<idioma>` del municipio y avisar "plan aproximado".
+- **integrador → bot, web (14-nov 11:05) · DESAJUSTE `/api/chat`**: web manda `{"sesion","texto","boton","lat","lon","idioma"}`; bot (`internal/channels/web.go`) lee `{"session_id","texto","boton_id","lat","lon","tipo"}`. Con el formato de web el bot pierde la sesión y repite el saludo. Pido a **bot** aceptar ambos nombres (`sesion`|`session_id`, `boton`|`boton_id`, `idioma`) y deducir `tipo=location` si vienen lat/lon. Respuesta (`[]MensajeChat`) ya coincide. `image_url` sale absoluta con `PUBLIC_URL`.
+
 ## Integración
 - Cada agente hace **commits pequeños y frecuentes** en su rama (español). **Sin push.**
 - El **integrador** junta las ramas en `integracion` cada ~2 h (`git merge feat/... construccion-herramienta`), corre todo (`go build ./...`, `go test -p 1 ./...`, build web, e2e) y arregla la unión.
@@ -55,3 +63,5 @@ Hecho / Falta / Pedidos / Problemas
 
 ## Integración
 - (el integrador anota aquí cada merge y si quedó OK)
+- **14-nov ~10:55 · merge 1** (`feat/bot`, `feat/alertas`, `feat/webdatos`; motor y web sin commits nuevos): **ROTO, no mergear todavía**. (a) **alertas**: `internal/forecast/store.go:18` embebe `archivo/*.json.gz` y esa carpeta no está commiteada → falla `go build ./...` (y arrastra `cmd/ingest`). Commiteá `internal/forecast/archivo/`. (b) **motor**: `internal/sim/site.go:77,112` usa `rhCache/wsCache/rsCache` que no existen en `Site` (ya venía roto en `cd0d143`). OK: `cmd/server`, `internal/cards`, `internal/fao56`, `internal/store`. `go.mod/go.sum` unidos (sqlite + gg) con `go mod tidy`.
+- **14-nov 11:00 · merge 2** (motor `339abe7`, bot `a5d744c`): `cmd/server` ya monta **motor real** (`plan.Routes(mux, DATA_DIR)`) y **bot real** (`channels.Routes` con el Planner del motor y `eng.Muni`); alertas sigue con falso. `/healthz` dice qué es real. Sigue **ROTO** `go build ./...`: (a) **alertas**: falta commitear `internal/forecast/archivo/` (embed). (b) **bot**: `internal/bot` `TestConversacionCompletaConUbicacion` y `TestEnglishFlow` esperan las fechas del fixture viejo ("15 may al 5 jun"); el motor cambió `contracts/fixtures/plan_jocotan.json` por salida real → que el test no dependa de fechas fijas (o use un fixture propio en `internal/bot/testdata`). OK: cmd/server, cards, channels, fao56, ml, store, valid.
