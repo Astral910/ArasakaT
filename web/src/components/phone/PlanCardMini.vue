@@ -37,7 +37,7 @@ defineProps<{ plan: Plan }>()
 ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
 li { display: grid; grid-template-columns: 18px 1fr 28px; grid-template-rows: auto 4px; column-gap: 4px; align-items: center; }
 .id { grid-row: span 2; font-weight: 800; font-size: 10px; color: #7d6a58; }
-.nm { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; }
+.nm { font-weight: 650; font-size: 10px; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .bar { grid-column: 2; height: 4px; background: #ece2d0; border-radius: 3px; overflow: hidden; }
 .bar i { display: block; height: 100%; border-radius: 3px; background: currentColor; }
 b { grid-row: 1 / span 2; grid-column: 3; text-align: right; font-size: 11px; }

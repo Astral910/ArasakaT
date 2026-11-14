@@ -33,10 +33,10 @@
 - Go 1.26 standard library · `github.com/fogleman/gg` (MIT) and `github.com/golang/freetype` (FreeType/BSD) for PNG cards · `modernc.org/sqlite` (BSD-3) · `golang.org/x/image`, `golang.org/x/text` (BSD-3) · `github.com/google/uuid` (BSD-3).
 - Vue 3, Vite, TypeScript, Pinia, Vue Router (MIT) · MapLibre GL JS (BSD-3) · GSAP (GreenSock standard license, free) · Lucide icons (ISC) · Vitest, Playwright (MIT / Apache-2.0).
 - Messaging: Meta WhatsApp Cloud API · Twilio WhatsApp Sandbox.
-- Fonts: ⟦TBD: fonts used by the web, with their licenses (e.g. SIL OFL)⟧.
+- Fonts: Fraunces (Undercase Type) and Figtree (Erik Kennedy), both SIL Open Font License 1.1, self-hosted via Fontsource.
 - Hosting: Render / Fly.io (backend), Vercel / GitHub Pages (static site).
 
 ## Images, music, video
 - All illustrations are original SVG drawn for this project. ⟦TBD: list any AI-generated image (must carry a visible watermark) or third-party image⟧.
-- The demo video is a screen recording of our own app; no music. ⟦TBD if music is added: title, author, license⟧.
+- The demo video is a screen recording of our own app (headless browser, `/demo` route); no music and no audio.
 - No NASA logos are used in any generated content.
