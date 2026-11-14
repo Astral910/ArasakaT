@@ -13,16 +13,36 @@ import PanelExtensionista from './PanelExtensionista.vue'
 import { maquinaRespaldo, panelRespaldo, titular, redactar, textoDe, verificacion, type Maquina, type PanelResumen } from './maquina'
 
 const BASE = (import.meta.env.BASE_URL as string | undefined) ?? '/'
-const MUNI = 'jocotan-chiquimula'
+// Municipios con máquina del tiempo publicada por ALERTAS (Jocotán viene también empaquetado).
+const MUNIS = [
+  { id: 'jocotan-chiquimula', nombre: 'Jocotán' },
+  { id: 'camotan-chiquimula', nombre: 'Camotán' },
+  { id: 'todos-santos-cuchumatan-huehuetenango', nombre: 'Todos Santos' },
+]
+const muni = ref(MUNIS[0].id)
+const disponibles = ref(MUNIS.slice(0, 1))
 const m = shallowRef<Maquina>(maquinaRespaldo)
 const panel = shallowRef<PanelResumen>(panelRespaldo)
 const elegida = ref<number | null>(null)
 
-onMounted(async () => {
+function cargarMaquina(id: string) {
+  return api.get<Maquina>(`/api/alerts/timeline?municipio=${id}&anio=2026`, `${BASE}static/alertas/timeline_${id}_2026.json`)
+}
+async function elegirMuni(id: string) {
+  muni.value = id
   try {
-    const r = await api.get<Maquina>(`/api/alerts/timeline?municipio=${MUNI}&anio=2026`, `${BASE}static/alertas/timeline_${MUNI}_2026.json`)
-    if (r?.dias?.length && r.alertas) m.value = r
+    const r = await cargarMaquina(id)
+    if (r?.dias?.length && r.alertas) { elegida.value = null; m.value = r; return }
   } catch { /* respaldo */ }
+  if (id === MUNIS[0].id) m.value = maquinaRespaldo
+}
+
+onMounted(async () => {
+  await elegirMuni(MUNIS[0].id)
+  // Solo se ofrecen los municipios que de verdad responden.
+  for (const x of MUNIS.slice(1)) {
+    cargarMaquina(x.id).then((r) => { if (r?.dias?.length) disponibles.value = MUNIS.filter((y) => y === x || disponibles.value.includes(y)) }).catch(() => {})
+  }
   try {
     const r = await api.get<PanelResumen>('/api/admin/resumen', `${BASE}static/alertas/resumen.json`)
     // Sin suscriptores reales todavía: conteos de ejemplo + las alertas activas reales del motor.
@@ -56,12 +76,15 @@ const estadoSel = computed(() => (alertaSel.value ? verificacion(alertaSel.value
   <main class="fs-alertas" data-testid="alertas">
     <section class="hero">
       <p class="eyebrow">{{ t('eyebrow') }} · {{ m.municipio.nombre }}, {{ m.municipio.depto }}</p>
-      <h1 data-testid="titular">{{ textoTitular }}</h1>
+      <h1 data-testid="titular" :class="{ largo: textoTitular.length > 110 }">{{ textoTitular }}</h1>
       <p class="bajada">{{ t('bajada') }}</p>
     </section>
 
     <section class="tarjeta linea">
-      <MaquinaTiempo :m="m" :elegida="elegida" @elegir="elegida = $event" />
+      <div v-if="disponibles.length > 1" class="munis" role="group" aria-label="Municipio">
+        <button v-for="x in disponibles" :key="x.id" :class="{ on: muni === x.id }" :data-testid="'muni-' + x.id" @click="elegirMuni(x.id)">{{ x.nombre }}</button>
+      </div>
+      <MaquinaTiempo :key="m.municipio.id" :m="m" :elegida="elegida" @elegir="elegida = $event" />
       <div class="pie">
         <EtiquetaDato :texto="t('fuente', { f: m.fuente_lluvia, p: 'Open-Meteo archive (' + m.modelos.length + ' models)' })" />
         <span v-if="m.preliminar" class="prelim"><Info :size="14" /> {{ t('preliminar') }}</span>
@@ -119,6 +142,7 @@ const estadoSel = computed(() => (alertaSel.value ? verificacion(alertaSel.value
 .hero { display: grid; gap: 12px; max-width: 900px; }
 .eyebrow { margin: 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tierra, #8a5a3b); }
 .hero h1 { margin: 0; font-family: var(--font-display, Georgia, serif); font-size: clamp(1.9rem, 4.6vw, 3.4rem); line-height: 1.06; letter-spacing: -0.02em; text-wrap: balance; }
+.hero h1.largo { font-size: clamp(1.6rem, 3.4vw, 2.5rem); }
 .bajada { margin: 0; color: var(--ink-2, #57473a); font-size: 1.05rem; line-height: 1.55; max-width: 70ch; }
 .tarjeta { background: var(--surface, #fffaf2); border-radius: var(--radius-lg, 22px); padding: clamp(14px, 2.4vw, 24px); box-shadow: var(--shadow-1); display: grid; gap: 14px; align-content: start; }
 .tarjeta h2 { margin: 0; font-family: var(--font-display, Georgia, serif); font-size: 1.35rem; }
@@ -144,6 +168,9 @@ tbody th { font-weight: 700; white-space: nowrap; }
 .estado { font-weight: 800; font-size: 0.86rem; padding: 5px 12px; border-radius: 999px; }
 .estado.ok { color: #0b6b3a; background: #dcf8c6; }
 .estado.falsa { color: var(--ink-2); background: var(--bg-2); }
+.munis { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-2, #ece2d0); width: fit-content; margin-top: 4px; }
+.munis button { border: 0; background: transparent; padding: 7px 14px; border-radius: 9px; font-weight: 700; font-size: 0.86rem; cursor: pointer; color: var(--ink-2); }
+.munis button.on { background: var(--surface, #fffaf2); color: var(--ink); box-shadow: var(--shadow-1); }
 .sinv { display: block; font-size: 0.72rem; color: var(--ink-3); margin-top: 3px; }
 .num { font-variant-numeric: tabular-nums; }
 @media (min-width: 900px) {
