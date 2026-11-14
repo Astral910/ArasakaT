@@ -222,7 +222,7 @@ onBeforeUnmount(() => mapa.value?.remove())
           <template v-if="metrica === 'riesgo'">{{ t('tip.riesgo', { v: numero(hover.f.riesgo, 1) }) }}</template>
           <template v-else>{{ t('tip.lluvia', { mm: hover.f.lluvia2026 ?? '—', p: hover.f.lluvia2026Pct ?? '—' }) }}</template>
         </div>
-        <EtiquetaDato :texto="datos?.calidad === 'ejemplo' ? t('calidad.ejemplo') : 'NASA POWER · ' + (datos?.periodo ?? '')" :aviso="datos?.calidad === 'ejemplo'" />
+        <EtiquetaDato :texto="datos?.calidad === 'ejemplo' ? t('calidad.ejemplo') : datos?.calidad === 'motor' ? t('calidad.motor') + ' · NASA POWER' : 'NASA POWER · ' + (datos?.periodo ?? '')" :aviso="datos?.calidad === 'ejemplo'" />
       </div>
 
       <div class="leyenda" aria-label="Legend">
@@ -268,6 +268,10 @@ onBeforeUnmount(() => mapa.value?.remove())
         <div class="grande num">{{ numero(sel.riesgo, 1) }}<small>/10</small></div>
         <p class="dato">{{ t('tip.riesgo', { v: numero(sel.riesgo, 1) }) }}<template v-if="sel.riesgoRango"> · {{ t('tip.rango', { a: sel.riesgoRango.p10, b: sel.riesgoRango.p90 }) }}</template></p>
         <ul class="hechos">
+          <li v-if="sel.riesgoS2 != null">{{ t('tip.s2', { v: numero(sel.riesgoS2, 1) }) }}</li>
+          <li v-if="sel.riesgoNino != null">{{ t('tip.nino', { v: numero(sel.riesgoNino, 1) }) }}</li>
+          <li v-if="sel.deficitMM != null">{{ t('tip.deficit', { v: numero(sel.deficitMM) }) }}</li>
+          <li v-if="sel.caniculaDias != null">{{ t('tip.canicula', { v: numero(sel.caniculaDias) }) }}</li>
           <li v-if="sel.lluvia2026 != null">{{ t('tip.lluvia', { mm: sel.lluvia2026, p: sel.lluvia2026Pct ?? '—' }) }}</li>
           <li v-if="sel.racha2026 != null">{{ t('tip.racha', { d: sel.racha2026 }) }}</li>
           <li v-if="sel.humedad">{{ t('tip.humedad', { v: sel.humedad.p50.toFixed(2), h: sel.humedad2026?.toFixed(2) ?? '—' }) }}</li>
