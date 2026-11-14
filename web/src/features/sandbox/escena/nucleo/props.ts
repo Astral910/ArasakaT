@@ -69,7 +69,7 @@ export interface Props { grupo: THREE.Group; rancho: Rancho; dispose(): void }
 /** Escala típica (multiplica la geometría) por especie para que el tamaño sea creíble. */
 const ESCALA: Record<Especie, [number, number]> = {
   ceiba: [0.9, 1.25], frondoso: [0.8, 1.15], encino: [0.85, 1.2], olivo: [0.8, 1.1], pino: [0.75, 1.1], cipres: [0.8, 1.1],
-  banano: [0.85, 1.15], gliricidia: [0.85, 1.15], izote: [0.9, 1.3], acacia: [0.85, 1.2], cactus: [0.8, 1.2],
+  banano: [1.1, 1.4], gliricidia: [0.85, 1.15], izote: [0.9, 1.3], acacia: [0.85, 1.2], cactus: [0.8, 1.2],
 }
 
 export function construirProps(
@@ -94,7 +94,7 @@ export function construirProps(
   const lotes = new Map<string, { esp: Especie; var: number; det: number; mats: THREE.Matrix4[] }>()
   const r = rng(semilla * 3 + 7)
   const plantar = (esp: Especie, x: number, z: number, escala = 1, lejos = false) => {
-    const v = Math.floor(r() * 3), det = lejos || calidad === 'baja' ? 0.4 : 1
+    const v = Math.floor(r() * 3), det = calidad === 'baja' ? 0.4 : lejos ? 0.6 : 1
     const k = `${esp}|${v}|${det}`
     let l = lotes.get(k)
     if (!l) { l = { esp, var: v, det, mats: [] }; lotes.set(k, l) }

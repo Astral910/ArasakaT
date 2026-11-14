@@ -312,16 +312,18 @@ export function geoEspecie(esp: Especie, semilla: number, hojas: string[], detal
     case 'pino': {
       const H = 15 + r() * 3
       A.tubo(V(0, -0.5, 0), V(0, H, 0), 0.38, 0.06, seg, 'corteza', cortezaO, 0, 0.3)
-      const pisos = 7
+      const pisos = 9
       for (let k = 0; k < pisos; k++) {
-        const t = k / (pisos - 1), y = H * (0.42 + 0.55 * t)
-        const largo = 3.0 * (1 - t) + 0.7
-        const nR = 5
+        const t = k / (pisos - 1), y = H * (0.4 + 0.57 * t)
+        const largo = 3.2 * (1 - t) + 0.8
+        const nR = 6
+        // relleno junto al tronco (sin huecos entre pisos)
+        A.copa(V(0, y, 0), V(0.9 + largo * 0.25, 0.9, 0.9 + largo * 0.25), nC(7), tC(1.7), r, 'aguja', tonos, 0.8)
         for (let b = 0; b < nR; b++) {
           const a = (b / nR) * Math.PI * 2 + r() * 0.8 + k
           const fin = V(Math.cos(a) * largo, y - 0.3 - r() * 0.4, Math.sin(a) * largo)
           A.tubo(V(0, y, 0), fin, 0.09, 0.03, 4, 'corteza', cortezaO, 0.2 + t * 0.5, 0.5 + t * 0.5)
-          A.copa(fin.clone().add(V(0, 0.25, 0)), V(1.3, 0.65, 1.3), nC(9), tC(1.6), r, 'aguja', tonos, 1)
+          A.copa(fin.clone().add(V(0, 0.25, 0)), V(1.5, 0.8, 1.5), nC(10), tC(1.8), r, 'aguja', tonos, 1)
         }
       }
       A.copa(V(0, H + 0.3, 0), V(0.8, 1.2, 0.8), nC(8), tC(1.4), r, 'aguja', tonos, 1)
@@ -334,17 +336,19 @@ export function geoEspecie(esp: Especie, semilla: number, hojas: string[], detal
       break
     }
     case 'banano': {
-      const H = 2.6 + r() * 0.8
+      const H = 2.2 + r() * 0.6
       const tallo = lin('#6f7a3c')
-      A.tubo(V(0, -0.2, 0), V(0, H, 0), 0.2, 0.14, seg, 'tallo', tallo, 0, 0.2)
-      const nH = Math.max(6, Math.round(9 * Math.min(1, detalle + 0.3)))
+      A.tubo(V(0, -0.2, 0), V(0, H, 0), 0.26, 0.17, seg, 'tallo', tallo, 0, 0.2)
+      // hijuelos al pie
+      for (let k = 0; k < 2; k++) { const a = r() * 6.28; const b = V(Math.cos(a) * 0.6, -0.1, Math.sin(a) * 0.6); A.tubo(b, b.clone().add(V(0, 1.1, 0)), 0.1, 0.07, 5, 'tallo', tallo, 0, 0.2); for (let h = 0; h < 4; h++) A.tira(b.clone().add(V(0, 1.0, 0)), r() * 6.28, 1.2, 0.4, 1.1, 1.2, 4, 'banano', tonos[h % tonos.length].clone().offsetHSL(0.02, 0.05, 0.08), 1) }
+      const nH = Math.max(7, Math.round(12 * Math.min(1, detalle + 0.3)))
       for (let k = 0; k < nH; k++) {
         const az = (k / nH) * Math.PI * 2 + r() * 0.5
         const joven = k < 2
         const base = V(Math.cos(az) * 0.08, H - 0.1 + r() * 0.3, Math.sin(az) * 0.08)
         // pecíolo + lámina
         const col = tonos[k % tonos.length].clone().offsetHSL(0.02, 0.05, 0.06)
-        A.tira(base, az, 2.4 + r() * 0.6, 0.75, joven ? 1.25 : 0.95, joven ? 0.5 : 1.7 + r() * 0.5, 6, 'banano', col, 1)
+        A.tira(base, az, 2.6 + r() * 0.7, 1.05, joven ? 1.3 : 1.0, joven ? 0.5 : 1.6 + r() * 0.5, 7, 'banano', col, 1)
       }
       // hojas secas colgando
       for (let k = 0; k < 2; k++) { const az = r() * Math.PI * 2; A.tira(V(0, H - 0.4, 0), az, 1.6, 0.5, -0.4, 0.6, 3, 'banano', lin('#8a7448'), 0.4) }
