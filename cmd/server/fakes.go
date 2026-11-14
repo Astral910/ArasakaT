@@ -98,10 +98,11 @@ func planRoutes(mux *http.ServeMux, cfg Config, pl contract.Planner) {
 // chatFalso: respuesta mínima del simulador hasta que llegue internal/bot.
 func chatFalso(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/chat", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"mensajes": []contract.MensajeChat{{
+		// Formato acordado con web: entra {"sesion","texto","boton","lat","lon","idioma"}, sale []MensajeChat.
+		writeJSON(w, http.StatusOK, []contract.MensajeChat{{
 			From: "bot", Tipo: "text",
 			Texto: "Hola 👋 Te ayudo a planear tu milpa con datos de satélites de la NASA. (Bot en construcción.)",
-		}}})
+		}})
 	})
 }
 

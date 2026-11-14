@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -20,6 +21,9 @@ var inicio = time.Now()
 
 func main() {
 	cfg := loadConfig()
+	if dir := filepath.Dir(cfg.DBPath); dir != "." {
+		os.MkdirAll(dir, 0o755) // disco persistente en la nube (/var/data)
+	}
 	h, a := newServer(cfg)
 	defer a.Close()
 
