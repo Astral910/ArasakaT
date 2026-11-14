@@ -8,6 +8,7 @@ import type { SimRequest, SimTimeline, SimEvento, SimAnio, SimCapa, OrigenSim } 
 /** Estático del motor: static/sim/<municipio>_<S>_<tipico|nino|real-2026|secuencia-p50|2040-ssp245>_<0|20>[_en].json.
  *  Devuelve null si esa combinación no se precalculó (no se inventa una parecida). */
 export function rutaEstatica(r: SimRequest) {
+  if (!r.plan.municipio_id) return null
   const riego = Math.round(r.riego_mm_semana)
   if (riego !== 0 && riego !== 20) return null
   let esc: string = r.escenario
@@ -63,6 +64,7 @@ function cargarWasm(): Promise<boolean> {
 const sitios = new Map<string, Promise<string | null>>()
 async function porWasm(r: SimRequest): Promise<SimTimeline | null> {
   const id = r.plan.municipio_id
+  if (!id) return null
   if (!sitios.has(id)) sitios.set(id, jsonSiExiste(pub(`wasm/sites/${id}.json`)))
   const sitio = await sitios.get(id)!
   if (!sitio || !(await cargarWasm())) return null
@@ -70,21 +72,31 @@ async function porWasm(r: SimRequest): Promise<SimTimeline | null> {
   return valida(out) ? out : null
 }
 
-const cache = new Map<string, { tl: SimTimeline; origen: OrigenSim }>()
+const cache = new Map<string, ResSim>()
 
-export async function cargarSim(r: SimRequest, plan?: Plan | null): Promise<{ tl: SimTimeline; origen: OrigenSim }> {
-  const clave = JSON.stringify(r)
+export interface ResSim { tl: SimTimeline; origen: OrigenSim; /** escenario que realmente se usó (pronostico sin servidor → tipico) */ escenario: SimRequest['escenario'] }
+
+export async function cargarSim(r0: SimRequest, plan?: Plan | null): Promise<ResSim> {
+  const clave = JSON.stringify(r0)
   const c = cache.get(clave)
   if (c) return c
-  let res: { tl: SimTimeline; origen: OrigenSim } | null = null
+  let res: ResSim | null = null
   try {
-    const tl = await api.post<SimTimeline>('/api/simulate', r)
-    if (valida(tl)) res = { tl, origen: 'api' }
+    const tl = await api.post<SimTimeline>('/api/simulate', r0)
+    if (valida(tl)) res = { tl, origen: 'api', escenario: r0.escenario }
   } catch { /* sigue */ }
+  // el pronóstico necesita el servidor (16 días + estacional): sin él, el motor local corre el año típico
+  const r: SimRequest = r0.escenario === 'pronostico' ? { ...r0, escenario: 'tipico', percentil: 'p50' } : r0
+  if (!res && r !== r0) {
+    try {
+      const tl = await api.post<SimTimeline>('/api/simulate', r)
+      if (valida(tl)) res = { tl, origen: 'api', escenario: r.escenario }
+    } catch { /* sigue */ }
+  }
   if (!res) {
     try {
       const tl = await porWasm(r)
-      if (tl) res = { tl, origen: 'wasm' }
+      if (tl) res = { tl, origen: 'wasm', escenario: r.escenario }
     } catch { /* sigue */ }
   }
   const ruta = res ? null : rutaEstatica(r)
@@ -92,10 +104,10 @@ export async function cargarSim(r: SimRequest, plan?: Plan | null): Promise<{ tl
     const txt = await jsonSiExiste(pub(ruta))
     if (txt) {
       const tl = JSON.parse(txt)
-      if (valida(tl)) res = { tl, origen: 'static' }
+      if (valida(tl)) res = { tl, origen: 'static', escenario: r.escenario }
     }
   }
-  res ??= { tl: sintetico(r, plan), origen: 'ejemplo' }
+  res ??= { tl: sintetico(r, plan), origen: 'ejemplo', escenario: r.escenario }
   cache.set(clave, res)
   return res
 }

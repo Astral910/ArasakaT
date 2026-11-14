@@ -8,7 +8,7 @@ import type { SimTimeline } from './tipos'
 const props = withDefaults(defineProps<{
   lon: number; lat: number; lado: number
   tl: SimTimeline | null; cultivo: string; area_m2: number; area_valor: number; area_unidad: 'cuerda' | 'manzana' | 'ha'; estrategia: string
-  escala?: number; idioma?: 'es' | 'en'; autoRender?: boolean
+  escala?: number; idioma?: 'es' | 'en'; autoRender?: boolean; bioma?: string
   dia: number; fraccion: number
   preset: string; duracion: number; mapa?: CamaraMapa | null; seq?: number
   subida: number; calidad: 'baja' | 'media' | 'alta'
@@ -21,7 +21,7 @@ let vivo = true
 
 function plantilla() {
   if (!sb || !props.tl) return
-  sb.setTemplate({ timeline: props.tl, cultivo: props.cultivo, area_m2: props.area_m2, area_valor: props.area_valor, area_unidad: props.area_unidad, estrategia: props.estrategia, lon: props.lon, lat: props.lat, pendiente_pct: props.tl.pendiente_pct })
+  sb.setTemplate({ timeline: props.tl, cultivo: props.cultivo, area_m2: props.area_m2, area_valor: props.area_valor, area_unidad: props.area_unidad, estrategia: props.estrategia, lon: props.lon, lat: props.lat, pendiente_pct: props.tl.pendiente_pct, bioma: props.bioma })
   sb.setDay(props.dia, props.fraccion)
 }
 function camara() {
@@ -47,7 +47,7 @@ onBeforeUnmount(() => {
   sb?.dispose()
 })
 
-watch(() => [props.tl, props.cultivo, props.area_m2, props.estrategia], plantilla)
+watch(() => [props.tl, props.cultivo, props.area_m2, props.estrategia, props.bioma], plantilla)
 watch(() => props.escala, (s) => sb?.setTimeScale?.(s ?? 1))
 defineExpose({ sandbox: () => sb, lienzo })
 watch(() => [props.dia, props.fraccion], () => sb?.setDay(props.dia, props.fraccion))

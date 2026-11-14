@@ -3,6 +3,10 @@
 // Si ../escena/api.ts todavía no existe, se usa el stub propio (./stub.ts) con la misma interfaz.
 import type { SimTimeline } from '../ui/tipos'
 
+/** Fracción del alto reservada abajo para la guía: el punto del vuelo y la maqueta de ESCENA3D (`margenInferior`)
+ *  se centran en el resto de la pantalla, así la maqueta se levanta exactamente donde estaba el punto. */
+export const MARGEN_INF = 0.12
+
 export type Preset = 'llegada' | 'iso' | 'cerca' | 'suelo' | 'cielo' | 'cenital'
 
 /** Cámara de MapLibre al final del vuelo, para que la escena arranque alineada (transición sin corte). */
@@ -43,6 +47,8 @@ export interface ParamsPlantilla {
   lon: number
   lat: number
   pendiente_pct?: number
+  /** bioma del sitio (/api/sitio): ESCENA3D elige la plantilla (vegetación, suelo) para cualquier lugar del mundo */
+  bioma?: string
 }
 
 export interface OpcionesCamara { duracion?: number; mapa?: CamaraMapa }
@@ -98,7 +104,7 @@ export const PRESET_REAL: Record<string, string> = {
 /** API real de escena/api.ts (COORDINACION 14-nov 13:30): setTemplate({lat,lon,areaValor,…}) + setTimeline(tl). */
 function adaptarReal(crear: any, canvas: HTMLCanvasElement, o: OpcionesSandbox): Sandbox {
   const sb = crear(canvas, {
-    quality: o.calidad ?? 'auto', transparente: false, preserveDrawingBuffer: true,
+    quality: o.calidad ?? 'auto', transparente: false, preserveDrawingBuffer: true, margenInferior: MARGEN_INF,
     autoRender: o.autoRender ?? true, idioma: o.idioma,
   })
   let rumbo: number | undefined
@@ -114,12 +120,12 @@ function adaptarReal(crear: any, canvas: HTMLCanvasElement, o: OpcionesSandbox):
     listo,
     rumbo: () => rumbo,
     setTemplate(p) {
-      const k = [p.lat, p.lon, p.area_valor, p.area_unidad, p.cultivo, p.estrategia].join('|')
+      const k = [p.lat, p.lon, p.area_valor, p.area_unidad, p.cultivo, p.estrategia, p.bioma].join('|')
       if (k !== clave) {
         clave = k
         pend = Promise.resolve(sb.setTemplate({
           lat: p.lat, lon: p.lon, areaValor: p.area_valor, areaUnidad: p.area_unidad, cultivo: p.cultivo,
-          estrategia: p.estrategia, pendientePct: p.pendiente_pct,
+          estrategia: p.estrategia, pendientePct: p.pendiente_pct, ...(p.bioma ? { bioma: p.bioma } : {}),
         })).catch(() => {})
       }
       if (p.timeline !== tlActual) {
