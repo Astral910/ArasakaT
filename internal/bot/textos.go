@@ -39,9 +39,10 @@ var textos = map[string][2]string{
 		"Sorry, I didn't get that 🙏 Tap a button or type the option number.",
 	},
 	"elegi_detalle": {
-		"Respondé *1*, *2* o *3* para ver el detalle de cada opción.\n%s\n\nVer el plan completo 👉 %s",
-		"Reply *1*, *2* or *3* to see each option in detail.\n%s\n\nSee the full plan 👉 %s",
+		"Respondé *1*, *2* o *3* para ver el detalle de cada opción.\n%s",
+		"Reply *1*, *2* or *3* to see each option in detail.\n%s",
 	},
+	"ver_web":      {"Ver el plan completo 👉 %s", "See the full plan 👉 %s"},
 	"opcion_linea": {"%s *%s* · riesgo %d/10%s", "%s *%s* · risk %d/10%s"},
 	"recomendada":  {" ⭐ recomendada", " ⭐ recommended"},
 	"suscribir_pregunta": {

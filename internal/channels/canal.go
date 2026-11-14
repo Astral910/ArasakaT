@@ -35,7 +35,11 @@ func Entregar(c Canal, tel string, salidas []bot.Salida) {
 		case "image":
 			var png []byte
 			if s.Plan != nil {
-				png, err = cards.Render(s.Plan, s.Plan.Request.Idioma)
+				L := s.Idioma
+				if L == "" {
+					L = s.Plan.Request.Idioma
+				}
+				png, err = cards.Render(s.Plan, L)
 			}
 			if err == nil {
 				err = c.EnviarImagen(tel, png, s.Texto)

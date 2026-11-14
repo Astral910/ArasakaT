@@ -36,6 +36,7 @@ type Salida struct {
 	Botones  []contract.Boton
 	Plan     *contract.Plan // para Tipo image: la tarjeta se dibuja con este plan
 	ImageURL string         // ruta relativa de la tarjeta (/api/cards/plan.png?...)
+	Idioma   string         // es | en (para dibujar la tarjeta)
 }
 
 // Bot es la máquina de estados. Seguro para uso concurrente.
@@ -97,10 +98,10 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 	case "AYUDA", "HELP":
 		return txt(t(L, "ayuda"))
 	case "EN", "ENGLISH", "INGLES":
-		se.Idioma = "en"
+		b.cambiarIdioma(se, "en")
 		return append(txt(t("en", "idioma_ok")), b.repetir(se)...)
 	case "ES", "ESPANOL", "SPANISH":
-		se.Idioma = "es"
+		b.cambiarIdioma(se, "es")
 		return append(txt(t("es", "idioma_ok")), b.repetir(se)...)
 	case "BAJA", "STOP", "UNSUBSCRIBE", "CANCELAR":
 		if b.Subs != nil {
@@ -231,6 +232,17 @@ func (b *Bot) saludo(se *Sesion) []Salida {
 	return []Salida{{Tipo: "location_request", Texto: t(se.Idioma, "saludo", nombre)}}
 }
 
+// cambiarIdioma: si ya hay plan, se recalcula en el idioma nuevo (nombres y fichas los traduce el motor).
+func (b *Bot) cambiarIdioma(se *Sesion, L string) {
+	se.Idioma = L
+	se.Req.Idioma = L
+	if se.Plan != nil && b.Planner != nil {
+		if p, err := b.Planner.Plan(se.Req); err == nil && len(p.Estrategias) > 0 {
+			se.Plan = &p
+		}
+	}
+}
+
 // repetir vuelve a hacer la pregunta del paso actual (tras cambiar de idioma, etc.).
 func (b *Bot) repetir(se *Sesion) []Salida {
 	switch se.Paso {
@@ -264,7 +276,7 @@ func (b *Bot) ubicacion(se *Sesion, lat, lon float64) []Salida {
 
 func (b *Bot) buscarMunicipio(se *Sesion, q string) []Salida {
 	L := se.Idioma
-	if b.Municipios == nil || strings.TrimSpace(q) == "" {
+	if b.Municipios == nil || len(geo.Slug(q)) < 3 {
 		se.Paso = PasoUbicacion
 		return []Salida{{Tipo: "location_request", Texto: t(L, "pedir_ubicacion")}}
 	}
@@ -384,10 +396,12 @@ func (b *Bot) resumen(se *Sesion, conSuscripcion bool) []Salida {
 	if EsEjemplo(p) {
 		texto += "\n" + t(L, "ejemplo")
 	}
-	q := QueryPlan(se.Req).Encode()
+	req := se.Req
+	req.Idioma = L
+	q := QueryPlan(req).Encode()
 	out := []Salida{
 		{Tipo: "text", Texto: texto},
-		{Tipo: "image", Texto: pick(L, [2]string{"Tu plan · " + p.Municipio.Nombre, "Your plan · " + p.Municipio.Nombre}), Plan: p, ImageURL: "/api/cards/plan.png?" + q},
+		{Tipo: "image", Texto: pick(L, [2]string{"Tu plan · " + p.Municipio.Nombre, "Your plan · " + p.Municipio.Nombre}), Plan: p, ImageURL: "/api/cards/plan.png?" + q, Idioma: L},
 	}
 	var ops []string
 	nums := []string{"1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"}
@@ -401,7 +415,11 @@ func (b *Bot) resumen(se *Sesion, conSuscripcion bool) []Salida {
 		}
 		ops = append(ops, t(L, "opcion_linea", nums[i], s.Nombre, riesgo(&s), star))
 	}
-	out = append(out, Salida{Tipo: "text", Texto: t(L, "elegi_detalle", strings.Join(ops, "\n"), b.LinkWeb(se.Req))})
+	det := t(L, "elegi_detalle", strings.Join(ops, "\n"))
+	if b.WebURL != "" {
+		det += "\n\n" + t(L, "ver_web", b.LinkWeb(req))
+	}
+	out = append(out, Salida{Tipo: "text", Texto: det})
 	if conSuscripcion && !se.Suscrito {
 		se.Ofrecidas = []string{"sub_si", "sub_no"}
 		out = append(out, Salida{Tipo: "buttons", Texto: t(L, "suscribir_pregunta"), Botones: botones(L, opcSuscribir)})
