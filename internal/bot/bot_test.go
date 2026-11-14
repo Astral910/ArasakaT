@@ -31,7 +31,7 @@ func nuevoBot(t *testing.T) (*Bot, *MemSuscripciones) {
 func todo(ss []Salida) string {
 	var xs []string
 	for _, s := range ss {
-		xs = append(xs, s.Tipo+": "+s.Texto)
+		xs = append(xs, s.Tipo+": "+s.Texto+" "+s.ImageURL)
 		for _, b := range s.Botones {
 			xs = append(xs, "  ["+b.ID+"] "+b.Title)
 		}
@@ -114,7 +114,13 @@ func TestConversacionCompletaConUbicacion(t *testing.T) {
 	// Comandos.
 	debe(t, say(Entrada{Texto: "MENU"}), "📍 *Jocotán, Chiquimula*")
 	debe(t, say(Entrada{Texto: "ayuda"}), "CAMBIAR", "BAJA")
-	debe(t, say(Entrada{Texto: "EN"}), "switching to English", "Best option")
+	out = say(Entrada{Texto: "EN"})
+	debe(t, out, "switching to English", "Best option", "idioma=en")
+	for _, s := range out {
+		if s.Tipo == "image" && (s.Idioma != "en" || s.Plan.Request.Idioma != "en") {
+			t.Fatalf("tarjeta no cambió de idioma: %+v", s)
+		}
+	}
 	debe(t, say(Entrada{Texto: "2"}), "Seasons lost")
 	debe(t, say(Entrada{Texto: "ES"}), "seguimos en español")
 	debe(t, say(Entrada{Texto: "baja"}), "ya no te mando avisos")
