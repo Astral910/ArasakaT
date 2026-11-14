@@ -167,9 +167,12 @@ export function construirMaqueta(
         // erosión: cárcavas ladera abajo en suelo desnudo
         vec2 perp = vec2(-uDown.y, uDown.x);
         float u = dot(xz, perp), w = dot(xz, uDown);
-        float rill = smoothstep(0.78, 0.95, vnoise(vec2(u*0.9, w*0.06)) * (0.7 + 0.5*vnoise(vec2(u*0.3, w*0.3))));
+        float rn = vnoise(vec2(u*1.1 + vnoise(vec2(w*0.08, u*0.2))*1.5, w*0.05)) * (0.7 + 0.5*vnoise(vec2(u*0.3, w*0.3)));
+        float rill = smoothstep(0.8, 0.93, rn);
+        float labio = smoothstep(0.72, 0.8, rn) * (1.0 - rill);
         float kE = uErosion * mP * (1.0 - mPaja*0.8);
-        suelo = mix(suelo, lin(vec3(0.55,0.33,0.2))*0.75, rill*kE);
+        suelo = mix(suelo, suelo*vec3(1.15,1.08,1.0), labio*kE*0.6);
+        suelo = mix(suelo, lin(vec3(0.36,0.22,0.14)), rill*kE*0.9);
         // escorrentía: agua turbia que baja por las cárcavas y los surcos
         float flujo = vnoise(vec2(u*1.4, w*0.25 - uTime*2.2)) ;
         float kR = uEscorr * mP * clamp(rill*1.4 + valle*0.5, 0.0, 1.0) * smoothstep(0.35, 0.7, flujo);
@@ -195,7 +198,7 @@ export function construirMaqueta(
         gGloss = max(gGloss, uWet*0.35);
         // escarcha
         float fr = uFrost * smoothstep(0.55, 0.9, vNormal.y*0.0 + 0.8) * (0.65 + 0.35*vnoise(xz*4.0));
-        c = mix(c, vec3(0.86,0.9,0.96), fr*0.8);
+        c = mix(c, vec3(0.84,0.88,0.95), fr*(0.3 + 0.22*vnoise(xz*3.1) + 0.12*smoothstep(0.45, 0.7, fbm(xz*0.05))));
         diffuseColor.rgb = c;
       }`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>

@@ -16,7 +16,7 @@ export class Post {
   tiltShift = true
   u: {
     uFoco: { value: number }; uBanda: { value: number }; uTilt: { value: number }; uExp: { value: number }; uCalor: { value: number }
-    uFlash: { value: number }; uGrano: { value: number }; uTime: { value: number }; uSat: { value: number }; uFrio: { value: number }; uBloom: { value: number }; uTransp: { value: number }
+    uFlash: { value: number }; uGrano: { value: number }; uTime: { value: number }; uSat: { value: number }; uFrio: { value: number }; uBloom: { value: number }; uTransp: { value: number }; uLluvia: { value: number }; uIncl: { value: number }
   }
 
   constructor(private renderer: THREE.WebGLRenderer, w: number, h: number, private msaa: number) {
@@ -26,7 +26,7 @@ export class Post {
     this.b = new THREE.WebGLRenderTarget(Math.max(1, w >> 1), Math.max(1, h >> 1), { type: tipo })
     this.u = {
       uFoco: { value: 0.5 }, uBanda: { value: 0.22 }, uTilt: { value: 1 }, uExp: { value: 1 }, uCalor: { value: 0 }, uFlash: { value: 0 },
-      uGrano: { value: 0.035 }, uTime: { value: 0 }, uSat: { value: 1.08 }, uFrio: { value: 0 }, uBloom: { value: 0.22 }, uTransp: { value: 0 },
+      uGrano: { value: 0.035 }, uTime: { value: 0 }, uSat: { value: 1.08 }, uFrio: { value: 0 }, uBloom: { value: 0.22 }, uTransp: { value: 0 }, uLluvia: { value: 0 }, uIncl: { value: 0.15 },
     }
     this.blur = new THREE.ShaderMaterial({
       uniforms: { tSrc: { value: null }, uDir: { value: new THREE.Vector2() }, uFoco: this.u.uFoco, uBanda: this.u.uBanda, uTilt: this.u.uTilt },
@@ -41,7 +41,7 @@ export class Post {
     this.comp = new THREE.ShaderMaterial({
       uniforms: { tEsc: { value: this.rt.texture }, tBlur: { value: this.b.texture }, uRes: { value: new THREE.Vector2(w, h) }, ...this.u },
       vertexShader: VERT,
-      fragmentShader: `uniform sampler2D tEsc, tBlur; uniform vec2 uRes; uniform float uFoco, uBanda, uTilt, uExp, uCalor, uFlash, uGrano, uTime, uSat, uFrio, uBloom, uTransp; varying vec2 vUv;
+      fragmentShader: `uniform sampler2D tEsc, tBlur; uniform vec2 uRes; uniform float uFoco, uBanda, uTilt, uExp, uCalor, uFlash, uGrano, uTime, uSat, uFrio, uBloom, uTransp, uLluvia, uIncl; varying vec2 vUv;
         float h21(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }
         vec3 aces(vec3 x){ const float a=2.51, b=0.03, c=2.43, d=0.59, e=0.14; return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0); }
         void main(){
@@ -56,7 +56,21 @@ export class Post {
           c = mix(c, bl, m);
           // bloom barato a partir del buffer desenfocado
           c += max(bl - 0.9, 0.0) * uBloom * 2.0 + bl*uBloom*0.06;
-          c += vec3(0.8,0.85,1.0) * uFlash * 0.35;
+          c += vec3(0.8,0.85,1.0) * uFlash * 0.1;
+          // cortina de lluvia en pantalla (se lee desde cualquier ángulo)
+          if (uLluvia > 0.01) {
+            vec2 r = vec2(vUv.x*uRes.x/uRes.y, vUv.y);
+            float ca = cos(uIncl), sa = sin(uIncl);
+            r = vec2(r.x*ca - r.y*sa, r.x*sa + r.y*ca);
+            for (int k = 0; k < 2; k++) {
+              float dens = k == 0 ? 160.0 : 90.0;
+              float colm = floor(r.x*dens); float h = h21(vec2(colm, float(k)*7.0));
+              float y = fract(r.y*(k == 0 ? 1.2 : 0.8) + uTime*(1.8 + h*1.2 + float(k)) + h*10.0);
+              float gota = smoothstep(0.0, 0.015, y) * (1.0 - smoothstep(0.015, 0.11, y)) * step(1.0 - uLluvia*0.55, h);
+              float w = 1.0 - abs(fract(r.x*dens) - 0.5)*2.0;
+              c += gota * smoothstep(0.55, 1.0, w) * (k == 0 ? 0.06 : 0.1) * (0.6 + uLluvia*0.6);
+            }
+          }
           c *= uExp;
           c = aces(c*1.05);
           // grading: sombras frías, luces cálidas

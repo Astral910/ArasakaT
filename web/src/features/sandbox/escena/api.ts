@@ -116,6 +116,8 @@ export interface Sandbox {
   setTimeScale(s: number): void
   /** Fuerza un clima (pruebas, video, botones de demo). null = vuelve a seguir el timeline. */
   setWeatherOverride(c: Partial<ClimaVisual> | null): void
+  /** Fuerza un rayo ahora (p. ej. al saltar a un marcador de tormenta). */
+  rayo(): void
   on<K extends keyof SandboxEvents>(ev: K, cb: (d: SandboxEvents[K]) => void): () => void
   /** Imagen del cuadro actual. */
   snapshot(opts?: { type?: string; quality?: number }): Promise<Blob>

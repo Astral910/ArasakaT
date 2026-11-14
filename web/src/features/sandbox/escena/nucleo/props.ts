@@ -47,7 +47,7 @@ export function materialProps(U: UniformsGlobales, opciones: { hojas?: boolean }
         ${GLSL_NUBES}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         ${opciones.hojas ? `{ float l = dot(diffuseColor.rgb, vec3(0.3,0.59,0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, vec3(l*1.3,l*1.05,l*0.55), uDry*0.55); }` : ''}
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85,0.9,0.97), uFrost*0.45);`)
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.85,0.9,0.97), uFrost*0.25);`)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
         { float sn = sombraNubes(vMundo.xz); reflectedLight.directDiffuse *= sn; reflectedLight.directSpecular *= sn; }`)
   }

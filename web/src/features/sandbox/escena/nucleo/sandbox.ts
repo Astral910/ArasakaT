@@ -560,7 +560,8 @@ class SandboxImpl implements Sandbox {
       const e = estadoCapa(capa, i, f)
       c3.mesh.visible = e.etapa >= 0 && e.altura > 0.005
       c3.u.uStage.value = e.etapa
-      c3.u.uHealth.value = e.salud
+      // salud del motor; si se fuerza un clima seco (demo), se ve el estrés
+      c3.u.uHealth.value = this.override?.sequia ? e.salud * (1 - this.override.sequia * 0.65) : e.salud
       c3.u.uAltura.value = Math.max(0.02, e.altura)
       c3.u.uWidth.value = c3.cultivo === 'mucuna' ? 0.35 + e.cobertura * 1.05 : 1
       if (c3.mesh.visible) cover = Math.max(cover, e.cobertura)
@@ -593,7 +594,7 @@ class SandboxImpl implements Sandbox {
     // destello de rayo
     const flash = this.rayos.actualizar(dtE)
     this.U.uFlash.value = flash
-    this.hemi.intensity = L.hemiI + flash * 3
+    this.hemi.intensity = L.hemiI + flash * 1.1
     const cu = this.cielo.u
     cu.uTop.value.copy(L.top); cu.uHor.value.copy(L.hor); cu.uSunDir.value.copy(dir)
     cu.uSunCol.value.copy(L.solCol).multiplyScalar(0.5 + L.solI * 0.15)
@@ -612,6 +613,8 @@ class SandboxImpl implements Sandbox {
     pu.uSat.value = 1.1 - c.tormenta * 0.28 - c.nubes * 0.1 + c.calor * 0.04
     pu.uTime.value = this.tiempo
     pu.uBloom.value = CFG[this.calidad].tilt ? 0.22 + flash * 0.6 : 0
+    pu.uLluvia.value = Math.pow(c.lluvia, 0.9)
+    pu.uIncl.value = 0.08 + c.viento * 0.35
     // nubes
     const wd = this.U.uWindDir.value
     if (this.nubes) {
@@ -646,7 +649,7 @@ class SandboxImpl implements Sandbox {
     }
     if (this.polvo) {
       const u = this.polvo.u
-      u.uAlfa.value = Math.min(0.55, c.polvo * 0.6)
+      u.uAlfa.value = Math.min(0.32, c.polvo * 0.35)
       this.polvo.mesh.visible = c.polvo > 0.02
       u.uTime.value = this.tiempo
       u.uCentro.value.set(this.parcela.cx, (mq?.alturaEn(this.parcela.cx, this.parcela.cz) ?? 0) - 2, this.parcela.cz - 10)
@@ -656,17 +659,29 @@ class SandboxImpl implements Sandbox {
     // rachas (tormenta)
     this.U.uGust.value = c.tormenta * Math.max(0, Math.sin(this.tiempo * 0.8) * Math.sin(this.tiempo * 2.1 + 1)) * 1.2
     // rayos: probabilidad por segundo proporcional a la tormenta
-    if (mq && c.tormenta > 0.35 && Math.random() < dtE * c.tormenta * 0.55) {
-      const L2 = mq.L
-      let x = 0, z = 0
-      for (let k = 0; k < 8; k++) {
-        x = (Math.random() - 0.5) * L2 * 0.9; z = (Math.random() - 0.5) * L2 * 0.9
-        if (Math.abs(x - this.parcela.cx) > this.parcela.hx + 25 || Math.abs(z - this.parcela.cz) > this.parcela.hz + 25) break
-      }
-      this.rayos.lanzar(x, z, mq.yMax + 95, mq.alturaEn(x, z), this.camara)
-      this.emitir('rayo', { indice: Math.floor(this.x) })
-    }
+    if (mq && c.tormenta > 0.35 && Math.random() < dtE * c.tormenta * 0.55) this.rayo()
     void dt
+  }
+
+  /** Lanza un rayo ya (en la maqueta, lejos de la parcela, visible desde la cámara). */
+  rayo() {
+    const mq = this.maqueta
+    if (!mq) return
+    const L2 = mq.L
+    // delante de la cámara, más allá de la parcela (para que se vea en cuadro)
+    const t = this.vista.target, cp = this.camara.position
+    const f = new THREE.Vector2(t.x - cp.x, t.z - cp.z).normalize()
+    const der = new THREE.Vector2(-f.y, f.x)
+    const s = this.parcela.hx * 2
+    let x = 0, z = 0
+    for (let k = 0; k < 12; k++) {
+      const ad = s * 0.7 + Math.random() * L2 * 0.25, la = (Math.random() - 0.5) * s * 1.6
+      x = Math.max(-L2 * 0.47, Math.min(L2 * 0.47, t.x + f.x * ad + der.x * la))
+      z = Math.max(-L2 * 0.47, Math.min(L2 * 0.47, t.z + f.y * ad + der.y * la))
+      if (Math.abs(x - this.parcela.cx) > this.parcela.hx + 12 || Math.abs(z - this.parcela.cz) > this.parcela.hz + 12) break
+    }
+    this.rayos.lanzar(x, z, mq.yMax + 110, mq.alturaEn(x, z), this.camara)
+    this.emitir('rayo', { indice: Math.floor(this.x) })
   }
 
   private cuadro(dt: number, medirFps: boolean) {

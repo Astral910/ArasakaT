@@ -133,7 +133,7 @@ function materialCapa(U: UniformsGlobales, uc: ReturnType<typeof uniformsCapa>) 
         // oscurecer hacia abajo (oclusión del dosel)
         c *= 0.55 + 0.45*smoothstep(0.0, 0.6, vAlt);
         // escarcha en las hojas
-        c = mix(c, vec3(0.88,0.93,1.0), uFrost*0.7*(0.6 + 0.4*vnoise(vMundo.xz*9.0)));
+        c = mix(c, vec3(0.88,0.93,1.0), uFrost*0.42*smoothstep(0.35, 0.8, vnoise(vMundo.xz*3.0 + vAlt*4.0))*smoothstep(0.2, 1.0, vHoja + vAlt));
         diffuseColor.rgb = c;
       }`)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
