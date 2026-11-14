@@ -49,7 +49,7 @@ func TestTimelineColumnsAndStorm(t *testing.T) {
 	cfg := Config{Crop: "milpa", Cover: "mucuna", Postrera: "bean"}
 	d := Strategies(cfg)[2]
 	tl := s.Timeline(d, cfg, SimOptions{Seasons: []SimSeason{{Real: 2005, Label: 2027, Source: "remuestreado:2005"}, {Real: 2006, Label: 2028, Source: "remuestreado:2006"}}})
-	if tl.Dias != 730 {
+	if tl.Dias != 730 { // 2005 y 2006: 365 + 365
 		t.Fatalf("días %d", tl.Dias)
 	}
 	for name, l := range map[string]int{"fuente": len(tl.Fuente), "lluvia": len(tl.LluviaMM), "riego": len(tl.RiegoMM), "agua": len(tl.AguaSuelo),
@@ -91,5 +91,14 @@ func TestTimelineColumnsAndStorm(t *testing.T) {
 		if tl.AguaSuelo[i] < 0 || tl.AguaSuelo[i] > 1 {
 			t.Fatal("agua fuera de 0..1")
 		}
+	}
+}
+
+func TestLeapYearDropped(t *testing.T) {
+	s := dryishSite()
+	cfg := Config{Crop: "milpa"}
+	tl := s.Timeline(Strategies(cfg)[0], cfg, SimOptions{Seasons: []SimSeason{{Real: 2004, Label: 2027}, {Real: 2008, Label: 2028}}})
+	if tl.Dias != 730 {
+		t.Fatalf("con bisiestos: %d días (se omite el 29 de febrero)", tl.Dias)
 	}
 }

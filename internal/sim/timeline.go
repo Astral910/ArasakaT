@@ -69,6 +69,7 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 	// tamaño total
 	type seg struct {
 		i0, i1, base int
+		leap         int // índice del 29 de febrero (se omite: todas las temporadas tienen 365 días)
 		ss           SimSeason
 	}
 	var segs []seg
@@ -81,8 +82,15 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 		if i0 < 0 || i0 > i1 {
 			continue
 		}
-		segs = append(segs, seg{i0, i1, n, ss})
+		lp := -1
+		if t := s.Date(s.Idx(ss.Real, 2, 29)); t.Month() == 2 && t.Day() == 29 {
+			lp = s.Idx(ss.Real, 2, 29)
+		}
+		segs = append(segs, seg{i0, i1, n, lp, ss})
 		n += i1 - i0 + 1
+		if lp >= i0 && lp <= i1 {
+			n--
+		}
 	}
 	tl.Dias = n
 	if n == 0 {
@@ -140,13 +148,27 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 	}
 	for k, sg := range segs {
 		y := sg.ss.Real
+		// pos: día del sitio → posición en la línea de tiempo (-1 = 29 de febrero omitido)
+		pos := func(i int) int {
+			if i == sg.leap {
+				return -1
+			}
+			p := sg.base + i - sg.i0
+			if sg.leap >= 0 && i > sg.leap {
+				p--
+			}
+			return p
+		}
 		var tr YearTrace
 		c := cfg
 		c.Trace = &tr
 		yo := s.RunYear(d, y, 0, 1, c)
 		// clima y cobertura del suelo
 		for i := sg.i0; i <= sg.i1; i++ {
-			p := sg.base + i - sg.i0
+			p := pos(i)
+			if p < 0 {
+				continue
+			}
 			tl.Fuente[p] = sg.ss.Source
 			month[p] = int(s.Date(i).Month())
 			tl.LluviaMM[p] = r2(s.PR[i])
@@ -184,7 +206,13 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 			sumKs, cnt := 0.0, 0.0
 			growEnd := float64(lt.Crop.L[0]+lt.Crop.L[1]) + 0.5*float64(lt.Crop.L[2])
 			for _, ds := range lt.Days {
-				p := sg.base + ds.Idx - sg.i0
+				p := pos(ds.Idx)
+				if ds.Idx > sg.i1 { // sigue en el año siguiente de la línea de tiempo
+					p = sg.base + ds.Idx - sg.i0
+					if sg.leap >= 0 {
+						p--
+					}
+				}
 				if p < 0 || p >= n {
 					continue
 				}
@@ -208,7 +236,7 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 					waterSet[p] = true
 				}
 			}
-			sowP := sg.base + lt.Sow - sg.i0
+			sowP := pos(lt.Sow)
 			harvP := sowP + lt.Crop.Season()
 			if sowP >= 0 && sowP < n {
 				tl.Eventos = append(tl.Eventos, contract.SimEvento{Dia: sowP, Tipo: "siembra", Texto: L("Siembra de ", "Planting ") + cname(lt.Crop)})
@@ -232,7 +260,7 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 		tl.Anual = append(tl.Anual, contract.SimAnio{Anio: sg.ss.Label, AnioReal: y, GranoQQMZ: math.Round(grain*10) / 10,
 			MO: math.Round(OMFromSOC(soc)*100) / 100, ErosionTHa: math.Round(A*10) / 10, Perdida: lost, ElNino: nino})
 		if lost {
-			hp := sg.base + yo.PrimeraSow - sg.i0 + s.Scaled(d.Main).Season()
+			hp := pos(yo.PrimeraSow) + s.Scaled(d.Main).Season()
 			if hp >= n {
 				hp = n - 1
 			}
@@ -241,7 +269,7 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 		}
 		// falsos inicios de lluvia
 		for _, fi := range FalseStarts(s.PR, s.Idx(y, 4, 15), s.Idx(y, 7, 15)) {
-			if p := sg.base + fi - sg.i0; p >= 0 && p < n {
+			if p := pos(fi); p >= 0 && p < n {
 				tl.Eventos = append(tl.Eventos, contract.SimEvento{Dia: p, Tipo: "falso_inicio",
 					Texto: L("Falso inicio: llovió fuerte y después vino una semana seca", "False start: heavy rain followed by a dry week")})
 			}

@@ -57,7 +57,7 @@
     {
       "anios": 5,
       "archivo": "jocotan-chiquimula_S0_secuencia-p50_0.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S0",
       "municipio": "jocotan-chiquimula",
@@ -66,7 +66,7 @@
     {
       "anios": 5,
       "archivo": "jocotan-chiquimula_S0_secuencia-p50_20.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S0",
       "municipio": "jocotan-chiquimula",
@@ -147,7 +147,7 @@
     {
       "anios": 5,
       "archivo": "jocotan-chiquimula_S1_secuencia-p50_0.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S1",
       "municipio": "jocotan-chiquimula",
@@ -156,7 +156,7 @@
     {
       "anios": 5,
       "archivo": "jocotan-chiquimula_S1_secuencia-p50_20.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S1",
       "municipio": "jocotan-chiquimula",
@@ -237,7 +237,7 @@
     {
       "anios": 5,
       "archivo": "jocotan-chiquimula_S2_secuencia-p50_0.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S2",
       "municipio": "jocotan-chiquimula",
@@ -246,7 +246,7 @@
     {
       "anios": 5,
       "archivo": "jocotan-chiquimula_S2_secuencia-p50_20.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S2",
       "municipio": "jocotan-chiquimula",
@@ -327,7 +327,7 @@
     {
       "anios": 5,
       "archivo": "camotan-chiquimula_S0_secuencia-p50_0.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S0",
       "municipio": "camotan-chiquimula",
@@ -336,7 +336,7 @@
     {
       "anios": 5,
       "archivo": "camotan-chiquimula_S0_secuencia-p50_20.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S0",
       "municipio": "camotan-chiquimula",
@@ -417,7 +417,7 @@
     {
       "anios": 5,
       "archivo": "camotan-chiquimula_S1_secuencia-p50_0.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S1",
       "municipio": "camotan-chiquimula",
@@ -426,7 +426,7 @@
     {
       "anios": 5,
       "archivo": "camotan-chiquimula_S1_secuencia-p50_20.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S1",
       "municipio": "camotan-chiquimula",
@@ -507,7 +507,7 @@
     {
       "anios": 5,
       "archivo": "camotan-chiquimula_S2_secuencia-p50_0.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S2",
       "municipio": "camotan-chiquimula",
@@ -516,7 +516,7 @@
     {
       "anios": 5,
       "archivo": "camotan-chiquimula_S2_secuencia-p50_20.json",
-      "dias": 1826,
+      "dias": 1825,
       "escenario": "secuencia-p50",
       "estrategia": "S2",
       "municipio": "camotan-chiquimula",
@@ -542,6 +542,6 @@
     }
   ],
   "formato": "sim/<municipio>_<S0|S1|S2>_<tipico|nino|real-2026|secuencia-p50|2040-ssp245>_<riego mm/semana: 0|20>[_en].json (= POST /api/simulate; también .json.gz)",
-  "generado": "2026-11-14T19:10:07Z",
+  "generado": "2026-11-14T19:14:27Z",
   "supuestos": "milpa, 1 manzana, percentil p50, semilla 2026; secuencia = 5 años; textos de eventos en español (o _en)"
 }
