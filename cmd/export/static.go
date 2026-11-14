@@ -114,11 +114,11 @@ func exportStatic(e *plan.Engine, out string) error {
 
 	// validación (Jocotán y Camotán) y IA vs estadística
 	type vrow struct {
-		Municipio string        `json:"municipio"`
-		Hits      int           `json:"detectadas"`
-		Total     int           `json:"total"`
-		Falsas    int           `json:"falsas_alarmas"`
-		Filas     []valid.Row   `json:"anios"`
+		Municipio string      `json:"municipio"`
+		Hits      int         `json:"detectadas"`
+		Total     int         `json:"total"`
+		Falsas    int         `json:"falsas_alarmas"`
+		Filas     []valid.Row `json:"anios"`
 	}
 	var vs []vrow
 	for _, h := range heroes {
@@ -142,17 +142,17 @@ func exportStatic(e *plan.Engine, out string) error {
 		}
 	}
 	write(filepath.Join(out, "ia_vs_estadistica.json"), map[string]any{
-		"modelo_ia":          "Regresión logística L2 (4 variables estandarizadas)",
-		"modelo_estadistico": "Frecuencia de pérdidas por zona NASA POWER y estado ENSO (suavizada)",
-		"variables":          mlr.Features,
-		"coeficientes":       coef,
-		"muestras":           len(mlr.Samples),
-		"validacion":         "dejando un año fuera (25 pliegues)",
-		"brier_ia":           mlr.Eval.BrierIA,
-		"brier_estadistica":  mlr.Eval.BrierEst,
-		"acierto_ia":         mlr.Eval.AccIA,
+		"modelo_ia":           "Regresión logística L2 (4 variables estandarizadas)",
+		"modelo_estadistico":  "Frecuencia de pérdidas por zona NASA POWER y estado ENSO (suavizada)",
+		"variables":           mlr.Features,
+		"coeficientes":        coef,
+		"muestras":            len(mlr.Samples),
+		"validacion":          "dejando un año fuera (25 pliegues)",
+		"brier_ia":            mlr.Eval.BrierIA,
+		"brier_estadistica":   mlr.Eval.BrierEst,
+		"acierto_ia":          mlr.Eval.AccIA,
 		"acierto_estadistica": mlr.Eval.AccEst,
-		"etiqueta":           "temporada perdida (grano < 70 %) según el motor",
+		"etiqueta":            "temporada perdida (grano < 70 %) según el motor",
 	}, true)
 	if e.CMIP != nil {
 		write(filepath.Join(out, "cmip6_deltas.json"), e.CMIP, false)
