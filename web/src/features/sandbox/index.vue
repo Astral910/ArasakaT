@@ -274,7 +274,7 @@ const BotonExportar = botones['./export/BotonExportar.vue'] ? defineAsyncCompone
 function metaVideo() {
   const a = ajustes.value
   const url = new URL(location.href)
-  for (const k of ['rec', 'calidad', 'vertical', 'fps', 'dur', 'desde', 'hasta']) url.searchParams.delete(k)
+  for (const k of ['rec', 'intro', 'calidad', 'vertical', 'fps', 'dur', 'desde', 'hasta']) url.searchParams.delete(k)
   return {
     municipio: lugar.nombre || lugar.id, departamento: lugar.depto, cultivo: a.cultivo, estrategia: a.estrategia,
     estrategiaNombre: t(a.estrategia), escenario: a.escenario, riegoMMSemana: RIEGO[a.riego], idioma: lang.value, url: url.toString(),
@@ -518,6 +518,8 @@ onBeforeUnmount(() => roPie?.disconnect())
 .pie { display: flex; gap: 10px; align-items: center; margin-top: 4px; font-size: .7rem; color: #bfae94; }
 .pie .org { margin-left: auto; }
 .movil .pie .org { font-size: .62rem; }
+/* el panel de Exportar abre hacia abajo desde la barra superior y hacia arriba desde el pie */
+.top :deep(.fsx-panel) { top: calc(100% + 8px) !important; bottom: auto !important; right: 0; left: auto; z-index: 20; }
 .exp-movil { flex: none; }
 .exp-movil :deep(button) { white-space: nowrap; padding: 6px 11px; font-size: .74rem; min-height: 0; }
 .exp-movil :deep(svg) { width: 14px; height: 14px; }
