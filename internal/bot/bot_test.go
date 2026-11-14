@@ -104,11 +104,20 @@ func TestConversacionCompletaConUbicacion(t *testing.T) {
 		t.Fatalf("suscriptor mal guardado: %+v", s)
 	}
 
+	// Cada mensaje entrante abre la ventana de 24 h.
+	if got := subs.Entrantes[tel]; !got.Equal(b.ahora()) {
+		t.Fatalf("RegistrarEntrante no se llamó: %v", got)
+	}
 	// Seguimiento semanal (botón de ALERTAS).
 	out = say(Entrada{Tipo: "interactive", BotonID: "seg:seca:al-123"})
 	debe(t, out, "Gracias por contarme", "rastrojo")
 	if len(subs.Respuestas) != 1 || subs.Respuestas[0].Respuesta != "seca" || subs.Respuestas[0].AlertaID != "al-123" {
 		t.Fatalf("respuesta no guardada: %+v", subs.Respuestas)
+	}
+	// Por texto (Twilio): "Hojas amarillas".
+	debe(t, say(Entrada{Texto: "Hojas amarillas"}), "nitrógeno")
+	if len(subs.Respuestas) != 2 || subs.Respuestas[1].Respuesta != "amarillas" {
+		t.Fatalf("respuesta por texto: %+v", subs.Respuestas)
 	}
 
 	// Comandos.

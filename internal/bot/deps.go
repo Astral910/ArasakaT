@@ -24,11 +24,18 @@ type Suscripciones interface {
 	RegistrarRespuesta(tel, alertaID, respuesta string) error
 }
 
+// Entrantes (opcional): si Subs la implementa, el bot anota cada mensaje entrante
+// para abrir la ventana de 24 h de WhatsApp. La cumple store.ParaBot de ALERTAS.
+type Entrantes interface {
+	RegistrarEntrante(tel string, t time.Time) error
+}
+
 // MemSuscripciones: implementación en memoria (tests y mientras ALERTAS no la conecta).
 type MemSuscripciones struct {
 	mu         sync.Mutex
 	Subs       map[string]contract.Suscriptor
 	Respuestas []RespuestaSeg
+	Entrantes  map[string]time.Time // último mensaje entrante por teléfono
 }
 
 type RespuestaSeg struct {
@@ -45,6 +52,16 @@ func (m *MemSuscripciones) Suscribir(s contract.Suscriptor) error {
 	defer m.mu.Unlock()
 	s.Activo = true
 	m.Subs[s.Telefono] = s
+	return nil
+}
+
+func (m *MemSuscripciones) RegistrarEntrante(tel string, t time.Time) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.Entrantes == nil {
+		m.Entrantes = map[string]time.Time{}
+	}
+	m.Entrantes[tel] = t
 	return nil
 }
 

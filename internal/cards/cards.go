@@ -787,15 +787,23 @@ func ajustar(dc *gg.Context, s string, maxw float64) string {
 	return s
 }
 
-// sinParentesis quita "(…)" final si el texto no cabe: "Milpa con mucuna (frijol abono)" → "Milpa con mucuna".
+// sinParentesis quita los "(…)" si el texto no cabe: "Milpa con mucuna (frijol abono)" → "Milpa con mucuna".
 func sinParentesis(dc *gg.Context, s string, maxw float64) string {
 	if w, _ := dc.MeasureString(s); w <= maxw {
 		return s
 	}
-	if i := strings.LastIndex(s, " ("); i > 0 && strings.HasSuffix(s, ")") {
-		return s[:i]
+	// quita todos los grupos " (…)", estén donde estén
+	for {
+		i := strings.Index(s, " (")
+		if i < 0 {
+			return s
+		}
+		j := strings.Index(s[i:], ")")
+		if j < 0 {
+			return s
+		}
+		s = s[:i] + s[i+j+1:]
 	}
-	return s
 }
 
 // espaciado dibuja texto con espaciado entre letras (versalitas de etiqueta).
