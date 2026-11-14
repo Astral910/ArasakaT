@@ -1,0 +1,74 @@
+/* Sistema de diseño Field Shift · tierra y hueso con acentos de huipil.
+   Semáforo: jade = bien, maíz = atención, granada = riesgo (siempre con ícono y texto). */
+:root {
+  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Figtree Variable', 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Menlo, monospace;
+
+  --bg: #f5efe4;
+  --bg-2: #ece2d0;
+  --surface: #fffaf2;
+  --surface-2: #f7efe1;
+  --ink: #2a2118;
+  --ink-2: #57473a;
+  --ink-3: #7d6a58;
+  --line: rgba(42, 33, 24, 0.12);
+  --line-2: rgba(42, 33, 24, 0.22);
+
+  --tierra: #8a5a3b;
+  --tierra-2: #b98a5e;
+  --hueso: #f5efe4;
+  --granada: #b5343c;
+  --anil: #2e4a8f;
+  --maiz: #e0a526;
+  --maiz-ink: #8a5d00;
+  --jade: #2a8a66;
+  --milpa: #5d8a3a;
+  --cielo: #7fb2d9;
+
+  --ok: var(--jade);
+  --warn: var(--maiz);
+  --warn-ink: var(--maiz-ink);
+  --risk: var(--granada);
+
+  --radius: 14px;
+  --radius-lg: 24px;
+  --shadow-1: 0 1px 2px rgba(60, 40, 20, 0.06), 0 4px 14px rgba(60, 40, 20, 0.06);
+  --shadow-2: 0 2px 6px rgba(60, 40, 20, 0.08), 0 18px 48px rgba(60, 40, 20, 0.14);
+  --glass: rgba(255, 250, 242, 0.72);
+  --glass-line: rgba(255, 255, 255, 0.6);
+
+  --sky-top: #8fc1e3;
+  --sky-bottom: #f5efe4;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 320ms;
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --bg: #15110d;
+  --bg-2: #1d1712;
+  --surface: #231c15;
+  --surface-2: #2c241b;
+  --ink: #f4ebdb;
+  --ink-2: #d2c3ab;
+  --ink-3: #a39279;
+  --line: rgba(244, 235, 219, 0.1);
+  --line-2: rgba(244, 235, 219, 0.2);
+  --tierra: #c48d62;
+  --tierra-2: #8a5a3b;
+  --granada: #e2625c;
+  --anil: #8ba4ea;
+  --maiz: #f2bf4b;
+  --maiz-ink: #f2bf4b;
+  --jade: #4fc495;
+  --milpa: #8cbf5f;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.35), 0 18px 48px rgba(0, 0, 0, 0.45);
+  --glass: rgba(35, 28, 21, 0.72);
+  --glass-line: rgba(255, 255, 255, 0.08);
+  --sky-top: #1d3350;
+  --sky-bottom: #15110d;
+  color-scheme: dark;
+}
