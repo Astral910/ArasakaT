@@ -95,17 +95,6 @@ func planRoutes(mux *http.ServeMux, cfg Config, pl contract.Planner) {
 	})
 }
 
-// chatFalso: respuesta mínima del simulador hasta que llegue internal/bot.
-func chatFalso(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/chat", func(w http.ResponseWriter, r *http.Request) {
-		// Formato acordado con web: entra {"sesion","texto","boton","lat","lon","idioma"}, sale []MensajeChat.
-		writeJSON(w, http.StatusOK, []contract.MensajeChat{{
-			From: "bot", Tipo: "text",
-			Texto: "Hola 👋 Te ayudo a planear tu milpa con datos de satélites de la NASA. (Bot en construcción.)",
-		}})
-	})
-}
-
 // alertasFalsas: sirven los JSON estáticos del backtest si existen.
 func alertasFalsas(mux *http.ServeMux, cfg Config) {
 	mux.HandleFunc("GET /api/alerts/timeline", func(w http.ResponseWriter, r *http.Request) {

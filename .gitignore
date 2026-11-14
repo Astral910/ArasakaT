@@ -13,3 +13,4 @@ e2e/playwright-report/
 /server.exe
 /bin/
 /fieldshift-server*
+sesiones.json

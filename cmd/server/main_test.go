@@ -24,6 +24,7 @@ func testConfig(t *testing.T) Config {
 		StaticDir:   static,
 		FixturePath: filepath.Join("..", "..", "contracts", "fixtures", "plan_jocotan.json"),
 		AdminToken:  "secreto",
+		DBPath:      filepath.Join(dir, "fs.db"),
 	}
 }
 
@@ -152,5 +153,23 @@ func TestDotEnv(t *testing.T) {
 	loadDotEnv(p)
 	if os.Getenv("FS_TEST_A") != "ya" || os.Getenv("FS_TEST_B") != "dos" {
 		t.Fatalf("A=%q B=%q", os.Getenv("FS_TEST_A"), os.Getenv("FS_TEST_B"))
+	}
+}
+
+func TestMotorYBotReales(t *testing.T) {
+	cfg := testConfig(t)
+	cfg.DataDir = filepath.Join("..", "..", "data")
+	cfg.DBPath = filepath.Join(t.TempDir(), "fs.db")
+	h, a := newServer(cfg)
+	if a.comp.Motor != "real" || a.comp.Bot != "real" {
+		t.Fatalf("componentes %+v", a.comp)
+	}
+	rec := do(h, "POST", "/api/plan", `{"municipio_id":"jocotan-chiquimula","cultivo":"milpa","area_valor":8,"area_unidad":"cuerda","prioridad":"comida","horizonte":"2026","idioma":"es"}`, nil)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"S2"`) {
+		t.Fatalf("plan real %d %.300s", rec.Code, rec.Body)
+	}
+	rec = do(h, "POST", "/api/chat", `{"sesion":"web-e2e","texto":"hola"}`, nil)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"from":"bot"`) {
+		t.Fatalf("chat %d %.300s", rec.Code, rec.Body)
 	}
 }
