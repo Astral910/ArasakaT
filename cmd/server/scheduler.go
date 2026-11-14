@@ -28,19 +28,20 @@ func proximaCorrida(now time.Time, hora string) time.Time {
 	return next
 }
 
-// scheduler corre el motor de alertas una vez al día. La idempotencia la garantiza internal/alerts.
-func scheduler(ctx context.Context, hora string, al Alertador) {
+// scheduler revisa el pronóstico de cada suscriptor cada `cada` (3 h por defecto), empezando un minuto después
+// de arrancar. Sin duplicados y en horario decente (7:00–20:00 local): lo garantiza internal/alerts.
+func scheduler(ctx context.Context, cada time.Duration, al Alertador) {
+	espera := time.Minute
 	for {
-		next := proximaCorrida(time.Now(), hora)
-		log.Printf("scheduler: próxima corrida de alertas %s", next.Format(time.RFC3339))
+		log.Printf("scheduler: próxima revisión de alertas en %s (cada %s)", espera, cada)
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Until(next)):
-			fecha := next.Format("2006-01-02")
-			if err := al.RunDaily(fecha); err != nil {
-				log.Printf("scheduler: corrida %s: %v", fecha, err)
+		case <-time.After(espera):
+			if err := al.Correr(time.Now()); err != nil {
+				log.Printf("scheduler: corrida: %v", err)
 			}
 		}
+		espera = cada
 	}
 }

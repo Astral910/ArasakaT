@@ -16,6 +16,7 @@ type Persona struct {
 	Cultivo      string // milpa | maiz | frijol | sorgo | otro
 	FechaSiembra string // YYYY-MM-DD o vacío
 	Idioma       string // es | en
+	Global       bool   // punto fuera de Guatemala: sin nombre "canícula" (fenómeno del Corredor Seco)
 }
 
 // cropFor cultivo del contrato → parámetros FAO-56 (etapas Kc de internal/fao56).
@@ -160,7 +161,7 @@ func Render(e Event, p Persona) Texto {
 	t := Texto{Pie: pie(en), Seguro: Seguridad(e, en)}
 	switch e.Tipo {
 	case TCanicula:
-		if IsCaniculaWindow(e.Inicio) {
+		if IsCaniculaWindow(e.Inicio) && !p.Global {
 			t.Titulo = pick(en, "🌵 Aviso de canícula · ", "🌵 Mid-summer drought (canícula) alert · ") + p.Municipio
 			t.Plantilla = "alerta_canicula"
 		} else {

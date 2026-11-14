@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"fieldshift/internal/contract"
 )
@@ -135,6 +136,8 @@ func safeID(s, def string) string {
 
 // alertadorFalso: el scheduler lo llama; no envía nada.
 type alertadorFalso struct{}
+
+func (alertadorFalso) Correr(time.Time) error { return nil }
 
 func (alertadorFalso) RunDaily(date string) error {
 	log.Printf("alertas (falso): corrida %s sin motor real", date)

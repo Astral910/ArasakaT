@@ -29,6 +29,8 @@ type Client struct {
 	CacheDir string
 	BaseEns  string // https://ensemble-api.open-meteo.com/v1/ensemble
 	BaseRuns string // https://single-runs-api.open-meteo.com/v1/forecast
+	// Fresco: si > 0, una respuesta en caché más vieja que esto se vuelve a bajar (alertas cada 3 h).
+	Fresco time.Duration
 }
 
 // NewClient con valores por defecto.
@@ -43,8 +45,10 @@ func (c *Client) get(key, url string) ([]byte, error) {
 	if c.CacheDir != "" {
 		h := sha1.Sum([]byte(url))
 		path = filepath.Join(c.CacheDir, key+"_"+hex.EncodeToString(h[:6])+".json")
-		if b, err := os.ReadFile(path); err == nil && len(b) > 0 {
-			return b, nil
+		if st, err := os.Stat(path); err == nil && (c.Fresco <= 0 || time.Since(st.ModTime()) < c.Fresco) {
+			if b, err := os.ReadFile(path); err == nil && len(b) > 0 {
+				return b, nil
+			}
 		}
 	}
 	var last error
@@ -89,13 +93,34 @@ func truncate(s string, n int) string {
 // Devuelve una Run por miembro (lluvia diaria, Tmín, Tmáx).
 func (c *Client) Ensemble(lat, lon, elev float64, date time.Time) ([]Run, error) {
 	ds := date.Format("2006-01-02")
-	url := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f&elevation=%.0f&models=%s&daily=precipitation_sum,temperature_2m_min,temperature_2m_max&timezone=America%%2FGuatemala&start_date=%s&end_date=%s",
-		c.BaseEns, lat, lon, elev, EnsembleModels, ds, date.AddDate(0, 0, 15).Format("2006-01-02"))
+	url := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f%s&models=%s&daily=precipitation_sum,temperature_2m_min,temperature_2m_max&timezone=%s&start_date=%s&end_date=%s",
+		c.BaseEns, lat, lon, elevParam(elev), EnsembleModels, ZonaParam(lat, lon), ds, date.AddDate(0, 0, 15).Format("2006-01-02"))
 	b, err := c.get(fmt.Sprintf("ens_%.2f_%.2f_%s", lat, lon, ds), url)
 	if err != nil {
 		return nil, err
 	}
 	return parseEnsembleDaily(b)
+}
+
+// EnGuatemala: caja de Guatemala (los días se cortan a la hora de Guatemala; fuera, a la hora local del punto).
+func EnGuatemala(lat, lon float64) bool {
+	return lat >= 13.5 && lat <= 18 && lon >= -92.5 && lon <= -88
+}
+
+// ZonaParam: timezone de Open-Meteo para el punto (America/Guatemala o auto en el resto del mundo).
+func ZonaParam(lat, lon float64) string {
+	if EnGuatemala(lat, lon) {
+		return "America%2FGuatemala"
+	}
+	return "auto"
+}
+
+// elevParam: sin elevación conocida (punto global) deja que Open-Meteo use su modelo de terreno de 90 m.
+func elevParam(elev float64) string {
+	if elev == 0 {
+		return ""
+	}
+	return fmt.Sprintf("&elevation=%.0f", elev)
 }
 
 // parseEnsembleDaily separa las columnas *_memberNN (y la de control) en corridas.

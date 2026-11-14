@@ -165,19 +165,21 @@ func TestCloudConversacionPuntaAPunta(t *testing.T) {
 	post(`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"milpa","title":"Milpa"}}`, false)
 	ms = g.tomar()
 	if ms[0]["interactive"].(map[string]any)["type"] != "list" {
+		t.Fatalf("tamaño con lista: %v", ms)
+	}
+	post(`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"m1","title":"1 manzana"}}`, false)
+	ms = g.tomar()
+	if ms[0]["interactive"].(map[string]any)["type"] != "list" {
 		t.Fatalf("riego con lista (nada/poco/medio/mucho): %v", ms)
 	}
 	post(`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"nada","title":"Nada"}}`, false)
-	g.tomar()
-	post(`"type":"interactive","interactive":{"type":"button_reply","button_reply":{"id":"si","title":"Sí"}}`, false)
-	g.tomar()
-	post(`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"comida","title":"Comida"}}`, false)
 	ms = g.tomar()
 	tipos := []string{}
 	for _, m := range ms {
 		tipos = append(tipos, m["type"].(string))
 	}
-	if strings.Join(tipos, ",") != "text,image,text,interactive,interactive" || g.media != 1 {
+	// resumen, tarjeta, opciones, "preparando", video (sin servicio → link), link web, informe (sin PDF → link), alertas
+	if strings.Join(tipos, ",") != "text,image,text,text,text,text,text,interactive" || g.media != 1 {
 		t.Fatalf("plan: tipos %v media %d", tipos, g.media)
 	}
 	if ms[1]["image"].(map[string]any)["id"] != "media-1" {
@@ -294,10 +296,10 @@ func TestTwilioWebhook(t *testing.T) {
 		t.Fatalf("ubicación twilio: %s", x)
 	}
 	post(url.Values{"Body": {"1"}}, true)
-	post(url.Values{"Body": {"No"}}, true)
-	post(url.Values{"Body": {"No"}}, true)
-	_, x = post(url.Values{"Body": {"2"}}, true)
-	if !strings.Contains(x, "<Media>https://api.fs.example/api/cards/plan.png?") || !strings.Contains(x, "Sí, avisame") {
+	post(url.Values{"Body": {"2 manzanas"}}, true)
+	_, x = post(url.Values{"Body": {"1"}}, true)
+	if !strings.Contains(x, "<Media>https://api.fs.example/api/cards/plan.png?") || !strings.Contains(x, "Sí, avisame") ||
+		!strings.Contains(x, "Informe técnico") || !strings.Contains(x, "https://fs.example/informe?") {
 		t.Fatalf("plan twilio: %s", x)
 	}
 }
@@ -326,9 +328,8 @@ func TestWebChatYRouter(t *testing.T) {
 	}
 	chat(`{"session_id":"abc","lat":14.82,"lon":-89.39,"tipo":"location"}`)
 	chat(`{"session_id":"abc","boton_id":"milpa"}`)
-	chat(`{"session_id":"abc","boton_id":"no"}`)
-	chat(`{"session_id":"abc","boton_id":"no"}`)
-	out = chat(`{"session_id":"abc","boton_id":"comida","mensaje_id":"m1"}`)
+	chat(`{"session_id":"abc","boton_id":"m1"}`)
+	out = chat(`{"session_id":"abc","boton_id":"nada","mensaje_id":"m1"}`)
 	var img string
 	for _, m := range out {
 		if m.Tipo == "image" {
@@ -338,7 +339,7 @@ func TestWebChatYRouter(t *testing.T) {
 	if img == "" {
 		t.Fatalf("sin imagen: %+v", out)
 	}
-	if again := chat(`{"session_id":"abc","boton_id":"comida","mensaje_id":"m1"}`); len(again) != 0 {
+	if again := chat(`{"session_id":"abc","boton_id":"nada","mensaje_id":"m1"}`); len(again) != 0 {
 		t.Fatalf("mensaje_id repetido respondió: %+v", again)
 	}
 	// La tarjeta del simulador se sirve.
@@ -408,9 +409,8 @@ func planListoCloud(c *Cloud, g *graphFalso, tel string) func(string) {
 		`"type":"text","text":{"body":"hola"}`,
 		`"type":"text","text":{"body":"Camotán"}`,
 		`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"milpa","title":"Milpa"}}`,
+		`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"m1","title":"1 manzana"}}`,
 		`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"poco","title":"Poco"}}`,
-		`"type":"interactive","interactive":{"type":"button_reply","button_reply":{"id":"no","title":"No"}}`,
-		`"type":"interactive","interactive":{"type":"list_reply","list_reply":{"id":"comida","title":"Comida"}}`,
 	} {
 		post(m)
 	}
@@ -426,6 +426,7 @@ func TestCloudVideo(t *testing.T) {
 	c := NewCloud(CloudConfig{Token: "tok", PhoneNumberID: "PNID", AppSecret: "sec", APIBase: srv.URL}, nuevoBot(t))
 	c.Sync, c.Videos, c.PublicURL = true, vf, "https://api.fs.example"
 	post := planListoCloud(c, g, "50255550033")
+	vf.qs = nil // el plan ya mandó su video guía solo
 
 	// botón "🎬 Ver mi milpa 3D" del plan
 	post(`"type":"interactive","interactive":{"type":"button_reply","button_reply":{"id":"video","title":"Ver"}}`)
@@ -468,7 +469,7 @@ func TestTwilioYWebVideo(t *testing.T) {
 		tw.ServeHTTP(rr, req)
 		return rr.Body.String()
 	}
-	for _, b := range []string{"hola", "Jocotan", "1", "Nada", "No", "2"} {
+	for _, b := range []string{"hola", "Jocotan", "1", "No sé", "Nada"} {
 		post(b)
 	}
 	x := post("video")
@@ -482,7 +483,7 @@ func TestTwilioYWebVideo(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	var out []contract.MensajeChat
-	for _, b := range []string{`"texto":"hola"`, `"texto":"Jocotán"`, `"boton":"milpa"`, `"boton":"mucho"`, `"boton":"no"`, `"boton":"comida"`, `"boton":"video"`} {
+	for _, b := range []string{`"texto":"hola"`, `"texto":"Jocotán"`, `"boton":"milpa"`, `"boton":"m1"`, `"boton":"mucho"`, `"boton":"video"`} {
 		res, err := http.Post(srv.URL+"/api/chat", "application/json", strings.NewReader(`{"sesion":"v1",`+b+`}`))
 		if err != nil {
 			t.Fatal(err)

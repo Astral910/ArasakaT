@@ -366,6 +366,13 @@ func (s *Store) MarcarEnviada(id, canal string, envErr error) error {
 	return err
 }
 
+// EstadoEnvio de la alerta (suscriptor, tipo, día): id y si ya salió (para reintentar las que fallaron).
+func (s *Store) EstadoEnvio(susID, tipo, fecha string) (id string, enviada, ok bool) {
+	var e int
+	err := s.db.QueryRow(`SELECT id, enviada FROM alertas WHERE suscriptor_id=? AND tipo=? AND fecha_emision=?`, susID, tipo, fecha).Scan(&id, &e)
+	return id, e == 1, err == nil
+}
+
 // UltimaAlerta fecha de emisión e inicio de la última alerta de ese tipo antes de `antes` (YYYY-MM-DD).
 func (s *Store) UltimaAlerta(susID, tipo, antes string) (emision, inicio string, ok bool) {
 	err := s.db.QueryRow(`SELECT fecha_emision, COALESCE(inicio,'') FROM alertas WHERE suscriptor_id=? AND tipo=? AND fecha_emision<? ORDER BY fecha_emision DESC LIMIT 1`,

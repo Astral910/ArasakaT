@@ -105,6 +105,9 @@ func (wb *Web) mensaje(s bot.Salida) contract.MensajeChat {
 	if s.Tipo == "video" {
 		m.VideoURL = wb.PublicURL + s.VideoURL
 	}
+	if s.Tipo == "document" { // el simulador muestra el informe como texto con link
+		m.Tipo, m.Texto = "text", textoDocLink(s, wb.PublicURL)
+	}
 	return m
 }
 

@@ -62,7 +62,7 @@ func TestEngineIdempotenteYPlantillas(t *testing.T) {
 	msg := &fakeMsg{}
 	s := newTestService(t, msg, syntheticArchives("jocotan-chiquimula", "2026-07-06"))
 	defer s.Store.Close()
-	s.Engine.Now = func() time.Time { return time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC) }
+	s.Engine.Now = func() time.Time { return time.Date(2026, 7, 6, 14, 0, 0, 0, time.UTC) } // 08:00 en Guatemala (horario decente)
 	a, _ := s.Store.Suscribir(contract.Suscriptor{Telefono: "+502 5555 0001", MunicipioID: "jocotan-chiquimula", Cultivo: "milpa", FechaSiembra: "2026-05-15"})
 	_, _ = s.Store.Suscribir(contract.Suscriptor{Telefono: "+502 5555 0002", MunicipioID: "jocotan-chiquimula", Cultivo: "frijol", Idioma: "en"})
 	// el segundo escribió hace 2 horas → ventana de 24 h abierta → mensaje normal

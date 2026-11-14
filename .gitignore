@@ -17,3 +17,7 @@ sesiones.json
 var/
 submission/video/*.mp4
 data/cache/
+
+# WhatsApp vinculado: QR y código de vinculación (credenciales temporales)
+whatsapp-qr*.png
+whatsapp-qr*-codigo.txt

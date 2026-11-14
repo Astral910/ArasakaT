@@ -2,6 +2,8 @@
 
 El bot (`internal/bot`) es el mismo para los tres canales. El **simulador web** (`POST /api/chat`) funciona siempre, sin credenciales. Los canales de WhatsApp se encienden solos cuando están sus variables de entorno.
 
+> **Sin cuentas de Meta ni Twilio todavía:** usá el modo **vinculado** (`WA_MODO=vinculado`), ver [`whatsapp-vinculado.md`](whatsapp-vinculado.md). Es para demo y piloto; en producción va Meta Cloud API (abajo).
+
 ## Variables de entorno
 
 Nunca en el repo. En local van en un `.env` (ignorado por git); en Render/Fly/Railway, en el panel de secretos.

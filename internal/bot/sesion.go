@@ -16,6 +16,7 @@ const (
 	PasoUbicacion = "ubicacion"
 	PasoElegirMun = "elegir_municipio"
 	PasoCultivo   = "cultivo"
+	PasoTamano    = "tamano"
 	PasoRiego     = "riego"
 	PasoGanado    = "ganado"
 	PasoPrioridad = "prioridad"
@@ -33,6 +34,8 @@ type Sesion struct {
 	Req         contract.PlanRequest `json:"req"`
 	Municipio   string               `json:"municipio,omitempty"` // "Jocotán, Chiquimula"
 	Candidatos  []string             `json:"candidatos,omitempty"`
+	Lugares     []Lugar              `json:"lugares,omitempty"`   // candidatos del mundo (geocodificador): ids geo:<i>
+	Pais        string               `json:"pais,omitempty"`      // ISO-2 del lugar (GT dentro de Guatemala)
 	Ofrecidas   []string             `json:"ofrecidas,omitempty"` // ids de las opciones mostradas (para responder con número)
 	Plan        *contract.Plan       `json:"plan,omitempty"`
 	Estrategia  string               `json:"estrategia,omitempty"`  // la última que miró en detalle
