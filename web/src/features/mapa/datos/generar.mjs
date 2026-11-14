@@ -150,7 +150,7 @@ const alertas = []
 const ultima = {}
 for (const d of dias) {
   const emi = d.fecha
-  let n = 0, nSeco = 0, nFuerte = 0, iniSeco = 99, maxLluvia = 0
+  let n = 0, nSeco = 0, nFuerte = 0, iniSeco = 99, maxLluvia = 0, diaMax = 0
   for (const m of modelos) {
     const run = fc.runs[m][emi]
     if (!run) continue
@@ -164,7 +164,7 @@ for (const d of dias) {
     }
     const mx = Math.max(...run.pr.slice(0, 5))
     if (mx > umbralFuerte) nFuerte++
-    maxLluvia = Math.max(maxLluvia, mx)
+    if (mx > maxLluvia) { maxLluvia = mx; diaMax = run.pr.indexOf(mx) }
   }
   if (!n) continue
   const mes = +emi.slice(5, 7)
@@ -176,13 +176,13 @@ for (const d of dias) {
   }
   if (nFuerte / n >= 0.5 && !reciente('lluvia_fuerte')) {
     ultima.lluvia_fuerte = emi
-    alertas.push({ tipo: 'lluvia_fuerte', fecha_emision: emi, inicio: emi, probabilidad: Math.round((nFuerte / n) * 100) / 100, modelos: n, lluvia_mm: r1(maxLluvia) })
+    alertas.push({ tipo: 'lluvia_fuerte', fecha_emision: emi, inicio: sumar(emi, diaMax), probabilidad: Math.round((nFuerte / n) * 100) / 100, modelos: n, lluvia_mm: r1(maxLluvia) })
   }
 }
-// Cruce alertas ↔ eventos: acierto si el evento empieza entre 2 días antes y 14 después de la emisión.
+// Cruce alertas ↔ eventos: acierto si el evento empieza entre 1 día antes y 14 (canícula) o 5 (lluvia) días después.
 const enRango = (a, e) => {
   const dd = (Date.parse(e.inicio) - Date.parse(a.fecha_emision)) / DIA
-  return a.tipo === e.tipo && dd >= -2 && dd <= 14
+  return a.tipo === e.tipo && dd >= -1 && dd <= (a.tipo === 'canicula' ? 14 : 5)
 }
 for (const a of alertas) {
   const ev = eventos.find((e) => enRango(a, e))
@@ -190,7 +190,8 @@ for (const a of alertas) {
   if (ev) a.anticipacion_dias = Math.round((Date.parse(ev.inicio) - Date.parse(a.fecha_emision)) / DIA)
 }
 for (const e of eventos) {
-  const previas = alertas.filter((a) => enRango(a, e))
+  // avisado = hubo alerta el mismo día o antes del evento
+  const previas = alertas.filter((a) => enRango(a, e) && Date.parse(a.fecha_emision) <= Date.parse(e.inicio))
   e.avisado = previas.length > 0
   if (e.avisado) e.anticipacion_dias = Math.round((Date.parse(e.inicio) - Math.min(...previas.map((a) => Date.parse(a.fecha_emision)))) / DIA)
 }
