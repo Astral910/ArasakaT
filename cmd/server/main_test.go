@@ -88,16 +88,19 @@ func TestCORS(t *testing.T) {
 
 func TestAdminProtegido(t *testing.T) {
 	h, _ := newServer(testConfig(t))
-	if rec := do(h, "GET", "/api/admin/resumen", "", nil); rec.Code != 401 {
+	if rec := do(h, "POST", "/api/admin/run-alerts?date=2026-07-14", "", nil); rec.Code != 401 {
 		t.Fatalf("sin token debería dar 401, dio %d", rec.Code)
 	}
-	if rec := do(h, "GET", "/api/admin/resumen", "", map[string]string{"Authorization": "Bearer secreto"}); rec.Code != 200 {
-		t.Fatalf("con token debería dar 200, dio %d", rec.Code)
+	if rec := do(h, "POST", "/api/admin/run-alerts?date=2026-07-14", "", map[string]string{"Authorization": "Bearer secreto"}); rec.Code == 401 {
+		t.Fatalf("con token no debería dar 401")
+	}
+	if rec := do(h, "GET", "/api/admin/resumen", "", nil); rec.Code != 200 {
+		t.Fatalf("resumen público debería dar 200, dio %d", rec.Code)
 	}
 	cfg := testConfig(t)
 	cfg.AdminToken = ""
 	h, _ = newServer(cfg)
-	req := httptest.NewRequest("GET", "/api/admin/resumen", nil)
+	req := httptest.NewRequest("POST", "/api/admin/run-alerts", nil)
 	req.RemoteAddr = "203.0.113.9:5555"
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -117,6 +120,9 @@ func TestSPA(t *testing.T) {
 	}
 	if rec := do(h, "GET", "/assets/app.js", "", nil); rec.Code != 200 || !strings.Contains(rec.Header().Get("Cache-Control"), "immutable") {
 		t.Fatalf("asset %d %q", rec.Code, rec.Header().Get("Cache-Control"))
+	}
+	if rec := do(spaHandler(fstest.MapFS{"m.geojson": {Data: []byte("{}")}}), "GET", "/m.geojson", "", nil); !strings.Contains(rec.Header().Get("Content-Type"), "geo+json") {
+		t.Fatalf("geojson con tipo %q", rec.Header().Get("Content-Type"))
 	}
 	if rec := do(h, "GET", "/no-existe.png", "", nil); rec.Code != 404 {
 		t.Fatalf("archivo inexistente debería dar 404, dio %d", rec.Code)

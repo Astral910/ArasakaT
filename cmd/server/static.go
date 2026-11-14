@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"io/fs"
+	"mime"
 	"net/http"
 	"os"
 	"path"
@@ -13,6 +14,18 @@ import (
 //
 //go:embed all:webdist
 var webEmbed embed.FS
+
+// En Windows la tabla de tipos sale del registro y puede faltar o estar mal: se fijan los que usa el front.
+func init() {
+	for ext, t := range map[string]string{
+		".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+		".json": "application/json", ".geojson": "application/geo+json", ".svg": "image/svg+xml", ".webp": "image/webp",
+		".woff2": "font/woff2", ".woff": "font/woff", ".wasm": "application/wasm", ".webmanifest": "application/manifest+json",
+		".pbf": "application/x-protobuf", ".png": "image/png", ".jpg": "image/jpeg", ".ico": "image/x-icon",
+	} {
+		mime.AddExtensionType(ext, t)
+	}
+}
 
 // frontFS devuelve el front: WEB_DIR en disco si existe; si no, el embebido.
 func frontFS(cfg Config) fs.FS {

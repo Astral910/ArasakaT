@@ -64,6 +64,8 @@ func newServer(cfg Config) (http.Handler, *app) {
 			"componentes": a.comp,
 		})
 	})
+	// El resumen del panel del extensionista es público (solo conteos, sin teléfonos); lo demás de admin no.
+	root.Handle("GET /api/admin/resumen", api)
 	root.Handle("/api/admin/", adminOnly(cfg.AdminToken, api))
 	root.Handle("/api/", api)
 	root.Handle("/webhook/", api)
