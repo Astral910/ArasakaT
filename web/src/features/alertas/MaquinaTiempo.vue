@@ -117,7 +117,7 @@ const etiquetaMes = (f: string) => mesCorto(+f.slice(5, 7) - 1)
         <!-- canícula real -->
         <g v-for="(e, k) in canic" :key="'c' + k">
           <rect :x="x(e.inicio)" :y="Y0 - ALTO - 12" :width="(pw / m.dias.length) * e.dias" :height="ALTO + 12" fill="url(#rayado)" rx="6" />
-          <text :x="x(e.inicio) + (pw / m.dias.length) * e.dias / 2" :y="Y0 - ALTO - 18 - (k % 2) * 16" class="t-canic" text-anchor="middle">{{ t('caniculaReal', { d: e.dias }) }}</text>
+          <text :x="x(e.inicio) + (pw / m.dias.length) * e.dias / 2" :y="Y0 - ALTO + 22 + (k % 2) * 18" class="t-canic" text-anchor="middle">{{ t('caniculaReal', { d: e.dias }) }}</text>
         </g>
 
         <!-- guías -->
@@ -198,7 +198,7 @@ const etiquetaMes = (f: string) => mesCorto(+f.slice(5, 7) - 1)
 .guias text { font-size: 11px; fill: var(--ink-3, #7d6a58); font-variant-numeric: tabular-nums; }
 .eje { stroke: var(--line-2, rgba(42, 33, 24, 0.25)); }
 .t-mes { font-size: 13px; font-weight: 600; fill: var(--ink-2, #57473a); }
-.t-canic { font-size: 12.5px; font-weight: 700; fill: var(--granada, #b5343c); }
+.t-canic { font-size: 12.5px; font-weight: 700; fill: var(--granada, #b5343c); paint-order: stroke; stroke: var(--surface, #fffaf2); stroke-width: 4px; }
 .barra { transition: opacity 260ms ease; }
 .tallo { stroke: var(--ink-3, #7d6a58); stroke-dasharray: 2 3; stroke-opacity: 0.6; }
 .burbuja { cursor: pointer; opacity: 0; transform: translateY(-26px); transition: opacity 380ms var(--ease, ease), transform 520ms cubic-bezier(0.34, 1.56, 0.64, 1); outline: none; }
