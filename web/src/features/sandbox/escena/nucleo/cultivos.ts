@@ -5,6 +5,7 @@ import { geoDe } from './plantas'
 import { GLSL_NUBES, GLSL_RUIDO, type UniformsGlobales } from './glsl'
 import type { Parcela } from './maqueta'
 import { distParcela } from './ubicacion'
+import { crearUniformsFiltro, type UniformsFiltro } from './filtros/index'
 
 /** Escala ilustrativa: las plantas se dibujan algo más grandes para que se lean en la maqueta. */
 export const ESCALA_PLANTA = 1.5
@@ -36,12 +37,18 @@ function uniformsCapa() {
     uWidth: { value: 1 },
     uCoverL: { value: 1 },
     uEsMaiz: { value: 0 },
+    /** Ronda 5: la dobla del maíz (0..1), corte de cosecha (−1 nada; 0..1 avance del frente) y su eje. */
+    uDobla: { value: 0 },
+    uCorte: { value: -1 },
+    uCorteEje: { value: new THREE.Vector4(0, 0, 1, 0) },
+    uCorteLen: { value: 1 },
   }
 }
 
 const VERT_DECL = /* glsl */ `
 attribute vec3 aAnc; attribute vec3 aInfo; attribute vec4 aRnd;
 uniform float uStage, uHealth, uAltura, uH0, uWidth, uCoverL;
+uniform float uEsMaiz, uDobla, uCorte, uCorteLen; uniform vec4 uCorteEje;
 uniform float uTime, uWind, uGust; uniform vec2 uWindDir;
 varying float vPart; varying float vSalud; varying float vSen; varying float vHoja; varying vec3 vMundo; varying float vAlt;
 `
@@ -70,12 +77,32 @@ vec3 transformed = vec3(position);
     p.xz *= 1.0 - wilt*0.12;
   }
   if (part > 2.5 && part < 3.5) p.y -= sen*0.05;
+  // la dobla: el tallo se quiebra debajo de la mazorca y la punta (con la mazorca) cuelga hacia abajo
+  if (uDobla > 0.001 && uEsMaiz > 0.5) {
+    float yP = uH0*0.4;
+    if (p.y > yP) {
+      float a = uDobla*(1.75 + aRnd.w*0.5);
+      float ca = cos(a), sa = sin(a);
+      vec2 v = vec2(p.x, p.y - yP);
+      p.x = v.x*ca + v.y*sa; p.y = yP - v.x*sa + v.y*ca;
+      p.y = max(p.y, 0.12);
+    }
+  }
+  // cosecha: detrás del frente de corte queda solo el rastrojo (tallo corto, seco)
+  float cortado = 0.0;
+  if (uCorte > -0.5) {
+    vec2 ip = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
+    float sC = dot(ip - uCorteEje.xy, uCorteEje.zw) / max(uCorteLen, 0.01) + (aRnd.x - 0.5)*0.03;
+    cortado = step(sC, uCorte);
+    if (cortado > 0.5 && part > 0.5) p = vec3(0.0);
+  }
   float sy = max(uAltura / uH0, 0.015) * (0.9 + aRnd.y*0.2);
   float sxz = mix(0.25, 1.0, grow) * uWidth * mix(0.9, 1.15, aRnd.y);
   p.y *= sy; p.xz *= sxz;
   p.y = max(p.y, 0.005);
+  if (cortado > 0.5) p.y = min(p.y, 0.24 + aRnd.z*0.1);
   transformed = p;
-  vPart = part; vSalud = hp; vSen = sen; vHoja = sL; vAlt = p.y;
+  vPart = part; vSalud = hp; vSen = max(max(sen, cortado), uDobla*uEsMaiz*0.85); vHoja = sL; vAlt = p.y;
 }
 `
 const VERT_PROJECT = /* glsl */ `
@@ -106,15 +133,18 @@ function parcharVertex(sh: { vertexShader: string }) {
       `)
 }
 
-function materialCapa(U: UniformsGlobales, uc: ReturnType<typeof uniformsCapa>) {
+const UF_VACIO = crearUniformsFiltro()
+
+function materialCapa(U: UniformsGlobales, uc: ReturnType<typeof uniformsCapa>, uf: UniformsFiltro) {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72, metalness: 0, side: THREE.DoubleSide })
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, U, uc)
+    Object.assign(sh.uniforms, U, uc, uf)
     parcharVertex(sh)
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         varying float vPart; varying float vSalud; varying float vSen; varying float vHoja; varying vec3 vMundo; varying float vAlt;
         uniform float uFrost, uTime, uHeat, uEsMaiz;
+        uniform sampler2D uFiltroA, uFiltroB; uniform float uFiltroMix, uFiltroOp, uFiltroL;
         ${GLSL_RUIDO}
         ${GLSL_NUBES}
         vec3 lin(vec3 c){ return pow(c, vec3(2.2)); }`)
@@ -135,6 +165,14 @@ function materialCapa(U: UniformsGlobales, uc: ReturnType<typeof uniformsCapa>) 
         c *= 0.55 + 0.45*smoothstep(0.0, 0.6, vAlt);
         // escarcha en las hojas
         c = mix(c, vec3(0.88,0.93,1.0), uFrost*0.42*smoothstep(0.35, 0.8, vnoise(vMundo.xz*3.0 + vAlt*4.0))*smoothstep(0.2, 1.0, vHoja + vAlt));
+        // filtro activo (ronda 5): la planta toma el color del mapa en su lugar
+        if (uFiltroOp > 0.001) {
+          vec2 fu = vec2(vMundo.x/uFiltroL + 0.5, 0.5 - vMundo.z/uFiltroL);
+          vec4 fa = texture2D(uFiltroA, fu), fb = texture2D(uFiltroB, fu);
+          float fal = mix(fa.a, fb.a, uFiltroMix);
+          vec3 fc = (fa.rgb*fa.a*(1.0 - uFiltroMix) + fb.rgb*fb.a*uFiltroMix) / max(fal, 1e-3);
+          c = mix(c, fc*(0.75 + 0.25*smoothstep(0.0, 0.8, vAlt)), fal*uFiltroOp*0.85);
+        }
         diffuseColor.rgb = c;
       }`)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
@@ -142,7 +180,7 @@ function materialCapa(U: UniformsGlobales, uc: ReturnType<typeof uniformsCapa>) 
           // translucidez: luz que atraviesa la hoja
           reflectedLight.indirectDiffuse += diffuseColor.rgb * 0.18 * sn * step(vPart, 1.5) * vSalud; }`)
   }
-  m.customProgramCacheKey = () => 'cultivo-v1'
+  m.customProgramCacheKey = () => 'cultivo-v2'
   return m
 }
 
@@ -152,7 +190,7 @@ function materialSombra(U: UniformsGlobales, uc: ReturnType<typeof uniformsCapa>
     Object.assign(sh.uniforms, U, uc)
     parcharVertex(sh)
   }
-  m.customProgramCacheKey = () => 'cultivo-sombra-v1'
+  m.customProgramCacheKey = () => 'cultivo-sombra-v2'
   return m
 }
 
@@ -163,6 +201,8 @@ export interface OpcionesCultivos {
   sombras: boolean
   /** false = ahí no se siembra (agua, calle, edificio). */
   libre?: (x: number, z: number) => boolean
+  /** Uniforms del filtro activo (ronda 5): las plantas se tiñen con el mapa. */
+  filtro?: UniformsFiltro
 }
 
 export function crearCapa(cultivo: string, U: UniformsGlobales, o: OpcionesCultivos, semilla: number): Capa3D {
@@ -215,7 +255,7 @@ export function crearCapa(cultivo: string, U: UniformsGlobales, o: OpcionesCulti
   const u = uniformsCapa()
   u.uH0.value = gp.H0
   u.uEsMaiz.value = cultivo === 'maiz' ? 1 : 0
-  mesh.material = materialCapa(U, u)
+  mesh.material = materialCapa(U, u, o.filtro ?? UF_VACIO)
   mesh.customDepthMaterial = materialSombra(U, u)
   mesh.castShadow = o.sombras
   mesh.receiveShadow = true

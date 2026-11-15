@@ -26,8 +26,12 @@ import {
   aplicarReglas, calidadInicial, cargarModulo, esMovil, importarModulo, rejillaDe, relieveConCache, TEXTO_ETAPA, TRAMOS,
   type CtxEscena, type EtapaCarga, type ModCiudad, type ModSuelo,
 } from './modulos'
+import { crearUniformsFiltro, Filtros, type Filtro } from './filtros/index'
+import type { DiaFiltro } from './filtros/capas'
+import { armarMarcadores, detectarTemporadas, indiceDe, Siembra3D, type Marcador, type Temporada } from './siembra'
 
 type Calidad = Exclude<Quality, 'auto'>
+const FECHA = /^\d{4}-\d{2}-\d{2}/
 const CFG: Record<Calidad, { pr: number; msaa: number; sombra: number; tope: number; lluvia: number; tilt: boolean; N: number; sat: number; polvo: number; grano: number }> = {
   alta: { pr: 2, msaa: 4, sombra: 4096, tope: 6500, lluvia: 22000, tilt: true, N: 224, sat: 2048, polvo: 2500, grano: 0.03 },
   media: { pr: 1.25, msaa: 2, sombra: 2048, tope: 1900, lluvia: 9000, tilt: true, N: 160, sat: 1536, polvo: 1200, grano: 0.03 },
@@ -121,6 +125,16 @@ class SandboxImpl implements Sandbox {
   private plantasTotal = 0
   private rumbo = 0
   private tmpV2 = new THREE.Vector2()
+  // ronda 5: filtros, siembra/cosecha y rango
+  private UF = crearUniformsFiltro()
+  private filtros: Filtros | null = null
+  private filtroPedido: { capa: Filtro | null; opacidad?: number } = { capa: null }
+  private siembra3d: Siembra3D | null = null
+  private siembraElegida: string | null = null
+  private temporadas: Temporada[] = []
+  private marcadores: Marcador[] = []
+  private lluviaAcum: Float64Array | null = null
+  private rango = { desde: null as string | null, hasta: null as string | null, i0: 0, i1: Infinity }
 
   constructor(canvas: HTMLCanvasElement, opts: SandboxOptions) {
     this.canvas = canvas
@@ -339,6 +353,7 @@ class SandboxImpl implements Sandbox {
     mq.actualizarSatelite(datos.satelite)
     this.construirEfectos()
     this.construirCultivos()
+    this.construirSiembraYFiltros(superficie as THREE.Mesh | undefined, datos.alturas, rec.phi, ab.signal)
     cierra('vegetacion')
     this.irA(this.preset, 0)
     this.actualizarCamara(0)
@@ -393,11 +408,133 @@ class SandboxImpl implements Sandbox {
     const capasAhora = (tl.capas ?? []).map((c) => c.cultivo).join(',')
     if (this.maqueta && capasAntes !== capasAhora) this.construirCultivos()
     this.x = Math.min(this.x, Math.max(0, this.pre.dias - 1))
+    // lluvia acumulada (para el factor R de la erosión) y temporadas de siembra/cosecha
+    const ac = new Float64Array(tl.dias + 1)
+    for (let i = 0; i < tl.dias; i++) ac[i + 1] = ac[i] + (tl.lluvia_mm?.[i] ?? 0)
+    this.lluviaAcum = ac
+    this.temporadas = detectarTemporadas(tl)
+    this.calcularRango()
+    this.actualizarMarcadores(true)
+    this.diaFiltro(Math.floor(this.x))
+  }
+
+  async setFiltro(capa: Filtro | null, opts: { opacidad?: number } = {}) {
+    this.filtroPedido = { capa, opacidad: opts.opacidad }
+    if (this.filtros) await this.filtros.set(capa, opts.opacidad)
+  }
+
+  setSiembra(fecha: string | null) {
+    this.siembraElegida = fecha && FECHA.test(fecha) ? fecha.slice(0, 10) : null
+    this.actualizarMarcadores(true)
+  }
+
+  setRango(desde: string | null, hasta: string | null) {
+    this.rango.desde = desde && FECHA.test(desde) ? desde.slice(0, 10) : null
+    this.rango.hasta = hasta && FECHA.test(hasta) ? hasta.slice(0, 10) : null
+    this.calcularRango()
+    if (this.x < this.rango.i0 || this.x > this.rango.i1) {
+      this.x = Math.min(this.rango.i1, Math.max(this.rango.i0, this.x))
+      this.xPrevEvento = this.x
+      this.revisarEventos()
+    }
+  }
+
+  private calcularRango() {
+    const n = this.pre?.dias ?? this.tl?.dias ?? 1
+    let i0 = indiceDe(this.tl, this.rango.desde) ?? 0, i1 = indiceDe(this.tl, this.rango.hasta) ?? n - 1
+    i0 = Math.max(0, Math.min(n - 1, i0)); i1 = Math.max(i0, Math.min(n - 1, i1))
+    const cambio = i0 !== this.rango.i0 || i1 !== this.rango.i1
+    this.rango.i0 = i0; this.rango.i1 = i1
+    if (cambio) this.emitir('rango', { desde: this.rango.desde, hasta: this.rango.hasta, i0, i1 })
+  }
+
+  private actualizarMarcadores(forzar: boolean) {
+    const idioma = this.opts.idioma ?? 'es'
+    const ms = armarMarcadores(this.tl, this.siembraElegida, this.x, idioma)
+    const clave = (m: Marcador[]) => m.map((k) => k.tipo + k.indice).join()
+    const cambio = clave(ms) !== clave(this.marcadores)
+    if (!forzar && !cambio) return
+    this.marcadores = ms
+    if (this.siembra3d) {
+      // "si sembrás el X, cosechás el Y": la cosecha va de subtítulo en el marcador de siembra
+      const c = ms.find((m) => m.tipo === 'cosecha'), r = ms.find((m) => m.tipo === 'recomendada')
+      const es = idioma === 'es'
+      const sub: Partial<Record<Marcador['tipo'], string>> = {}
+      const dia = (m: Marcador) => m.texto.split('· ')[1] ?? m.fecha
+      if (c) sub.siembra = es ? `cosechás el ${dia(c)}` : `harvest on ${dia(c)}`
+      const sm = this.tl?.siembra
+      if (r && sm?.cosecha_recomendada) {
+        const cr = armarMarcadores({ ...this.tl!, siembra: { ...sm, elegida: sm.recomendada, cosecha_elegida: sm.cosecha_recomendada } }, sm.recomendada, this.x, idioma).find((m) => m.tipo === 'cosecha')
+        if (cr) sub.recomendada = es ? `cosecharías el ${dia(cr)}` : `harvest on ${dia(cr)}`
+      }
+      this.siembra3d.setMarcadores(ms, sub)
+    }
+    const s = ms.find((m) => m.tipo === 'siembra'), c = ms.find((m) => m.tipo === 'cosecha'), r = ms.find((m) => m.tipo === 'recomendada')
+    this.emitir('siembra', {
+      elegida: s?.fecha ?? null, cosecha: c?.fecha ?? null, recomendada: r?.fecha ?? this.tl?.siembra?.recomendada ?? null,
+      iSiembra: s?.indice ?? null, iCosecha: c?.indice ?? null, marcadores: ms,
+    })
+  }
+
+  /** Temporadas para las animaciones: las del timeline y, si ninguna coincide con la elegida, también esa. */
+  private temporadasAnim(): Temporada[] {
+    const s = this.marcadores.find((m) => m.tipo === 'siembra'), c = this.marcadores.find((m) => m.tipo === 'cosecha')
+    if (s && c && !this.temporadas.some((t) => Math.abs(t.iS - s.indice) <= 5)) {
+      return [...this.temporadas, { iS: s.indice, iC: c.indice, cultivo: 'maiz' }].sort((a, b) => a.iS - b.iS)
+    }
+    return this.temporadas
+  }
+
+  private construirSiembraYFiltros(superficie: THREE.Mesh | undefined, alturas: Float32Array, phi: number, signal: AbortSignal) {
+    const mq = this.maqueta, ctx = this.ctx
+    if (!mq || !ctx) return
+    this.siembra3d = new Siembra3D({ parcela: this.parcela, alturaEn: mq.alturaEn, calidad: this.calidad, idioma: this.opts.idioma ?? 'es' })
+    this.mundo.add(this.siembra3d.grupo)
+    this.actualizarMarcadores(true)
+    if (!superficie) return
+    const oc = ctx.ocupacion, suelo = this.suelo
+    this.filtros = new Filtros({
+      L: mq.L, N: mq.N, alturas, superficie, UF: this.UF, idioma: this.opts.idioma ?? 'es',
+      dentro: this.parcela.dentro, cobertura: suelo?.cobertura?.bind(suelo), esAgua: suelo?.esAgua?.bind(suelo),
+      ocupa: oc ? (x, z) => oc.tipoEn(x, z) : undefined,
+      aGeo: ctx.aGeo, lat: ctx.lat, lon: ctx.lon, norte: [Math.sin(phi), -Math.cos(phi)], signal,
+      emitir: (l) => this.emitir('filtro', l),
+    })
+    this.diaFiltro(Math.floor(this.x))
+    if (this.filtroPedido.capa) this.filtros.set(this.filtroPedido.capa, this.filtroPedido.opacidad)
+  }
+
+  /** Datos del motor del día d para los filtros. */
+  private diaFiltro(d: number) {
+    const tl = this.tl, f = this.filtros, ctx = this.ctx
+    if (!f || !tl || !tl.dias) return
+    d = Math.max(0, Math.min(tl.dias - 1, d))
+    let salud: number | null = null, cob = 0
+    for (const c of tl.capas ?? []) {
+      if ((c.etapa[d] ?? -1) < 0) continue
+      cob = Math.max(cob, c.cobertura[d] ?? 0)
+      if (salud == null || c.cultivo === 'maiz') salud = c.salud[d] ?? 1
+    }
+    const ac = this.lluviaAcum
+    let lluviaAnual = 1100
+    if (ac) {
+      const a = Math.max(0, d - 182), b = Math.min(tl.dias, d + 183)
+      if (b - a > 30) lluviaAnual = ((ac[b] - ac[a]) * 365) / (b - a)
+    }
+    const fecha = this.fecha(d)
+    const doy = Math.floor((Date.parse(fecha + 'T00:00:00Z') - Date.UTC(Number(fecha.slice(0, 4)), 0, 1)) / 86400000) + 1
+    const an = tl.anual?.length ? tl.anual[Math.min(tl.anual.length - 1, Math.floor(d / 365))] : undefined
+    const dia: DiaFiltro = {
+      tmax: tl.tmax_c?.[d] ?? 29, agua: tl.agua_suelo?.[d] ?? 0.5, nubes: tl.nubes?.[d] ?? 0.3, lluviaAnual, salud, cobertura: cob,
+      residuo: tl.residuo?.[d] ?? 0, doy, lat: ctx?.lat ?? 15, norte: ctx ? [Math.sin(ctx.phi), -Math.cos(ctx.phi)] : [0, -1],
+      estrategia: this.plantilla?.estrategia, erosionMotor: an?.erosion_t_ha,
+    }
+    f.setDia(dia, fecha)
   }
 
   setDay(indice: number, frac = 0) {
     const n = this.pre?.dias ?? 1
-    const x = Math.min(n - 1, Math.max(0, indice + Math.min(1, Math.max(0, frac))))
+    const x = Math.min(n - 1, this.rango.i1, Math.max(0, this.rango.i0, indice + Math.min(1, Math.max(0, frac))))
     const ahora = performance.now() / 1000
     const dt = ahora - this.tUltimoSetDay
     if (dt > 0.0005 && dt < 1) {
@@ -452,6 +589,8 @@ class SandboxImpl implements Sandbox {
     return {
       dia: Math.floor(this.x), frac: this.x - Math.floor(this.x), fecha: this.fecha(Math.floor(this.x)), camara: this.preset,
       calidad: this.calidad, clima: c, plantas: this.plantasTotal, listo: this.listo, rumboCamara: this.rumbo, bioma: this.bioma,
+      filtro: this.filtros?.activo ?? this.filtroPedido.capa, siembra: { elegida: this.siembraElegida, marcadores: [...this.marcadores] },
+      rango: { desde: this.rango.desde, hasta: this.rango.hasta, i0: this.rango.i0, i1: Number.isFinite(this.rango.i1) ? this.rango.i1 : Math.max(0, (this.pre?.dias ?? 1) - 1) },
     }
   }
 
@@ -476,6 +615,8 @@ class SandboxImpl implements Sandbox {
 
   // ------------------------------------------------------------ construcción
   private limpiarMundo() {
+    this.filtros?.dispose(); this.filtros = null
+    this.siembra3d?.dispose(); this.siembra3d = null
     for (const { c3 } of this.capas) { this.mundo.remove(c3.mesh); liberarCapa(c3) }
     this.capas = []
     for (const c3 of this.vecinas) { this.mundo.remove(c3.mesh); liberarCapa(c3) }
@@ -541,7 +682,10 @@ class SandboxImpl implements Sandbox {
       const tope = cultivo === 'maiz' || cultivo === 'sorgo' ? cfg.tope : Math.round(cfg.tope * 0.8)
       const oc = this.ctx?.ocupacion
       const libre = oc ? (x: number, z: number) => oc.libre(x, z, 0, ['parcela', 'arbol', 'casa']) : undefined
-      const c3 = crearCapa(cultivo, this.U, { parcela: this.parcela, alturaEn: this.maqueta!.alturaEn, tope, sombras: this.calidad !== 'baja', libre }, idx * 31 + rep * 7 + 1)
+      const c3 = crearCapa(cultivo, this.U, { parcela: this.parcela, alturaEn: this.maqueta!.alturaEn, tope, sombras: this.calidad !== 'baja', libre, filtro: this.UF }, idx * 31 + rep * 7 + 1)
+      // frente de corte de la cosecha: de oeste a este de la parcela
+      c3.u.uCorteEje.value.set(this.parcela.cx - this.parcela.hx, this.parcela.cz, 1, 0)
+      c3.u.uCorteLen.value = this.parcela.hx * 2
       this.capas.push({ c3, idx })
       this.mundo.add(c3.mesh)
       this.plantasTotal += c3.n
@@ -552,7 +696,7 @@ class SandboxImpl implements Sandbox {
     for (const [k, v] of (this.props?.rancho.vecinas ?? []).entries()) {
       const oc = this.ctx?.ocupacion
       const libre = oc ? (x: number, z: number) => oc.libre(x, z, 0.5, ['arbol', 'casa']) : undefined
-      const c3 = crearCapa('maiz', this.U, { parcela: v, alturaEn: this.maqueta.alturaEn, tope: this.calidad === 'baja' ? 160 : 420, sombras: false, libre }, 900 + k * 13)
+      const c3 = crearCapa('maiz', this.U, { parcela: v, alturaEn: this.maqueta.alturaEn, tope: this.calidad === 'baja' ? 160 : 420, sombras: false, libre, filtro: this.UF }, 900 + k * 13)
       this.vecinas.push(c3)
       this.mundo.add(c3.mesh)
     }
@@ -709,11 +853,15 @@ class SandboxImpl implements Sandbox {
     if (d !== this.diaEntero) {
       this.diaEntero = d
       this.emitir('dia', { indice: d, fecha: this.fecha(d), clima: { ...this.clima } })
+      this.diaFiltro(d)
+      // sin fecha elegida, los marcadores siguen a la temporada en curso
+      if (!this.siembraElegida && !this.tl?.siembra) this.actualizarMarcadores(false)
     }
     const a = this.xPrevEvento, b = this.x
     if (b > a && b - a <= 4 && this.tl?.eventos) {
       for (const e of this.tl.eventos) if (e.dia > a && e.dia <= b) this.emitir('evento', e)
     }
+    if (b > a && b - a <= 30) for (const m of this.marcadores) if (m.indice > a && m.indice <= b) this.emitir('marcador', m)
     this.xPrevEvento = b
   }
 
@@ -753,8 +901,11 @@ class SandboxImpl implements Sandbox {
     US.uTopA.value = Math.min(7, Math.max(1.2, 1.2 + (US.uMO.value - 1) * 1.5))
   }
 
-  private actualizarPlantas() {
+  private actualizarPlantas(dtE = 0) {
     let cover = 0
+    // siembra y cosecha en 3D: relojes de animación, dobla y corte del maíz
+    const guiaMaiz = this.capas.find((c) => c.c3.cultivo === 'maiz')
+    const cos = this.siembra3d?.actualizar(this.x, dtE, this.temporadasAnim(), guiaMaiz ? guiaMaiz.c3.u.uAltura.value : 0) ?? null
     for (const { c3, idx } of this.capas) {
       const capa = this.tl?.capas?.[idx]
       if (!capa) {
@@ -768,7 +919,15 @@ class SandboxImpl implements Sandbox {
         continue
       }
       const i = Math.floor(this.x), f = this.x - i
-      const e = estadoCapa(capa, i, f)
+      let e = estadoCapa(capa, i, f)
+      const esMaiz = c3.cultivo === 'maiz' || c3.cultivo === 'sorgo'
+      c3.u.uDobla.value = cos && c3.cultivo === 'maiz' ? cos.dobla : 0
+      c3.u.uCorte.value = esMaiz && cos ? cos.corte : -1
+      // después de cosechar queda el rastrojo unas semanas (el corte lo hace el shader)
+      if (esMaiz && cos?.mantener && cos.temporada && e.etapa < 0.97) {
+        const u = estadoCapa(capa, Math.max(0, cos.temporada.iC - 1), 0)
+        if (u.etapa >= 0) e = { ...u, etapa: Math.max(u.etapa, 0.99) }
+      }
       c3.mesh.visible = e.etapa >= 0 && e.altura > 0.005
       c3.u.uStage.value = e.etapa
       // salud del motor; si se fuerza un clima seco (demo), se ve el estrés
@@ -919,7 +1078,8 @@ class SandboxImpl implements Sandbox {
       // decaimiento de la velocidad estimada si no llegan setDay
       if (performance.now() / 1000 - this.tUltimoSetDay > 0.4) this.velDias *= Math.max(0, 1 - dt * 2)
       this.actualizarClima(dt)
-      this.actualizarPlantas()
+      this.actualizarPlantas(dtE)
+      this.filtros?.actualizar(dt)
       for (const m of [this.suelo, this.ciudad]) if (m?.actualizar) { try { m.actualizar(dtE, this.camara) } catch (e) { console.warn(e); m.actualizar = undefined } }
     }
     this.actualizarCamara(dt)
