@@ -20,6 +20,7 @@ import (
 	"fieldshift/internal/channels"
 	"fieldshift/internal/channels/evolution"
 	"fieldshift/internal/channels/whatsmeow"
+	"fieldshift/internal/chat"
 	"fieldshift/internal/contract"
 	"fieldshift/internal/geo"
 	"fieldshift/internal/informe"
@@ -39,6 +40,7 @@ type Componentes struct {
 	Alertas  string `json:"alertas"`
 	WhatsApp string `json:"whatsapp"`
 	Twilio   string `json:"twilio"`
+	Chat     string `json:"chat"` // claude:<modelo> | respaldo (internal/chat)
 }
 
 type app struct {
@@ -55,8 +57,9 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 
 	// MOTOR (internal/plan)
 	var muni *geo.Index
+	var simulador chat.Simulador // para el asistente (riego estimado, simular)
 	if eng, err := plan.Routes(mux, cfg.DataDir, cfg.StaticDir); err == nil {
-		a.planner, muni = eng, eng.Muni
+		a.planner, muni, simulador = eng, eng.Muni, eng
 		a.comp.Motor = "real"
 	} else {
 		log.Printf("motor: %v → uso el fixture", err)
@@ -133,6 +136,10 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		d.WebURL = cfg.PublicURL
 	}
 	svc := channels.Routes(mux, d)
+	// CHAT: POST /api/chat/asistente + el texto libre del bot (WhatsApp y simulador) va al asistente.
+	chatSvc, chatEstado := montarChat(mux, cfg, a.planner, simulador)
+	svc.Bot.Asistente = chat.ParaBot{S: chatSvc, WebURL: d.WebURL}
+	a.comp.Chat = chatEstado
 	a.mensajero = svc.Mensajero
 	diferido.set(svc.Mensajero)
 	a.comp.Bot = "real"
