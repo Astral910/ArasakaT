@@ -1,7 +1,7 @@
 // Field Shift · prototipo de estación de humedad del suelo
 // ESP32 (clásico, C3 o S3) + sonda de humedad de dos patitas (HW-080) SIN plaquita.
-// Divisor: patita A → PIN_POWER, patita B → PIN_SENSOR; el pull-down interno del ESP32 (≈45 kΩ)
-// hace de resistencia a GND. Si tenés una resistencia de 10 kΩ, ponela entre PIN_SENSOR y GND (mejor).
+// Conexión probada (S3): patita A → 3V3, patita B → PIN_SENSOR (GPIO1). También sirve patita A → PIN_POWER.
+// Opcional y más estable: resistencia de 100 kΩ–1 MΩ entre PIN_SENSOR y GND.
 // Manda por USB (Serial 115200) una línea JSON cada 2 s, que lee la página "Sensor en vivo".
 // Comandos por el mismo puerto: "seco" y "mojado" calibran; "reset" vuelve a valores de fábrica.
 #include <Arduino.h>
@@ -22,13 +22,15 @@ const int PIN_POWER = 25;   // patita A → GPIO25
 
 const unsigned long CADA_MS = 2000;
 Preferences prefs;
-int crudoSeco = 40;     // lectura en el aire (seco: casi 0 V)
-int crudoMojado = 2600; // lectura con la punta en un vaso de agua
+int crudoSeco = 20;     // lectura en el aire (seco: casi 0 V)
+int crudoMojado = 600;  // lectura con la punta en un vaso de agua
 
 int leerCrudo() {
   digitalWrite(PIN_POWER, HIGH);  // encender el sensor solo al medir: se oxida mucho menos
   analogRead(PIN_SENSOR);                      // deja el pin en modo ADC
-  gpio_pulldown_en((gpio_num_t)PIN_SENSOR);    // resistencia interna a GND (divisor)
+  // Sin pull-down: con agua de la llave la sonda tiene cientos de kΩ y la resistencia interna
+  // (~45 kΩ) aplastaba la señal a 0. Probado en la S3 del dueño: seco ≈ 0–100, agua ≈ 600.
+  gpio_pulldown_dis((gpio_num_t)PIN_SENSOR);
   delay(60);
   long suma = 0;
   for (int i = 0; i < 24; i++) {
@@ -64,7 +66,7 @@ void loop() {
     c.trim();
     if (c == "seco") { crudoSeco = crudo; prefs.putInt("seco", crudo); }
     else if (c == "mojado") { crudoMojado = crudo; prefs.putInt("mojado", crudo); }
-    else if (c == "reset") { crudoSeco = 40; crudoMojado = 2600; prefs.clear(); }
+    else if (c == "reset") { crudoSeco = 20; crudoMojado = 600; prefs.clear(); }
   }
   delay(CADA_MS);
 }
