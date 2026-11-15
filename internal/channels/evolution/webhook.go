@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -32,9 +34,33 @@ type mensajeEvo struct {
 		FromMe       bool   `json:"fromMe"`
 		ID           string `json:"id"`
 	} `json:"key"`
-	PushName    string   `json:"pushName"`
-	MessageType string   `json:"messageType"`
-	Message     msgCampo `json:"message"`
+	PushName    string          `json:"pushName"`
+	MessageType string          `json:"messageType"`
+	Message     msgCampo        `json:"message"`
+	Timestamp   json.RawMessage `json:"messageTimestamp"` // segundos Unix (número o texto, según la versión)
+}
+
+// Viejo: un mensaje con hora más antigua que esto es un reenvío (Baileys repite los recientes al reconectar y
+// tras reiniciar el server el dedup en memoria ya no lo recuerda): no se contesta otra vez.
+var Viejo = 10 * time.Minute
+
+// hora del mensaje según WhatsApp; cero si no vino.
+func (m mensajeEvo) hora() time.Time {
+	s := strings.Trim(string(m.Timestamp), `"`)
+	var n int64
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return time.Time{}
+		}
+		n = n*10 + int64(r-'0')
+	}
+	if n <= 0 {
+		return time.Time{}
+	}
+	if n > 1e12 { // milisegundos
+		n /= 1000
+	}
+	return time.Unix(n, 0)
 }
 
 type msgCampo struct {
@@ -151,6 +177,9 @@ func (c *Cliente) Handler() http.Handler {
 			http.Error(w, "cuerpo ilegible", http.StatusBadRequest)
 			return
 		}
+		if d := os.Getenv("EVOLUTION_DEBUG_DIR"); d != "" { // diagnóstico local: guarda el último evento crudo
+			_ = os.WriteFile(filepath.Join(d, "ultimo-webhook.json"), b, 0o600)
+		}
 		var ev evento
 		if err := json.Unmarshal(b, &ev); err != nil {
 			http.Error(w, "JSON inválido", http.StatusBadRequest)
@@ -211,10 +240,16 @@ func (c *Cliente) Procesar(evento string, data json.RawMessage) {
 func (c *Cliente) mensaje(m mensajeEvo) {
 	j := m.Key.RemoteJid
 	if m.Key.FromMe || strings.HasSuffix(j, "@g.us") || strings.HasSuffix(j, "@broadcast") || strings.HasSuffix(j, "@newsletter") {
+		log.Printf("evolution: ignorado (propio=%v, tipo de chat=%s)", m.Key.FromMe, sufijoJID(j))
+		return
+	}
+	if h := m.hora(); !h.IsZero() && time.Since(h) > Viejo {
+		log.Printf("evolution: ignorado, mensaje de hace %s (reenvío tras reconexión)", time.Since(h).Round(time.Minute))
 		return
 	}
 	e, ok := entradaDe(m.Message)
 	if !ok {
+		log.Printf("evolution: ignorado, tipo de mensaje no soportado (chat=%s)", sufijoJID(j))
 		return
 	}
 	e.Tel = telefonoDe(m)
@@ -252,4 +287,12 @@ func (c *Cliente) audio(m mensajeEvo) []byte {
 	}
 	b, _ := base64.StdEncoding.DecodeString(r.Base64)
 	return b
+}
+
+// sufijoJID: solo el tipo de dirección (@s.whatsapp.net, @lid, @g.us…), sin el número, para los logs.
+func sufijoJID(j string) string {
+	if i := strings.LastIndex(j, "@"); i >= 0 {
+		return j[i:]
+	}
+	return "?"
 }

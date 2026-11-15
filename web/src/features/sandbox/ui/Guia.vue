@@ -35,6 +35,8 @@ const avTxt = computed(() => {
   if (a.fase === 'cosechado') return t('avListo')
   return t('avCrece', { p: a.pct }) + ' · ' + (a.faltan === 1 ? t('avFalta1') : t('avFaltan', { n: a.faltan }))
 })
+/** en celular la frase larga no entra: «42 % · faltan 73 d» */
+const avCorto = computed(() => (av.value?.fase === 'crece' ? t('avCorto', { p: av.value.pct, n: av.value.faltan }) : avTxt.value))
 /** pastilla resaltada cuando la fecha pasa cerca (±3 días), como hacían los marcadores 3D */
 const cerca = (iso: string) => Math.abs(diaDe(props.tl, iso) - props.dia) <= 3
 function irA(iso: string) {
@@ -63,7 +65,7 @@ function irA(iso: string) {
           <Sprout :size="12" aria-hidden="true" /><span>{{ fechaCorta(ciclo.siembra) }}</span>
         </button>
         <div class="av" role="progressbar" :aria-valuenow="av.pct" aria-valuemin="0" aria-valuemax="100" :aria-valuetext="avTxt">
-          <p class="avt num">{{ avTxt }}</p>
+          <p class="avt num"><span class="largo">{{ avTxt }}</span><span class="corto">{{ avCorto }}</span></p>
           <i class="barra"><b :style="{ width: av.pct + '%' }" /></i>
         </div>
         <button type="button" class="mk c" :class="{ cerca: cerca(ciclo.cosecha) }" :aria-label="t('mkCosecha') + ' ' + fechaCorta(ciclo.cosecha)" @click="irA(ciclo.cosecha)">
@@ -100,6 +102,8 @@ function irA(iso: string) {
 .mk.s.cerca { border-color: rgba(111,208,166,.8); background: rgba(111,208,166,.2); box-shadow: 0 0 0 3px rgba(111,208,166,.18); }
 .mk.c.cerca { border-color: rgba(224,165,38,.85); background: rgba(224,165,38,.2); box-shadow: 0 0 0 3px rgba(224,165,38,.18); }
 .av { flex: 1; min-width: 90px; display: grid; gap: 4px; }
+.avt .corto { display: none; }
+@media (max-width: 560px) { .avt .largo { display: none; } .avt .corto { display: inline; } }
 .avt { font-size: .72rem; font-weight: 700; color: #e9dcc6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .av .barra { display: block; height: 4px; border-radius: 4px; background: rgba(255,250,240,.15); overflow: hidden; }
 .av .barra b { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #6fd0a6, #e0a526); transition: width .25s; }

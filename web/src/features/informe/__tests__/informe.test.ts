@@ -6,10 +6,11 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import motor from './motor_jocotan.json'
 import Informe from '../index.vue'
 import { resolver, formatear } from '../fuente'
-import { consultaDesdeQuery, queryDe, nivelRiego, normalizarConfianza, planRequest } from '../datos'
+import { consultaDesdeQuery, queryDe, nivelRiego, normalizarConfianza, planRequest, tieneAlertas } from '../datos'
 import { codificarPolilinea, decodificarPolilinea, areaPoligonoM2 } from '../geometria'
 import { aCSV } from '../exportar'
 import type { DatosInforme } from '../tipos'
+import { lang } from '@/i18n'
 import { setLang } from '@/i18n'
 
 const ref = JSON.parse(JSON.stringify(motor)) // copia independiente para comparar
@@ -47,7 +48,8 @@ async function montar(query: string) {
 describe('informe: consulta', () => {
   it('lee los parámetros de /sandbox con sus valores por defecto', () => {
     const c = consultaDesdeQuery({})
-    expect(c).toMatchObject({ municipio_id: 'jocotan-chiquimula', cultivo: 'milpa', area: 1, unidad: 'manzana', riego: 0, idioma: 'es' })
+    // sin idioma: el de la web (inglés por defecto)
+    expect(c).toMatchObject({ municipio_id: 'jocotan-chiquimula', cultivo: 'milpa', area: 1, unidad: 'manzana', riego: 0, idioma: lang.value })
     const d = consultaDesdeQuery({ lat: '14.79', lon: '-89.39', cultivo: 'maiz', area: '2', unidad: 'cuerda', riego: '18', idioma: 'en', print: '1' })
     expect(d).toMatchObject({ lat: 14.79, lon: -89.39, municipio_id: undefined, cultivo: 'maiz', area: 2, unidad: 'cuerda', riego: 20, idioma: 'en', print: true })
     expect(queryDe(d)).toMatchObject({ lat: '14.7900', lon: '-89.3900', riego: '20', idioma: 'en' })
@@ -202,5 +204,13 @@ describe('informe: página con salida real del motor', () => {
     expect((window as any).__informe.error).toMatch(/no respondió/)
     expect(w.find('.doc').exists()).toBe(false)
     w.unmount()
+  })
+})
+
+describe('alertas solo en Guatemala', () => {
+  it('no pide la línea de tiempo para celdas de grilla fuera de GT', () => {
+    expect(tieneAlertas('jocotan-chiquimula')).toBe(true)
+    expect(tieneAlertas('g_-0.42_36.95')).toBe(false)
+    expect(tieneAlertas('')).toBe(false)
   })
 })

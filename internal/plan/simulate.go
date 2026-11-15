@@ -282,6 +282,7 @@ func simulateEnv(env SimEnv, r contract.SimRequest) (contract.SimTimeline, error
 			}
 		}
 		ca.pool = pool
+		ca.idioma = req.Idioma
 		tl.Confianza = buildConfianza(env, s, def, cfg, req.Cultivo, ca)
 		if esc == "real-2026" {
 			tl.Confianza.ProbEscenario = 1

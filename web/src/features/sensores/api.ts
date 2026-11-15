@@ -97,3 +97,48 @@ export function comparar(obs: number, mod: number): { dif: number; clave: 'igual
   const dif = Math.round(obs - mod)
   return { dif, clave: Math.abs(dif) < 8 ? 'igual' : dif > 0 ? 'mas' : 'menos' }
 }
+
+/** Alta de la estación del terreno (POST /api/sensores). El token se ve una sola vez. */
+export interface Alta { id: string; token: string; ingesta: string }
+export async function altaSensor(
+  parcelaId: string,
+  pedir: <T>(ruta: string, init?: RequestInit) => Promise<T>,
+): Promise<Alta> {
+  const r = await pedir<{ dispositivo?: { id?: string }; token?: string; ingesta?: string }>('/api/sensores', {
+    method: 'POST',
+    body: JSON.stringify({ parcela_id: parcelaId, nombre: 'SEED' }),
+  })
+  const id = r?.dispositivo?.id ?? ''
+  if (!id || !r.token) throw new Error('alta sin id/token')
+  return { id, token: r.token, ingesta: r.ingesta ?? `/api/sensores/${id}/lecturas` }
+}
+
+/** Comandos que se escriben en el monitor serie (115200) del prototipo para que postee al servidor. */
+export function comandosSerie(servidor: string, a: Pick<Alta, 'id' | 'token'>): string[] {
+  return [`servidor ${servidor.replace(/\/+$/, '')}`, `token ${a.token}`, `id ${a.id}`]
+}
+
+/** URL de /datos del sensor en la red local: «fieldshift-sensor.local», una IP o una URL entera. */
+export function urlLocal(host: string): string {
+  let h = host.trim() || 'fieldshift-sensor.local'
+  if (!/^https?:\/\//i.test(h)) h = 'http://' + h
+  h = h.replace(/\/+$/, '')
+  return /\/datos$/.test(h) ? h : h + '/datos'
+}
+
+/** Lectura del firmware por WiFi (GET /datos). */
+export interface Local { humedad: number; crudo?: number; estado?: string; ip?: string }
+export async function leerLocal(host: string, f: Fetch = fetch, ms = 4000): Promise<Local | null> {
+  const ctl = new AbortController()
+  const tm = setTimeout(() => ctl.abort(), ms)
+  try {
+    const r = await f(urlLocal(host), { signal: ctl.signal, cache: 'no-store' })
+    if (!r.ok) return null
+    const j = (await r.json()) as Local
+    return Number.isFinite(Number(j?.humedad)) ? { ...j, humedad: Number(j.humedad) } : null
+  } catch {
+    return null
+  } finally {
+    clearTimeout(tm)
+  }
+}

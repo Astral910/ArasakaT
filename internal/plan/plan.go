@@ -270,6 +270,9 @@ func (e *Engine) build(req contract.PlanRequest, m *geo.Municipio) (contract.Pla
 		}
 	}
 	p.Resumen = L.summary(&p, m)
+	if !Centroamerica(m) {
+		p = neutraTemporadas(p, L == "en", sim.DetectSeasons(s).Bimodal)
+	}
 	return p, nil
 }
 

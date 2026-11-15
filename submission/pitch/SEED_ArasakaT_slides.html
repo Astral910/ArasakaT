@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SEED · from ArasakaT · NASA Space Apps 2026 · Field Shift</title>
+<!-- 7 slides 1920×1080. Export: node export.mjs (SLIDES=SEED_ArasakaT_slides) → SEED_ArasakaT_slides.pdf.
+     Screens in img/live-*.jpg are headless captures of https://arasakat-seed.vercel.app (15 Nov 2026, capture-live.mjs).
+     SEED renders come from the OpenSCAD model in hardware/prototipo/3d/seed_estacion.scad. -->
+<style>
+@font-face { font-family: 'Fraunces'; src: url('fonts/fraunces-latin-wght-normal.woff2') format('woff2'); font-weight: 100 900; }
+@font-face { font-family: 'Figtree'; src: url('fonts/figtree-latin-wght-normal.woff2') format('woff2'); font-weight: 300 900; }
+@page { size: 1920px 1080px; margin: 0; }
+:root {
+  --bg: #f5efe4; --bg-2: #ece3d3; --surface: #fffaf2; --ink: #2a2118; --ink-2: #5a4a3a; --ink-3: #8a7a68;
+  --line: rgba(42,33,24,.12); --tierra: #8a5a3b; --granada: #b5343c; --anil: #2e4a8f; --maiz: #e0a526;
+  --maiz-ink: #8a5d00; --jade: #2a8a66; --milpa: #5d8a3a; --cielo: #7fb2d9; --night: #15110d; --night-2: #231c15;
+  --display: 'Fraunces', Georgia, serif; --ui: 'Figtree', system-ui, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #444; }
+body { font-family: var(--ui); color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.slide { width: 1920px; height: 1080px; position: relative; overflow: hidden; background: var(--bg); page-break-after: always; break-after: page; margin: 0 auto 40px; }
+@media print { html, body { background: none; } .slide { margin: 0; } }
+.slide:last-child { page-break-after: auto; break-after: auto; }
+
+/* woven stripe (same motif as the web footer and the technical report) */
+.tejido { position: absolute; left: 0; right: 0; height: 14px;
+  background: repeating-linear-gradient(90deg, var(--granada) 0 34px, var(--maiz) 34px 52px, var(--anil) 52px 86px, var(--hueso, #f5efe4) 86px 96px, var(--jade) 96px 130px, var(--maiz) 130px 148px, var(--tierra) 148px 182px, #f5efe4 182px 192px); }
+.tejido.top { top: 0; } .tejido.bottom { bottom: 0; }
+
+.pad { position: absolute; inset: 96px 110px 92px; }
+.eyebrow { font-weight: 800; font-size: 22px; letter-spacing: .16em; text-transform: uppercase; color: var(--tierra); }
+.eyebrow b { color: var(--maiz-ink); font-weight: 800; }
+h1, h2 { font-family: var(--display); font-weight: 650; letter-spacing: -.02em; line-height: 1.02; }
+h2 { font-size: 76px; margin: 18px 0 0; max-width: 1500px; }
+h2 em { font-style: italic; color: var(--tierra); font-weight: 560; }
+.lead { font-size: 31px; line-height: 1.4; color: var(--ink-2); margin-top: 22px; max-width: 1180px; }
+.foot { position: absolute; left: 110px; right: 110px; bottom: 36px; display: flex; justify-content: space-between; font-size: 18px; color: var(--ink-3); font-weight: 600; }
+.foot .n { font-variant-numeric: tabular-nums; }
+.dark .foot { color: rgba(244,235,219,.55); }
+.shot { border-radius: 22px; overflow: hidden; box-shadow: 0 30px 70px -24px rgba(42,33,24,.45), 0 0 0 1px rgba(42,33,24,.08); background: #222; }
+.shot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cap { font-size: 17px; color: var(--ink-3); margin-top: 12px; font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: 12px; padding: 14px 24px; border-radius: 999px; font-weight: 700; font-size: 24px; background: rgba(255,250,242,.12); border: 1.5px solid rgba(255,250,242,.28); color: #f4ebdb; backdrop-filter: blur(6px); }
+.chip i { width: 12px; height: 12px; border-radius: 50%; background: var(--maiz); display: inline-block; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 30px 34px; }
+.big { font-family: var(--display); font-weight: 650; letter-spacing: -.02em; line-height: 1; }
+.src { font-size: 16px; color: var(--ink-3); font-weight: 600; margin-top: 10px; line-height: 1.35; }
+.mark { display: none; }
+body.show-marks [data-replace] { outline: 6px dashed #e11; outline-offset: -6px; }
+body.show-marks .mark { display: block; position: absolute; z-index: 9; background: #e11; color: #fff; font: 700 18px var(--ui); padding: 6px 12px; border-radius: 8px; }
+
+h2 { font-size: 66px; max-width: 1700px; }
+.dark { background: var(--night); color: #f4ebdb; }
+.dark .eyebrow { color: var(--maiz); } .dark h2 em { color: #fbe7b8; }
+.dark .lead { color: rgba(244,235,219,.82); }
+.row3 { position: absolute; left: 110px; right: 110px; top: 330px; bottom: 100px; display: grid; gap: 34px; }
+.row3 > * { min-height: 0; }
+.col h3 { font-family: var(--display); font-size: 34px; font-weight: 650; line-height: 1.1; margin-top: 18px; }
+.col p { font-size: 22px; line-height: 1.38; color: var(--ink-2); margin-top: 8px; }
+.dark .col p { color: rgba(244,235,219,.78); }
+.num { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--tierra); color: #fff; font-weight: 800; font-size: 21px; margin-right: 12px; vertical-align: middle; }
+.brandbar { position: absolute; top: 34px; right: 110px; font-weight: 800; font-size: 20px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+.dark .brandbar { color: rgba(244,235,219,.55); }
+.brandbar b { color: var(--tierra); } .dark .brandbar b { color: var(--maiz); }
+/* problem */
+.p1 .stats { display: flex; flex-direction: column; gap: 18px; }
+.p1 .stat { padding: 20px 30px; } .p1 .stat .big { font-size: 70px; color: var(--granada); }
+.p1 .stat .big small { font-size: 38px; color: var(--ink-2); font-weight: 560; }
+.p1 .stat p { font-size: 23px; line-height: 1.35; color: var(--ink-2); margin-top: 8px; }
+/* pipeline */
+.pipe { position: absolute; left: 110px; right: 110px; top: 330px; display: grid; grid-template-columns: 1fr 70px 1fr 70px 1fr; align-items: stretch; }
+.pipe .box { background: var(--night-2); border: 1px solid rgba(244,235,219,.14); border-radius: 24px; padding: 28px 30px; }
+.pipe .box h4 { font-weight: 800; font-size: 19px; letter-spacing: .14em; text-transform: uppercase; color: var(--maiz); }
+.pipe .box ul { list-style: none; margin-top: 14px; display: grid; gap: 11px; }
+.pipe .box li { font-size: 21px; line-height: 1.3; color: rgba(244,235,219,.88); }
+.pipe .box li b { color: #fff; }
+.pipe .arrow { display: grid; place-items: center; font-size: 54px; color: var(--maiz); }
+.skill { position: absolute; left: 110px; right: 110px; bottom: 96px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+.skill .k { background: #fffaf2; color: var(--ink); border-radius: 20px; padding: 18px 24px; }
+.skill .k .big { font-size: 52px; color: var(--jade); } .skill .k.w .big { color: var(--maiz-ink); }
+.skill .k p { font-size: 18.5px; line-height: 1.3; color: var(--ink-2); margin-top: 4px; }
+/* demo */
+.d1 .shot { height: 100%; } .d1 .shot img { object-position: top; }
+.d1 .ask { background: var(--night-2); color: #f4ebdb; border-radius: 22px; padding: 26px 30px; }
+.d1 .ask h4 { font-family: var(--display); font-size: 32px; font-weight: 650; }
+.d1 .ask p { font-size: 21px; line-height: 1.38; margin-top: 10px; color: rgba(244,235,219,.82); }
+.d1 .ask code { font: 700 20px ui-monospace, monospace; background: var(--maiz); color: var(--ink); padding: 2px 8px; border-radius: 6px; }
+/* sensor */
+.se .render { background: #f8f8f8; border-radius: 26px; overflow: hidden; box-shadow: 0 30px 70px -24px rgba(42,33,24,.4); }
+.se .render img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.se ul { list-style: none; display: grid; gap: 14px; margin-top: 6px; }
+.se li { font-size: 23px; line-height: 1.36; padding-left: 34px; position: relative; color: var(--ink-2); }
+.se li::before { content: ''; position: absolute; left: 0; top: 11px; width: 16px; height: 16px; border-radius: 50%; background: var(--anil); }
+.se li b { color: var(--ink); }
+/* impact */
+.im .k { padding: 34px 36px; display:flex; flex-direction:column; justify-content:center; } .im .k .big { font-size: 84px; color: var(--jade); }
+.im .k.w .big { color: var(--maiz-ink); } .im .k.r .big { color: var(--granada); }
+.im .k p { font-size: 26px; line-height: 1.32; color: var(--ink-2); margin-top: 6px; }
+.im .k .src { font-size: 18px; }
+/* team */
+.tm .links { display: grid; gap: 18px; }
+.tm .l { background: var(--night-2); border-radius: 20px; padding: 22px 28px; }
+.tm .l b { display: block; font-size: 17px; letter-spacing: .14em; text-transform: uppercase; color: var(--maiz); font-weight: 800; }
+.tm .l span { font-size: 30px; font-weight: 700; color: #fff; display: block; margin-top: 6px; }
+.tm .l small { font-size: 19px; color: rgba(244,235,219,.7); display: block; margin-top: 4px; }
+.tm .ai { font-size: 21px; line-height: 1.42; color: rgba(244,235,219,.8); }
+.tm .ai b { color: #fbe7b8; }
+</style>
+</head>
+<body>
+
+<!-- 1 · PROBLEM (with title) ------------------------------------------- -->
+<section class="slide p1">
+  <div class="tejido top"></div>
+  <div class="brandbar"><b>SEED</b> · from ArasakaT · NASA Space Apps 2026 · Field Shift · Guatemala</div>
+  <div class="pad">
+    <div class="eyebrow">The problem</div>
+    <h2>Maize grown <em>on rain alone</em>: one long dry spell can wipe out the season.</h2>
+  </div>
+  <div class="row3" style="grid-template-columns: 1fr 1.25fr; grid-template-rows: minmax(0,1fr); top: 320px;">
+    <div class="stats">
+      <div class="card stat"><div class="big">3.4 M</div><p>people in Guatemala in acute food insecurity (IPC Phase 3+), May–Aug 2025: 19 % of the country.</p><div class="src">IPC / SESAN Guatemala, 2025</div></div>
+      <div class="card stat"><div class="big">3.3 <small>of 10</small></div><p>seasons lost in Jocotán (Dry Corridor) with today's milpa, all seasons 2001–2025.</p><div class="src">Our FAO-56 engine on NASA POWER daily data</div></div>
+      <div class="card stat"><div class="big" style="color:var(--anil)">WhatsApp</div><p>is what these farmers already use. Not farm apps, not GIS.</p></div>
+    </div>
+    <div>
+      <div class="shot" style="height:calc(100% - 40px)"><img src="img/map-guatemala.jpg" alt="Risk map of Guatemala"></div>
+      <div class="cap">Seasons short of water, out of 10, in Guatemala's 342 municipalities (web app risk map, FAO-56 engine on NASA POWER 2001–2025).</div>
+    </div>
+  </div>
+  <div class="foot"><span>SEED · from ArasakaT · the problem</span><span class="n">1 / 7</span></div>
+</section>
+
+<!-- 2 · SOLUTION --------------------------------------------------------- -->
+<section class="slide">
+  <div class="tejido top"></div>
+  <div class="brandbar"><b>SEED</b> · from ArasakaT</div>
+  <div class="pad">
+    <div class="eyebrow">The solution</div>
+    <h2>See your next season <em>before you plant it</em>, then follow your field every day.</h2>
+  </div>
+  <div class="row3" style="grid-template-columns: repeat(3, 1fr); top: 340px;">
+    <div class="col"><div class="shot" style="height:380px"><img src="img/live-landing.jpg" alt="Landing"></div>
+      <h3><span class="num">1</span>Where is your land?</h3><p>Search any place on Earth or draw the exact plot. No account needed to try it.</p></div>
+    <div class="col"><div class="shot" style="height:380px"><img src="img/live-sandbox.jpg" alt="3D season"></div>
+      <h3><span class="num">2</span>Watch your season in 3D</h3><p>Your own plot, day by day: rain, dry spells, growth, sowing and harvest, with the odds and a confidence level.</p></div>
+    <div class="col"><div class="shot" style="height:380px"><img src="img/live-dashboard.jpg" alt="My fields" style="object-position:top"></div>
+      <h3><span class="num">3</span>Save it, follow it</h3><p>An account with your fields: watering today, the week ahead, pests, a chat per field, WhatsApp alerts.</p></div>
+  </div>
+  <div class="foot"><span>Screens: public demo arasakat-seed.vercel.app, captured 15 Nov 2026</span><span class="n">2 / 7</span></div>
+</section>
+
+<!-- 3 · HOW IT WORKS ----------------------------------------------------- -->
+<section class="slide dark">
+  <div class="tejido top"></div>
+  <div class="brandbar"><b>SEED</b> · from ArasakaT</div>
+  <div class="pad">
+    <div class="eyebrow">How it works</div>
+    <h2>NASA data → a deterministic engine → <em>3D, alerts and answers</em>.</h2>
+  </div>
+  <div class="pipe">
+    <div class="box"><h4>Data</h4><ul>
+      <li><b>NASA POWER</b> daily, 2001–2025, any coordinate</li>
+      <li><b>NASA GIBS</b>: MODIS NDVI &amp; LST, GPM IMERG</li>
+      <li><b>NEX-GDDP-CMIP6</b> (NASA NCCS): 2040</li>
+      <li>ECMWF IFS &amp; <b>SEAS5</b>, NOAA GFS (Open-Meteo)</li>
+      <li>ESA WorldCover, Sentinel-2, SRTM, SoilGrids, OSM</li>
+      <li><b>SEED</b> soil sensor in the field</li></ul></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4>Engine (Go + WebAssembly)</h4><ul>
+      <li>FAO-56 water balance &amp; ET₀</li>
+      <li>FAO-33 yield response, RUSLE soil</li>
+      <li>16-day forecast, then the past year that best matches SEAS5 &amp; El Niño</li>
+      <li>Monte Carlo over 25 real seasons</li>
+      <li><b>The engine computes; AI only explains.</b></li></ul></div>
+    <div class="arrow">→</div>
+    <div class="box"><h4>What the farmer gets</h4><ul>
+      <li>Guided 3D season of their own plot</li>
+      <li>Watering in mm and litres, today</li>
+      <li>Report with charts (PNG/SVG/CSV, PDF)</li>
+      <li>Chat per field: “Will it rain on Oct 20?” → yes/no + %</li>
+      <li>WhatsApp alerts: dry spell, heavy rain, frost</li></ul></div>
+  </div>
+  <div class="skill">
+    <div class="k"><div class="big">65 %</div><p>right rain tercile in Chiquimula, 25-year leave-one-out hindcast (chance 33 %; CI 52–78 %)</p></div>
+    <div class="k w"><div class="big">40 %</div><p>nationwide: not distinguishable from chance, so probabilities are shrunk toward climatology</p></div>
+    <div class="k"><div class="big">5 of 8</div><p>documented droughts 2001–2025 flagged in Jocotán (4 false alarms)</p></div>
+    <div class="k"><div class="big">0.154</div><p>Brier score of the AI model vs 0.161 for plain statistics (leave-one-year-out)</p></div>
+  </div>
+  <div class="foot"><span>Sources: docs/validacion_pronostico.md · “How do we know?” page of the web app</span><span class="n">3 / 7</span></div>
+</section>
+
+<!-- 4 · DEMO ------------------------------------------------------------- -->
+<section class="slide d1">
+  <div class="tejido top"></div>
+  <div class="brandbar"><b>SEED</b> · from ArasakaT</div>
+  <div class="pad">
+    <div class="eyebrow">Live demo</div>
+    <h2>One field, one assistant, <em>one decision a day</em>.</h2>
+  </div>
+  <div class="row3" style="grid-template-columns: 1.1fr 1fr .78fr; top: 320px;">
+    <div class="shot"><img src="img/live-field.jpg" alt="Field page" style="object-position:left top"></div>
+    <div style="display:flex;flex-direction:column"><div class="shot" style="flex:1"><img src="img/live-chat-rain.jpg" alt="Field assistant answering about rain" style="object-position:right bottom"></div><div class="cap">Live today: answer from a NASA POWER analogue year. The build being deployed answers yes/no + probability (verified: “yes, likely, 51 %”).</div></div>
+    <div style="display:flex; flex-direction:column; gap:20px;">
+      <div class="ask"><h4>Try it</h4><p><b>arasakat-seed.vercel.app</b><br>English by default, ES button. Sign in → demo account: 3 saved fields (Jocotán, Guatemala City, Punjab).</p></div>
+      <div class="ask"><h4>Ask the field</h4><p><code>Will it rain on October 20?</code> → yes/no with a probability and its source: the 16-day forecast if the date is close, otherwise rain frequency for that date ±3 days in 2001–2025 (NASA POWER), by El Niño state.</p></div>
+      <div class="ask"><h4>WhatsApp</h4><p>Same bot: location pin, plan, video, report, voice notes, daily alerts.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>Captures of the public demo, 15 Nov 2026 (field “Milpa en Jocotán”, demo account)</span><span class="n">4 / 7</span></div>
+</section>
+
+<!-- 5 · SEED SENSOR ------------------------------------------------------ -->
+<section class="slide se">
+  <div class="tejido top"></div>
+  <div class="brandbar"><b>SEED</b> · from ArasakaT</div>
+  <div class="pad">
+    <div class="eyebrow">SEED · the field sensor</div>
+    <h2>Satellites see the region. <em>SEED feels your soil.</em></h2>
+  </div>
+  <div class="row3" style="grid-template-columns: .9fr .9fr 1.2fr; top: 330px;">
+    <div class="render"><img src="img/seed-front.png" alt="SEED case, front"></div>
+    <div class="render"><img src="img/seed-open.png" alt="SEED case, lid open"></div>
+    <div>
+      <ul>
+        <li><b>ESP32-S3</b> board + resistive soil-moisture probe (HW-080), calibrated dry / wet in the farmer's own soil.</li>
+        <li><b>3D-printed case</b> designed in OpenSCAD: hidden 5000 mAh power bank, board and probe locked in place; one plate, no supports, PLA, ~2 h 20 min.</li>
+        <li>Readings stream live over <b>USB (Web Serial)</b> or <b>WiFi</b> to a web page.</li>
+        <li>The server takes readings with a per-device token; the field page compares <b>observed vs model</b> soil water.</li>
+        <li>Open design: firmware, 3D models and wiring in the repo (<code>hardware/</code>).</li>
+      </ul>
+      <div class="src" style="margin-top:18px">Images: renders of the OpenSCAD model (hardware/prototipo/3d/seed_estacion.scad). Prototype, not a certified instrument.</div>
+    </div>
+  </div>
+  <div class="foot"><span>SEED · from ArasakaT · hardware prototype</span><span class="n">5 / 7</span></div>
+</section>
+
+<!-- 6 · IMPACT + HONEST VALIDATION -------------------------------------- -->
+<section class="slide im">
+  <div class="tejido top"></div>
+  <div class="brandbar"><b>SEED</b> · from ArasakaT</div>
+  <div class="pad">
+    <div class="eyebrow">Impact and honest validation</div>
+    <h2>Every number has a source, a range <em>and a track record</em>, misses included.</h2>
+  </div>
+  <div class="row3" style="grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; top: 330px; gap: 24px;">
+    <div class="card k"><div class="big">5 of 6</div><p>dry-spell alerts confirmed in Jocotán, replaying the 2026 season with each morning's forecast; 0 false alarms</p><div class="src">Open-Meteo Historical Forecast vs NASA POWER observed, 195 days</div></div>
+    <div class="card k"><div class="big">7 days</div><p>best lead time: warned on 17 Oct 2026 before an 8-day dry spell (median 2 days)</p><div class="src">Same backtest</div></div>
+    <div class="card k w"><div class="big">3 of 14</div><p>heavy-rain alerts confirmed (21 % precision vs 6 % by chance). Harder; we publish it.</p><div class="src">Same backtest</div></div>
+    <div class="card k r"><div class="big">61 → 4</div><p>t/ha/yr of erosion in Jocotán with a mucuna/canavalia cover crop; bare soil 260 → 115 days a year</p><div class="src">Engine, RUSLE cover factors, 2001–2025</div></div>
+    <div class="card k"><div class="big">Anywhere</div><p>NASA POWER fetched on demand for any coordinate; outside Guatemala the badge says “no local validation”</p><div class="src">Global engine</div></div>
+    <div class="card k w"><div class="big">Supports</div><p>never replaces the farmer and the extension agent. Next: pilot with MAGA extension agents, Mayan languages, more SEED units.</p></div>
+  </div>
+  <div class="foot"><span>Ranges, not promises: P10–P90 everywhere; NASA POWER cells are ~50 km, results are for the area</span><span class="n">6 / 7</span></div>
+</section>
+
+<!-- 7 · TEAM ------------------------------------------------------------- -->
+<section class="slide dark tm">
+  <div class="tejido top"></div>
+  <div class="pad">
+    <div class="eyebrow">The team</div>
+    <h2><em>ArasakaT</em> · Guatemala · NASA Space Apps 2026, challenge “Field Shift”.</h2>
+  </div>
+  <div class="row3" style="grid-template-columns: 1fr 1fr; top: 360px;">
+    <div class="links">
+      <div class="l"><b>Live demo</b><span>arasakat-seed.vercel.app</span><small>English by default · ES button · demo account on the sign-in page</small></div>
+      <div class="l"><b>Code (open)</b><span>github.com/Astral910/ArasakaT</span><small>Go engine, Vue web app, SEED firmware and 3D models</small></div>
+      <div class="l"><b>Device</b><span>SEED · from ArasakaT</span><small>ESP32-S3 soil sensor in a 3D-printed case</small></div>
+    </div>
+    <div>
+      <p class="ai"><b>Use of AI, declared.</b> The idea and the scientific method are the team's. We used Claude Code (Anthropic) to write and test code and to draft English texts; the team reviewed it. In the product, Claude only explains numbers computed by the engine and never invents them. Narration uses synthetic speech (edge-tts); voice notes are transcribed with faster-whisper. No AI-generated images or video.</p>
+      <p class="ai" style="margin-top:26px"><b>Data:</b> NASA POWER, NASA GIBS (MODIS, GPM IMERG), NEX-GDDP-CMIP6, SRTM; ECMWF IFS &amp; SEAS5 and NOAA GFS via Open-Meteo; ESA WorldCover, Sentinel-2; ISRIC SoilGrids; OpenStreetMap; Overture Maps.</p>
+      <p style="font-family:var(--display); font-style:italic; font-size:40px; color:#fbe7b8; margin-top:40px">See your next season before you plant it.</p>
+    </div>
+  </div>
+  <div class="foot"><span>SEED · from ArasakaT</span><span class="n">7 / 7</span></div>
+</section>
+
+</body>
+</html>

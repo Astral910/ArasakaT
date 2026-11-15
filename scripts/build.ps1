@@ -18,4 +18,7 @@ New-Item -ItemType Directory -Force bin | Out-Null
 $env:CGO_ENABLED = '0'
 go build -trimpath -ldflags '-s -w' -o bin/fieldshift-server.exe ./cmd/server
 if ($LASTEXITCODE) { throw 'go build' }
-Write-Output 'listo: bin\fieldshift-server.exe'
+# el asistente (claude -p) llama a las herramientas por este MCP: si queda viejo, faltan herramientas (ej. lluvia_fecha)
+go build -trimpath -ldflags '-s -w' -o bin/fieldshift-mcp.exe ./cmd/fieldshift-mcp
+if ($LASTEXITCODE) { throw 'go build mcp' }
+Write-Output 'listo: bin\fieldshift-server.exe + bin\fieldshift-mcp.exe'

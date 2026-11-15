@@ -1,6 +1,7 @@
 // Cuentas y terrenos. Primero el servidor (/api/auth, /api/parcelas, cookie HttpOnly);
 // si no responde (404, sin red, sin JSON) cae a un stub en localStorage con la misma forma, y lo dice (origen = 'local').
 import { ref } from 'vue'
+import { lang } from '../../i18n'
 import { codificarPolilinea } from '../informe/geometria'
 import type { OrigenCuenta, Parcela, ParcelaNueva, Usuario } from './tipos'
 
@@ -75,7 +76,7 @@ export function normalizarParcela(c: Crudo): Parcela {
   const forma = (str(c.forma ?? g.forma) ?? 'punto') as Parcela['forma']
   return {
     id: String(c.id ?? c.ID ?? ''),
-    nombre: str(c.nombre) ?? 'Terreno',
+    nombre: str(c.nombre) ?? (lang.value === 'en' ? 'Plot' : 'Terreno'),
     lat: num(c.lat ?? g.lat),
     lon: num(c.lon ?? c.lng ?? g.lon),
     lugar: str(c.lugar) ?? deNotas.lugar,
@@ -155,7 +156,9 @@ export async function revisarSesion(forzar = false): Promise<Usuario | null> {
   if (revisada && !forzar) return usuario.value
   revisada = true
   try {
-    usuario.value = aUsuario(await pedir('/api/auth/yo'))
+    // /sesion: 200 aun sin cuenta (sin 401 rojo en consola); servidor viejo sin la ruta → /yo
+    const j = await pedir('/api/auth/sesion').catch((e) => ((e instanceof ErrorApi && e.estado === 404) || (e as Error).message === 'no-json' ? pedir('/api/auth/yo') : Promise.reject(e)))
+    usuario.value = aUsuario(j)
     origen.value = 'api'
   } catch (e) {
     if (noHay(e)) {

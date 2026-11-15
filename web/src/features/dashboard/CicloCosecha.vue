@@ -15,7 +15,7 @@ const marcas = computed(() => (props.siembra ? props.etapas.slice(1).map((e) => 
 <template>
   <div class="ciclo">
     <div class="cifra">
-      <b class="pct tabular" data-test="crecimiento-pct">{{ pct }} %</b>
+      <b class="pct tabular" data-test="crecimiento-pct">{{ pct }}&nbsp;%</b>
       <span>
         <b v-if="diasCosecha !== null && diasCosecha >= 0">{{ tx('faltan', { n: diasCosecha }) }}</b>
         <b v-else-if="diasCosecha !== null">{{ tx('cosechaPasada', { n: -diasCosecha }) }}</b>
@@ -37,7 +37,7 @@ const marcas = computed(() => (props.siembra ? props.etapas.slice(1).map((e) => 
 .ciclo { display: grid; gap: 0.6rem; }
 .cifra { display: flex; align-items: center; gap: 0.9rem; }
 .cifra span { display: grid; line-height: 1.25; }
-.pct { font-family: var(--font-display); font-size: clamp(2rem, 7vw, 2.6rem); font-weight: 700; line-height: 1; color: var(--milpa, var(--jade)); }
+.pct { font-family: var(--font-display); font-size: clamp(2rem, 7vw, 2.6rem); font-weight: 700; line-height: 1; white-space: nowrap; flex: none; color: var(--milpa, var(--jade)); }
 .barra { position: relative; height: 16px; border-radius: 999px; background: var(--bg-2); overflow: hidden; }
 .lleno { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, var(--jade), var(--maiz)); }
 .marca { position: absolute; top: 3px; bottom: 3px; width: 2px; margin-left: -1px; background: var(--surface); opacity: 0.8; }

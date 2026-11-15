@@ -136,6 +136,38 @@ func (s *Site) DiasGDD(sow int, gdd float64) int {
 // ScaledGDD cultivo con las etapas estiradas o encogidas según los grados-día reales desde la siembra:
 // cada etapa termina cuando junta los grados-día que tendría a 24 °C (ciclo FAO-56).
 func (s *Site) ScaledGDD(c fao56.Crop, sow int) fao56.Crop {
+	o, _ := s.CicloGDD(c, sow)
+	return o
+}
+
+// CicloRango días mínimos y máximos realistas de siembra a cosecha por cultivo (ronda 6): fuera de eso el
+// grados-día alargaba el ciclo sin fin en clima frío (maíz de 235 días en Países Bajos, sorgo de 225 en Atacama).
+// En el trópico el maíz de altura (criollos del altiplano, Andes) llega a ~9 meses: ver CicloRangoEn.
+func CicloRango(id string) (int, int) {
+	switch id {
+	case "maize":
+		return 90, 180
+	case "sorghum":
+		return 90, 160
+	case "bean":
+		return 60, 120
+	}
+	return 0, 0
+}
+
+// CicloRangoEn el rango del cultivo en este sitio: en el trópico (|lat| < 23.5°) el maíz criollo de altura
+// tiene ciclos de 8–9 meses (variedades adaptadas al frío), fuera no.
+func (s *Site) CicloRangoEn(id string) (int, int) {
+	lo, hi := CicloRango(id)
+	if id == "maize" && math.Abs(s.Lat) < 23.5 {
+		hi = 270
+	}
+	return lo, hi
+}
+
+// CicloGDD como ScaledGDD y además si el cultivo madura: false si el calor del lugar no alcanza los grados-día
+// dentro del ciclo máximo realista (el ciclo se acota a ese máximo en vez de alargarse).
+func (s *Site) CicloGDD(c fao56.Crop, sow int) (fao56.Crop, bool) {
 	day, acc := 0, 0.0
 	o := c
 	for k := range c.L {
@@ -149,7 +181,32 @@ func (s *Site) ScaledGDD(c fao56.Crop, sow int) fao56.Crop {
 		// límites razonables por etapa (0.6× a 2× la duración de referencia)
 		o.L[k] = max(int(math.Round(0.6*float64(c.L[k]))), min(n, 2*c.L[k]))
 	}
-	return o
+	lo, hi := s.CicloRangoEn(c.ID)
+	if hi == 0 {
+		return o, true
+	}
+	madura := true
+	tot := o.Season()
+	if tot > hi { // no junta el calor a tiempo: ciclo acotado, etapas en proporción
+		madura = false
+		f := float64(hi) / float64(tot)
+		r := hi
+		for k := range o.L {
+			if k == len(o.L)-1 {
+				o.L[k] = max(1, r)
+				break
+			}
+			o.L[k] = max(1, int(math.Round(float64(o.L[k])*f)))
+			r -= o.L[k]
+		}
+	} else if tot < lo {
+		o.L[len(o.L)-1] += lo - tot
+	}
+	// en el tope de 2× por etapa también puede faltar calor aunque el total quede dentro del rango
+	if s.DiasGDD(sow, float64(c.Season())*GDDPorDia) > hi {
+		madura = false
+	}
+	return o, madura
 }
 
 // Scaled cultivo con las etapas ajustadas al ciclo del lugar.
