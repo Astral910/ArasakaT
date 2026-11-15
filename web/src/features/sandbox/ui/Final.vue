@@ -39,5 +39,5 @@ h2 { font-family: var(--font-display); font-size: clamp(1.35rem, 2.6vw, 1.8rem);
 .btn:hover { background: #fff; }
 .btn:disabled { opacity: .6; cursor: progress; }
 .btn:focus-visible { outline: 3px solid #e0a526; outline-offset: 2px; }
-.movil { top: auto; bottom: 12px; transform: translateX(-50%); padding: 18px 16px 16px; gap: 12px; }
+.movil { top: auto; bottom: 12px; transform: translateX(-50%); padding: 18px 16px 16px; gap: 12px; background: rgba(22,17,12,.96); }
 </style>
