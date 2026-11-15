@@ -69,6 +69,19 @@ test('registro → guardar terreno → dashboard (riego de hoy) → "llovió muc
   await expect(mm).toBeVisible({ timeout: 90_000 })
   await expect(page.locator('body')).not.toContainText(/el servidor de campo aún no está|field server is not/i)
   // granjero6: el riego se muestra en toneles por cuerda; los mm van en data-mm
+  // dashboard7: avisos arriba, «qué hacer este día», flechas y mes en próximos días (antes, cerrar el tutorial de la 1.ª visita)
+  await page.getByRole('button', { name: /Cerrar tutorial|Close tutorial/ }).click({ timeout: 8_000 }).catch(() => {})
+  await expect(page.locator('[data-test="avisos"]')).toBeVisible()
+  await expect(page.locator('[data-test="wa-numero"]')).toBeVisible()
+  const avisosY = (await page.locator('[data-test="avisos"]').boundingBox())!.y
+  expect(avisosY).toBeLessThan((await page.locator('[data-test="hoy"]').boundingBox())!.y)
+  await expect(page.locator('[data-test="que-hacer"]')).not.toBeEmpty()
+  await page.locator('[data-test="dias-sig"]').click()
+  await expect(page.locator('[data-test="dia"]')).toHaveCount(7)
+  await page.locator('[data-test="dias-ant"]').click()
+  await page.locator('[data-test="ver-mes"]').click()
+  await expect(page.locator('[data-test="mes"]')).toBeVisible()
+  await page.locator('[data-test="ver-mes"]').click()
   const leer = async () => parseFloat((await mm.getAttribute('data-mm')) ?? '0') || 0
   const antes = await leer()
   await snap(page, 'dashboard-terreno-antes', true)

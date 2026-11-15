@@ -4,13 +4,13 @@
 // en celular, botón flotante. Tutorial guiado en la primera visita o con «?» (terreno6).
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Box, Bug, CalendarDays, ChevronDown, CircleAlert, CircleCheck, CircleQuestionMark, ClipboardCheck, CloudRain, Droplets, FileText, Sprout, Sun, Thermometer, TriangleAlert } from 'lucide-vue-next'
+import { ArrowLeft, Box, Bug, ChevronDown, CircleAlert, CircleCheck, CircleQuestionMark, CloudRain, Droplets, FileText, Sprout, Thermometer, TriangleAlert } from 'lucide-vue-next'
 import { lang } from '@/i18n'
 import GMapa from '../informe/graficos/GMapa.vue'
 import { decodificarPolilinea } from '../informe/geometria'
 import { actualizarParcela, areaM2, borrarParcela, obtenerParcela, queryTerreno, revisarSesion } from '../cuenta/api'
 import type { Parcela } from '../cuenta/tipos'
-import { cargarHoy, enviarReporte, sumarDias, type AccionChat, type Hoy, type Reporte, type TipoReporte } from './campo'
+import { cargarHoy, enviarReporte, type AccionChat, type Hoy, type Reporte, type TipoReporte } from './campo'
 import { faqs, lineaPlaga } from './faq'
 import Tutorial, { type Paso } from './Tutorial.vue'
 import CicloCosecha from './CicloCosecha.vue'
@@ -19,7 +19,9 @@ import ReporteDia from './ReporteDia.vue'
 import ChatStub from './ChatStub.vue'
 import TarjetaSensor from '../sensores/TarjetaSensor.vue'
 import { diaSemana, fmt, tx } from './textos'
-import Decisiones from '../decision/Decisiones.vue'
+import Avisos from './Avisos.vue'
+import ProximosDias from './ProximosDias.vue'
+import PreguntasDec from './PreguntasDec.vue'
 import { enCentroamerica, riegoTexto, semaforo, tarjetaAbono, tarjetaCanicula, tarjetaCosecha, tarjetaSiembra, type ConfDec, type SiembraDec } from '../decision/decision'
 import { t } from '@/i18n'
 
@@ -121,22 +123,10 @@ async function accion(a: AccionChat) {
 
 const ICONO = { ok: CircleCheck, ojo: CircleAlert, mala: TriangleAlert }
 const NIVEL_PLAGA = { bajo: 'ok', medio: 'ojo', alto: 'mala' } as const
-const esRiego = (t: Hoy['agenda'][number]) => t.tipo === 'riego' || (t.mm ?? 0) > 0
 
-// próximos 7 días: lluvia del pronóstico + tareas de la agenda
-const dias = computed(() => {
-  const x = h.value
-  if (!x) return []
-  return Array.from({ length: 7 }, (_, k) => {
-    const f = sumarDias(x.fecha, k)
-    const pr = x.pronostico.find((d) => d.fecha === f)
-    const tareas = x.agenda.filter((t) => t.fecha === f)
-    return { fecha: f, hoy: k === 0, lluvia: pr?.lluviaMm ?? null, tmax: pr?.tmax ?? null, tmin: pr?.tmin ?? null, tareas, litros: tareas.filter(esRiego).reduce((a, t) => a + (t.litros ?? 0), 0), labor: tareas.some((t) => !esRiego(t)) }
-  })
-})
-const diaSel = ref(0)
-const dia = computed(() => dias.value[diaSel.value])
 const avisosMalos = computed(() => (h.value?.avisos ?? []).filter((a) => a.nivel !== 'ok'))
+/** lo que dispara una notificación: avisos y plagas de riesgo alto */
+const alertasNotif = computed(() => [...avisosMalos.value.map((a) => a.texto), ...(h.value?.plagas ?? []).filter((x) => x.riesgo === 'alto').map((x) => lineaPlaga(x, lang.value === 'en' ? 'en' : 'es'))])
 const ORDEN = ['alto', 'medio', 'bajo']
 const plagasOrden = computed(() => [...(h.value?.plagas ?? [])].sort((a, b) => ORDEN.indexOf(a.riesgo) - ORDEN.indexOf(b.riesgo)))
 const preguntas = computed(() => (p.value ? faqs(p.value.cultivo, h.value, lang.value === 'en' ? 'en' : 'es') : []))
@@ -152,6 +142,7 @@ onBeforeUnmount(() => mq?.removeEventListener?.('change', alCambiar))
 // tutorial: primera visita (o botón «?»)
 const tour = ref(false)
 const pasos = computed<Paso[]>(() => [
+  { sel: '[data-tour="avisos"]', titulo: tx('avisosTit'), texto: tx('avisosQue') },
   { sel: '[data-tour="hoy"]', titulo: tx('tour_hoy_t'), texto: tx('tour_hoy') },
   { sel: '[data-tour="dias"]', titulo: tx('tour_dias_t'), texto: tx('tour_dias') },
   { sel: '[data-tour="crecimiento"]', titulo: tx('tour_crec_t'), texto: tx('tour_crec') },
@@ -189,6 +180,9 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
       <div v-if="!h" class="muted">{{ tx('cargando') }}</div>
       <div v-else class="lienzo" :class="{ conChat: ancho }">
         <div class="principal">
+          <!-- 0 · AVISOS (dashboard7: arriba, compacto) -->
+          <Avisos :parcela="p" :alertas="alertasNotif" />
+
           <!-- 1 · HOY -->
           <article class="card hoy" data-test="hoy" data-tour="hoy">
             <p class="eyebrow">{{ tx('hoy') }} · {{ diaSemana(h.fecha) }} <span class="semaforo" :class="luz" data-test="semaforo"><i />{{ t(`dec.sem_${luz}`) }}</span></p>
@@ -214,40 +208,11 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
             </div>
           </article>
 
-          <!-- decisiones (granjero6): siembra, canícula, cosecha, abono -->
-          <Decisiones :tarjetas="tarjetas" />
+          <!-- 2 · PRÓXIMOS DÍAS (flechas, mes, qué hacer) -->
+          <ProximosDias :h="h" :lat="p.lat" :lon="p.lon" :ca="ca" />
 
-          <!-- 2 · PRÓXIMOS DÍAS -->
-          <article class="card" data-tour="dias">
-            <h2><CalendarDays :size="20" aria-hidden="true" />{{ tx('proximos') }}</h2>
-            <ol class="tira" data-test="agenda">
-              <li v-for="(d, k) in dias" :key="d.fecha">
-                <button type="button" class="dia" :class="{ sel: diaSel === k, hoyd: d.hoy }" data-test="dia" :aria-pressed="diaSel === k" @click="diaSel = k">
-                  <small>{{ d.hoy ? tx('hoy') : diaSemana(d.fecha) }}</small>
-                  <span class="ico">
-                    <CloudRain v-if="(d.lluvia ?? 0) >= 2" :size="20" class="c-lluvia" aria-hidden="true" />
-                    <Sun v-else-if="d.lluvia !== null" :size="20" class="c-sol" aria-hidden="true" />
-                    <span v-else class="c-nada">·</span>
-                  </span>
-                  <small class="lluvia tabular">{{ (d.lluvia ?? 0) >= 2 ? `${Math.round(d.lluvia!)} mm` : '' }}</small>
-                  <span v-if="d.litros > 0" class="tag agua"><Droplets :size="12" aria-hidden="true" />{{ fmt(d.litros) }} L</span>
-                  <span v-if="d.labor" class="tag labor"><ClipboardCheck :size="12" aria-hidden="true" /></span>
-                </button>
-              </li>
-            </ol>
-            <div v-if="dia" class="detalle" data-test="dia-detalle">
-              <p class="dtit"><b>{{ dia.hoy ? tx('hoy') : diaSemana(dia.fecha) }}</b>
-                <span class="muted"><template v-if="dia.lluvia !== null"> · {{ dia.lluvia >= 1 ? tx('lluviaDia', { mm: Math.round(dia.lluvia) }) : tx('sinLluvia') }}</template><template v-if="dia.tmax !== null"> · {{ dia.tmin }}–{{ dia.tmax }} °C</template></span></p>
-              <ul v-if="dia.tareas.length" class="tareas">
-                <li v-for="(t, i) in dia.tareas" :key="i">
-                  <component :is="esRiego(t) ? Droplets : ClipboardCheck" :size="16" aria-hidden="true" :class="esRiego(t) ? 'c-agua' : 'c-labor'" />
-                  <span class="hora tabular">{{ t.hora ?? '' }}</span>
-                  <span>{{ t.accion }}<template v-if="t.mm"> <b>{{ t.mm }} mm</b> · <b>{{ fmt(t.litros ?? 0) }} L</b></template></span>
-                </li>
-              </ul>
-              <p v-else class="muted">{{ tx('nadaDia') }}</p>
-            </div>
-          </article>
+          <!-- decisiones como preguntas y respuestas (siembra, canícula, cosecha, abono) -->
+          <PreguntasDec :tarjetas="tarjetas" :ca="ca" />
 
           <!-- 3 · CRECIMIENTO -->
           <article class="card" data-tour="crecimiento">
@@ -372,29 +337,6 @@ h1 { font-size: clamp(1.9rem, 6vw, 2.8rem); }
 .chip.bajo .punto { background: var(--granada); }
 .reportar { display: grid; gap: 0.45rem; padding-top: 0.75rem; border-top: 1px solid var(--line); }
 
-/* próximos días */
-.tira { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.35rem; }
-.dia { width: 100%; display: grid; justify-items: center; align-content: start; gap: 0.2rem; padding: 0.55rem 0.2rem; min-height: 112px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--bg); cursor: pointer; color: var(--ink); transition: border-color 160ms, background-color 160ms; }
-.dia:hover { border-color: var(--line-2); }
-.dia.sel { border-color: var(--anil); background: color-mix(in srgb, var(--anil) 7%, var(--surface)); }
-.dia > small:first-child { font-size: 0.78rem; font-weight: 700; text-transform: capitalize; white-space: nowrap; }
-.dia.hoyd > small:first-child { color: var(--anil); }
-.ico { height: 22px; display: grid; place-items: center; }
-.c-lluvia { color: var(--anil); }
-.c-sol { color: var(--maiz-ink, var(--maiz)); }
-.c-nada { color: var(--ink-3); }
-.lluvia { font-size: 0.74rem; color: var(--anil); font-weight: 700; min-height: 1.1em; }
-.tag { display: inline-flex; align-items: center; gap: 0.15rem; font-size: 0.7rem; font-weight: 750; padding: 0.1rem 0.35rem; border-radius: 999px; white-space: nowrap; }
-.tag.agua { background: color-mix(in srgb, var(--anil) 13%, transparent); color: var(--anil); }
-.tag.labor { background: color-mix(in srgb, var(--tierra) 15%, transparent); color: var(--tierra); }
-.detalle { display: grid; gap: 0.45rem; padding: 0.8rem 0.9rem; border-radius: 14px; background: var(--bg-2); }
-.dtit b { text-transform: capitalize; }
-.tareas { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; font-size: 0.93rem; }
-.tareas li { display: grid; grid-template-columns: auto 3rem 1fr; gap: 0.45rem; align-items: center; }
-.c-agua { color: var(--anil); }
-.c-labor { color: var(--tierra); }
-.hora { color: var(--ink-3); font-weight: 600; }
-
 .siembra { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .siembra input { font: inherit; border: 1.5px solid var(--line-2); border-radius: 10px; padding: 0.45rem 0.7rem; background: var(--bg); color: var(--ink); min-height: 44px; }
 
@@ -427,10 +369,4 @@ h1 { font-size: clamp(1.9rem, 6vw, 2.8rem); }
 .mapa { padding: 0.5rem; }
 .pie { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; margin-top: 0.6rem; font-size: 0.82rem; }
 .vacio { font-size: 1.1rem; padding: 2rem 0; }
-@media (max-width: 520px) {
-  .tira { gap: 0.2rem; }
-  .dia { min-height: 104px; padding: 0.45rem 0.05rem; border-radius: 11px; }
-  .dia > small:first-child { font-size: 0.68rem; }
-  .tag { font-size: 0.62rem; padding: 0.1rem 0.2rem; }
-}
 </style>
