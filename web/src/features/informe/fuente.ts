@@ -8,6 +8,7 @@
 //   alertas:alertas.3.dias
 //   count(plan:estrategias.0.anios;perdida)       → cuántos elementos tienen ese campo verdadero
 //   len(plan:estrategias.0.anios)                 → largo del arreglo
+//   sum(sim.S1:lluvia_mm)                         → suma de los positivos (1 decimal)
 //   diff(plan:estrategias.0.erosion_t_ha.0;plan:estrategias.2.erosion_t_ha.0) → a − b
 import { inject, type InjectionKey, type Ref } from 'vue'
 import { lang } from '@/i18n'
@@ -50,6 +51,10 @@ export function resolver(d: DatosInforme | null | undefined, src: string): unkno
   if (m[1] === 'len') {
     const a = base(d, args[0])
     return Array.isArray(a) ? a.length : undefined
+  }
+  if (m[1] === 'sum') {
+    const a = base(d, args[0])
+    return Array.isArray(a) ? Math.round(a.reduce((t: number, x) => t + (typeof x === 'number' && x > 0 ? x : 0), 0) * 10) / 10 : undefined
   }
   if (m[1] === 'diff') {
     const a = Number(base(d, args[0])), b = Number(base(d, args[1]))

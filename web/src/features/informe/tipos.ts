@@ -84,6 +84,14 @@ export interface SimInf {
   motor: string
   escenario?: string
   confianza?: Confianza | null
+  /** serie diaria de la temporada (para la gráfica de lluvia y agua del suelo) */
+  lluvia_mm?: number[]
+  riego_mm?: number[]
+  agua_suelo?: number[] // 0..1 fracción del agua disponible
+  et0_mm?: number[]
+  /** días que salen del pronóstico de 16 días (fuente[] = pronostico) */
+  dias_pron?: number
+  fuente_dias?: string[]
 }
 
 export interface AlertaTL {
@@ -138,4 +146,8 @@ export interface ConsultaInf {
   prioridad: 'comida' | 'agua' | 'suelo' | 'ingreso'
   idioma: 'es' | 'en'
   print: boolean
+  /** geometría de la parcela (contrato ronda 4): punto | circulo (radio m) | poligono (polilínea de Google, precisión 6) */
+  forma: 'punto' | 'circulo' | 'poligono'
+  radio?: number
+  poly?: string
 }

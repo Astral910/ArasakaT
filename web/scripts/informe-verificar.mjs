@@ -77,6 +77,7 @@ function resolver(src) {
   const a = m[2].split(';').map((s) => s.trim())
   if (m[1] === 'count') { const arr = base(a[0]); return Array.isArray(arr) ? arr.filter((x) => !!x?.[a[1]]).length : undefined }
   if (m[1] === 'len') { const arr = base(a[0]); return Array.isArray(arr) ? arr.length : undefined }
+  if (m[1] === 'sum') { const arr = base(a[0]); return Array.isArray(arr) ? Math.round(arr.reduce((t, x) => t + (typeof x === 'number' && x > 0 ? x : 0), 0) * 10) / 10 : undefined }
   if (m[1] === 'diff') { const x = Number(base(a[0])), y = Number(base(a[1])); return isFinite(x) && isFinite(y) ? x - y : undefined }
 }
 const fmt = (v, dec, x) => (typeof v !== 'number' || !isFinite(v) ? '—'
