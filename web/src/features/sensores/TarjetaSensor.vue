@@ -1,10 +1,13 @@
 <script setup lang="ts">
 // Tarjeta de la estación de campo para el dashboard: humedad a 10 y 30 cm, lluvia por hora, batería,
-// último dato, eventos y "observado vs modelo". Sin estación: si `demo`, la simulada (marcada); si no, aviso.
-import { computed, onMounted, ref, watch } from 'vue'
+// último dato, eventos y "observado vs modelo". Sin estación: si `demo`, la simulada (marcada); si no, tarjeta
+// chica «Conectá tu sensor SEED» que abre la vinculación (id, token, comandos serie y lectura por la red local).
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { lang } from '@/i18n'
 import { t } from './textos'
 import { cargarModelo, cargarSensor, comparar, lluviaHoras, type Datos, type Modelo } from './api'
+import VincularSensor from './VincularSensor.vue'
+import LecturaLocal from './LecturaLocal.vue'
 
 const props = withDefaults(defineProps<{ parcelaId?: string; demo?: boolean; escenario?: 'lluvia' | 'secado' }>(), {
   demo: false,
@@ -14,6 +17,7 @@ const props = withDefaults(defineProps<{ parcelaId?: string; demo?: boolean; esc
 const datos = ref<Datos | null>(null)
 const modelo = ref<Modelo | null>(null)
 const cargado = ref(false)
+const abierto = ref(false)
 
 async function cargar() {
   cargado.value = false
@@ -26,6 +30,16 @@ async function cargar() {
   cargado.value = true
 }
 onMounted(cargar)
+// tras vincular, revisa cada 20 s si ya llegó la primera lectura
+let espera: ReturnType<typeof setInterval> | undefined
+function vinculado() {
+  if (espera) clearInterval(espera)
+  espera = setInterval(async () => {
+    const d = await cargarSensor(props.parcelaId)
+    if (d) { clearInterval(espera); datos.value = d }
+  }, 20_000)
+}
+onBeforeUnmount(() => espera && clearInterval(espera))
 watch(() => [props.parcelaId, props.escenario], cargar)
 
 const en = computed(() => lang.value === 'en')
@@ -74,7 +88,20 @@ function num(x?: number, d = 0, min = 0) { return x == null ? '—' : x.toLocale
 </script>
 
 <template>
-  <section class="sensor" :aria-busy="!cargado">
+  <section v-if="cargado && !e" class="sensor conecta" data-test="sensor-conecta">
+    <div class="conecta-cab">
+      <span class="ico-seed" aria-hidden="true">🌱</span>
+      <div>
+        <strong>{{ t('conecta') }}</strong>
+        <p class="muted chico">{{ t('conecta.sub') }}</p>
+      </div>
+      <button type="button" class="btn-con" :aria-expanded="abierto" data-test="sensor-vincular" @click="abierto = !abierto">
+        {{ abierto ? t('conecta.cerrar') : t('conecta.btn') }}
+      </button>
+    </div>
+    <VincularSensor v-if="abierto" :parcela-id="parcelaId" @vinculado="vinculado" />
+  </section>
+  <section v-else class="sensor" :aria-busy="!cargado">
     <header class="cab">
       <p class="eyebrow">{{ t('eyebrow') }}</p>
       <span v-if="datos?.simulado" class="chip chip-sim" :title="t('simulado.nota')">{{ t('simulado') }}</span>
@@ -82,12 +109,7 @@ function num(x?: number, d = 0, min = 0) { return x == null ? '—' : x.toLocale
     </header>
 
     <p v-if="!cargado" class="muted">{{ t('cargando') }}</p>
-    <div v-else-if="!e" class="vacio">
-      <p>{{ t('sinEstacion') }}</p>
-      <p class="muted chico">{{ t('comoArmar') }}: docs/sensor.md</p>
-    </div>
-
-    <template v-else>
+    <template v-else-if="e">
       <div class="fila">
         <div class="agua" :class="'n-' + nivelAgua">
           <span class="label">{{ t('agua') }}</span>
@@ -112,12 +134,12 @@ function num(x?: number, d = 0, min = 0) { return x == null ? '—' : x.toLocale
           <strong class="num">{{ num(e.lluvia_hoy_mm, 1) }} mm</strong>
           <span class="muted chico">{{ t('lluvia24', { mm: num(e.lluvia_24h_mm, 1) }) }}<template v-if="e.pron_hoy_mm != null"> · {{ t('pron', { mm: num(e.pron_hoy_mm, 1) }) }}</template></span>
         </div>
-        <div>
+        <div v-if="e.bat_pct != null || e.bat_v != null">
           <span class="label">{{ t('bateria') }}</span>
           <strong class="num">{{ num(e.bat_pct) }} %</strong>
           <span class="muted chico">{{ num(e.bat_v, 2, 2) }} V</span>
         </div>
-        <div>
+        <div v-if="e.t_suelo != null || e.t_aire != null">
           <span class="label">{{ t('tsuelo', { t: num(e.t_suelo, 1) }) }}</span>
           <span class="muted chico">{{ t('taire', { t: num(e.t_aire, 1), hr: num(e.hr) }) }}</span>
         </div>
@@ -161,6 +183,11 @@ function num(x?: number, d = 0, min = 0) { return x == null ? '—' : x.toLocale
         </template>
         <p v-else class="muted chico">{{ datos?.simulado ? t('simulado.nota') : t('cmp.sin') }}</p>
       </div>
+
+      <details v-if="!datos?.simulado" class="fuentes chico">
+        <summary class="muted">{{ t('local') }}</summary>
+        <LecturaLocal />
+      </details>
 
       <details class="fuentes chico muted">
         <summary>{{ t('fuentes') }}</summary>
@@ -219,7 +246,11 @@ function num(x?: number, d = 0, min = 0) { return x == null ? '—' : x.toLocale
 .accion { font-weight: 600; margin-top: 0.15rem; }
 .cmp .dos { display: flex; gap: 1.2rem; margin: 0.1rem 0 0.2rem; }
 .fuentes ul { margin: 0.3rem 0 0; padding-left: 1rem; }
-.vacio { display: grid; gap: 0.3rem; }
+.conecta { gap: 0.7rem; padding: 0.85rem 1rem; }
+.conecta-cab { display: grid; grid-template-columns: auto 1fr auto; gap: 0.7rem; align-items: center; }
+.conecta-cab p { margin: 0.1rem 0 0; }
+.ico-seed { font-size: 1.5rem; }
+.btn-con { font: inherit; font-size: 0.85rem; font-weight: 600; padding: 0.45rem 0.9rem; border-radius: 999px; border: 0; background: var(--jade); color: #fff; cursor: pointer; white-space: nowrap; }
 @media (max-width: 420px) {
   .fila { grid-template-columns: 1fr; }
   .fila.tres { grid-template-columns: 1fr 1fr; }
