@@ -69,7 +69,7 @@ module cuerpo_bruto() {
 module letras(prof) {
   translate([cx, prof, piso + 20]) rotate([90, 0, 0]) linear_extrude(prof + 0.01) {
     text("FIELD SHIFT", size = 3.9, halign = "center", font = "Liberation Sans:style=Bold", spacing = 1.05);
-    translate([0, -6.2]) text("humedad del suelo", size = 2.4, halign = "center", font = "Liberation Sans");
+    translate([0, -6.2]) text("HUMEDAD DEL SUELO", size = 2.6, halign = "center", font = "Liberation Sans:style=Bold");
   }
   // hoja (brote) sobre el texto
   translate([cx, prof, piso + 28.5]) rotate([90, 0, 0]) linear_extrude(prof + 0.01) {
@@ -97,9 +97,6 @@ module tapa() {
     translate([pared - 1, pcb_y - 3, -labio - 1]) cube([iw + 2, pcb_t + hdr_t + 8, labio + 1]);
     // pasaje de los dos enchufes USB-C
     translate([cx - 1.6 - 12, pcb_y - 1.6 - 3.7, -labio - 1]) linear_extrude(tapa_t + labio + 2) offset(r = 2.5) offset(delta = -2.5) square([24, 7.4]);
-    // texto en la tapa
-    translate([cx, od - 9, tapa_t - 0.5]) linear_extrude(1) text("SPACE APPS 2026", size = 2.3, halign = "center", font = "Liberation Sans:style=Bold");
-    translate([cx - 1.6, pcb_y - 1.6 + 6.5, tapa_t - 0.5]) linear_extrude(1) text("USB-C", size = 2.2, halign = "center", font = "Liberation Sans");
   }
 }
 
