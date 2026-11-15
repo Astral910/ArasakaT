@@ -18,6 +18,11 @@ export const routes: RouteRecordRaw[] = [
   { path: '/how', name: 'how', component: feature('how'), meta: { feature: 'how' } },
   { path: '/sandbox', name: 'sandbox', component: feature('sandbox'), meta: { feature: 'sandbox', bare: true } },
   { path: '/informe', name: 'informe', component: feature('informe'), meta: { feature: 'informe', bare: true } },
+  // cuenta y dashboard (agente dashboard, ronda 5)
+  { path: '/entrar', name: 'entrar', component: () => import('./features/cuenta/Entrar.vue') },
+  { path: '/registro', name: 'registro', component: () => import('./features/cuenta/Entrar.vue') },
+  { path: '/mis-terrenos', name: 'mis-terrenos', component: () => import('./features/dashboard/index.vue') },
+  { path: '/terreno/:id', name: 'terreno', component: () => import('./features/dashboard/Terreno.vue') },
   { path: '/:pathMatch(.*)*', name: 'notfound', component: () => import('./views/NotFound.vue') },
 ]
 
