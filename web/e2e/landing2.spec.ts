@@ -58,8 +58,11 @@ test('punto exacto con un clic: centro a 5 decimales + forma=punto', async ({ pa
   await elegir(page, 'Jocotán', /Chiquimula/)
   await llegar(page)
   const c = await libre(page)
-  await page.mouse.click(c.x + 30 * c.k, c.y - 20 * c.k)
-  await expect(page.getByTestId('marca')).toContainText('Punto exacto marcado')
+  // el clic cuenta desde que termina el vuelo (evento "llego"): si llegó antes, se repite
+  await expect(async () => {
+    await page.mouse.click(c.x + 30 * c.k, c.y - 20 * c.k)
+    await expect(page.getByTestId('marca')).toContainText('Punto exacto marcado', { timeout: 2000 })
+  }).toPass({ timeout: 15_000 })
   await page.waitForTimeout(1500)
   await page.getByTestId('ver-temporada').click()
   await expect(page).toHaveURL(/lat=14\.\d{4,5}&lon=-89\.\d{4,5}.*forma=punto/)
