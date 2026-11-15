@@ -490,3 +490,11 @@ Agente extra de la ronda 5. Guía: `docs/sensor.md`; hardware en `hardware/` (di
 - **Verificado**: `go test -p 1 ./...` ✅ · vitest 242 ✅ · vue-tsc ✅ · e2e **28/28** ✅ (4 nuevos en `e2e/tests/ronda5.spec.ts`, chat con `e2e/claude-falso`) · punta a punta en 127.0.0.1:8200 con `claude -p` real (2 preguntas: riego/plagas con fuentes en 10 s; rango 1 jul–1 ago → `abrir_simulacion` en 6 s). Capturas EN `submission/screenshots/29–37`; textos 02/03/04/05/06/README actualizados.
 - Nada quedó detrás de bandera: todo estable. Banderas disponibles si hiciera falta: `CHAT_MOTOR=off` (respaldo por reglas), `DEMO_PASS=off`, `INFORME_RENDER=off`.
 - **→ verificador5 / video5**: build `bin\fieldshift-server.exe` + `bin\fieldshift-mcp.exe`; servidores cerrados al terminar. Capturas para el video: `submission/screenshots/29–37`, guion: `node e2e/capturas-r5.mjs`.
+
+## RONDA 6 (15-nov 11:20) · pulido final
+
+### integrador6 · ronda 6 unida en `integracion` — 15-nov 12:50
+- Unidas sin conflictos: feat/vuelo (sandbox6), feat/dashboard (terreno6), feat/chatbot (chat6), feat/web (mapa6).
+- **Chat por terreno**: dashboard pasa `parcela-id` + `terreno` (nombre, encabezado al instante) en escritorio (fijo a la derecha) y celular (flotante); sandbox pasa `parcela-id` de `?parcela=` (sin terreno usa el lugar). Memoria por terreno en el servidor (`<DB_PATH dir>/chat/chat.db`).
+- **e2e al día** (`e2e/tests`): ronda5 «guía con siembra y cosecha» ahora busca el avance en la barra (`Siembra en N d|Crecimiento N %|Cosechado`); sandbox «tarjeta final» busca «Confianza media/alta/baja» (el % pasó al informe); tour «Plan my milpa» en `test.skip` (/plan redirige al inicio desde 7944ee4).
+- Verificado en 127.0.0.1:8230: ver `estado\integrador6.md`.

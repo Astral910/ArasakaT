@@ -275,9 +275,9 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
 
         <!-- chat: al lado en escritorio, flotante en celular -->
         <aside v-if="ancho" class="lado" data-tour="chat">
-          <component :is="Chat" :parcela-id="p.id" :contexto="contexto" :flotante="false" @accion="accion" />
+          <component :is="Chat" :parcela-id="p.id" :terreno="p.nombre" :contexto="contexto" :flotante="false" @accion="accion" />
         </aside>
-        <component :is="Chat" v-else :parcela-id="p.id" :contexto="contexto" :flotante="true" @accion="accion" />
+        <component :is="Chat" v-else :parcela-id="p.id" :terreno="p.nombre" :contexto="contexto" :flotante="true" @accion="accion" />
       </div>
 
       <Tutorial v-model:abierto="tour" :pasos="pasos" />

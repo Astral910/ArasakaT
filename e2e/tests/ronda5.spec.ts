@@ -40,8 +40,8 @@ test('landing: fecha de siembra → recomendación → guía con siembra y cosec
   await page.getByTestId('ver-temporada').click()
   await expect(page).toHaveURL(new RegExp(`/sandbox\\?.*siembra=${fecha}`))
   await expect(page.locator('canvas').first()).toBeVisible({ timeout: 60_000 })
-  // la guía dice cuándo se siembra y cuándo se cosecha
-  await expect(page.locator('body')).toContainText(/Sembrás el .+ cosechás/, { timeout: 90_000 })
+  // ronda 6: la barra de abajo muestra el avance de la siembra (antes, cuánto falta o ya cosechado)
+  await expect(page.locator('body')).toContainText(/Siembra en \d+ d|Crecimiento \d+ %|Cosechado/, { timeout: 90_000 })
   await page.waitForTimeout(3000)
   await snap(page, 'guia-siembra-cosecha')
   noErrors(errors)
