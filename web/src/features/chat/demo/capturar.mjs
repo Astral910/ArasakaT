@@ -13,8 +13,11 @@ async function preguntar(p, txt) {
   tiempos.push({ txt, s: (Date.now() - t0) / 1000 })
   await p.waitForTimeout(400)
 }
+const soloMovil = process.argv[3] === 'movil'
+let p
 // 1) Escritorio ES: cerrado, abierto, y las 3 preguntas reales
-let p = await b.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
+if (!soloMovil) {
+p = await b.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
 await p.goto(base + '?lang=es')
 await p.waitForTimeout(800)
 await p.screenshot({ path: `${out}/01-cerrado.png` })
@@ -32,6 +35,7 @@ await preguntar(p, 'Hoy llovió mucho')
 await p.screenshot({ path: `${out}/05-reporte-lluvia.png` })
 console.log('acciones emitidas:', JSON.stringify(await p.evaluate(() => window.__acciones)))
 await p.close()
+}
 // 2) Celular EN
 p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
 await p.goto(base + '?lang=en&abierto=1')
