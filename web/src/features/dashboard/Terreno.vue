@@ -263,7 +263,7 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
 
           <!-- estación de campo (sensor; integrador5) y mapa -->
           <div class="extras">
-            <article class="card" data-test="sensor"><TarjetaSensor :parcela-id="p.id" demo /></article>
+            <article class="card" data-test="sensor"><TarjetaSensor :parcela-id="p.id" /></article>
             <article class="card mapa"><GMapa :lat="p.lat" :lon="p.lon" :forma="p.forma" :radio="p.radio" :poligono="poli" :W="420" :H="240" /></article>
           </div>
 

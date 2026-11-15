@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cargarModelo, cargarSensor, comparar, lluviaHoras, type Punto } from './api'
+import { altaSensor, cargarModelo, cargarSensor, comandosSerie, comparar, leerLocal, lluviaHoras, urlLocal, type Punto } from './api'
 
 function fakeFetch(rutas: Record<string, unknown>): typeof fetch {
   return (async (url: string) => {
@@ -39,5 +39,29 @@ describe('sensores/api', () => {
     const h = lluviaHoras(s)
     expect(h).toHaveLength(24)
     expect(h[23].mm).toBe(29)
+  })
+
+  it('sin estación y sin demo no inventa una simulada', async () => {
+    expect(await cargarSensor('p1', { f: fakeFetch({ '/api/sensores/demo': { estado, simulado: true } }) })).toBeNull()
+  })
+
+  it('vincular: alta con id y token y los tres comandos serie', async () => {
+    let cuerpo = ''
+    const pedir = (async (_r: string, init?: RequestInit) => {
+      cuerpo = String(init?.body)
+      return { dispositivo: { id: 'est_ab12' }, token: 'fsd_xyz', ingesta: '/api/sensores/est_ab12/lecturas' }
+    }) as <T>(r: string, i?: RequestInit) => Promise<T>
+    const a = await altaSensor('p9', pedir)
+    expect(JSON.parse(cuerpo).parcela_id).toBe('p9')
+    expect(comandosSerie('https://fieldshift.app/', a)).toEqual(['servidor https://fieldshift.app', 'token fsd_xyz', 'id est_ab12'])
+  })
+
+  it('lee el sensor en la red local por /datos', async () => {
+    expect(urlLocal('')).toBe('http://fieldshift-sensor.local/datos')
+    expect(urlLocal('192.168.1.50')).toBe('http://192.168.1.50/datos')
+    expect(urlLocal('http://10.0.0.4/datos')).toBe('http://10.0.0.4/datos')
+    const f = fakeFetch({ 'http://192.168.1.50/datos': { humedad: 42.5, crudo: 300, estado: 'bien' } })
+    expect((await leerLocal('192.168.1.50', f))?.humedad).toBe(42.5)
+    expect(await leerLocal('10.9.9.9', f)).toBeNull()
   })
 })
