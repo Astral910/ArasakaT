@@ -6,7 +6,7 @@ import { ArrowLeft, Box, CalendarDays, CircleAlert, CircleCheck, Droplets, FileT
 import { lang } from '@/i18n'
 import GMapa from '../informe/graficos/GMapa.vue'
 import { decodificarPolilinea } from '../informe/geometria'
-import { actualizarParcela, borrarParcela, obtenerParcela, queryTerreno, revisarSesion } from '../cuenta/api'
+import { actualizarParcela, areaM2, borrarParcela, obtenerParcela, queryTerreno, revisarSesion } from '../cuenta/api'
 import type { Parcela } from '../cuenta/tipos'
 import { cargarHoy, enviarReporte, type AccionChat, type Hoy, type Reporte, type TipoReporte } from './campo'
 import CicloCosecha from './CicloCosecha.vue'
@@ -63,7 +63,12 @@ async function borrar() {
 const q3d = computed(() => (p.value ? { path: '/sandbox', query: { ...queryTerreno(p.value), auto: '1', idioma: lang.value } } : '/'))
 const qInforme = computed(() => (p.value ? { path: '/informe', query: { ...queryTerreno(p.value), idioma: lang.value } } : '/'))
 const poli = computed(() => (p.value?.forma === 'poligono' && p.value.poly ? decodificarPolilinea(p.value.poly) : undefined))
-const contexto = computed(() => ({ pantalla: 'dashboard', fecha: h.value?.fecha, siembra: p.value?.siembra }))
+// integrador5: el lugar del terreno va en el contexto (el asistente arma la URL de /sandbox con lat/lon)
+const contexto = computed(() => ({
+  pantalla: 'dashboard', fecha: h.value?.fecha, siembra: p.value?.siembra, idioma: lang.value,
+  lat: p.value?.lat, lon: p.value?.lon, lugar: p.value?.lugar ?? p.value?.nombre, cultivo: p.value?.cultivo,
+  riego_mm_semana: p.value?.riego, area_m2: p.value ? Math.round(areaM2(p.value)) : undefined,
+}))
 
 /** acciones del chat: actualizan esta vista o abren el simulador */
 async function accion(a: AccionChat) {
@@ -77,7 +82,7 @@ async function accion(a: AccionChat) {
     guardarSiembra()
   } else if (a.tipo === 'abrir_simulacion' || a.tipo === 'mostrar_filtro') {
     const extra: Record<string, string> = {}
-    for (const k in pr) if (pr[k] !== undefined && pr[k] !== null) extra[k] = String(pr[k])
+    for (const k in pr) if (pr[k] !== undefined && pr[k] !== null && k !== 'url' && k !== 'parcelaId') extra[k] = String(pr[k])
     router.push({ path: '/sandbox', query: { ...queryTerreno(p.value), auto: '1', idioma: lang.value, ...extra } })
   }
 }

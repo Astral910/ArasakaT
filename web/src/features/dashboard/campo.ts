@@ -314,6 +314,6 @@ export function plagasEstimadas(cultivo: string, etapaI: number, lluvia7: number
 export function lineaEstado(h: Hoy, es: boolean): string {
   const riego = h.riego.mm > 0 ? (es ? `Regá ${h.riego.mm} mm hoy` : `Water ${h.riego.mm} mm today`) : (es ? 'Hoy no hace falta regar' : 'No watering needed today')
   const av = h.avisos.find((a) => a.nivel === 'mala') ?? h.avisos.find((a) => a.nivel === 'ojo')
-  const corto = av ? av.texto.split(/[:.]/)[0].toLowerCase() : h.diasCosecha !== null && h.diasCosecha >= 0 ? (es ? `cosecha en ${h.diasCosecha} días` : `harvest in ${h.diasCosecha} days`) : ''
+  const corto = av ? av.texto.split(/[:.]/)[0].toLowerCase() : h.diasCosecha !== null && h.diasCosecha === 0 && h.cosecha && h.cosecha < h.fecha ? (es ? 'ya cosechado' : 'harvested') : h.diasCosecha !== null && h.diasCosecha > 0 ? (es ? `cosecha en ${h.diasCosecha} días` : `harvest in ${h.diasCosecha} days`) : ''
   return corto ? `${riego} · ${corto}` : riego
 }

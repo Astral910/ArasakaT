@@ -8,5 +8,6 @@
 | **NEX-GDDP-CMIP6** (NASA Earth Exchange Global Daily Downscaled Projections) · https://www.nccs.nasa.gov/services/data-collections/land-based-products/nex-gddp-cmip6 | Monthly temperature and precipitation deltas, 2038–2042 vs 2010–2014, SSP2-4.5 and SSP5-8.5, three models (ACCESS-CM2, MRI-ESM2-0, MPI-ESM1-2-HR), via NCCS THREDDS | The 2026 ↔ 2040 switch: the same plan recomputed under future climate. |
 | **SRTM** (Shuttle Radar Topography Mission) elevation, via AWS Terrain Tiles (terrarium) · https://registry.opendata.aws/terrain-tiles/ | Elevation and slope | 3D relief of the map; temperature correction by elevation; municipal mean slope for the erosion estimate. |
 | **NASA GIBS** · https://gibs.earthdata.nasa.gov/ | WMTS imagery tiles (MODIS NDVI, IMERG) | Fast satellite layers in the browser without downloading rasters. |
+| **MODIS Terra Land Surface Temperature** MOD11A1, daily, 1 km · https://lpdaac.usgs.gov/products/mod11a1v061/ (through NASA GIBS) | Daytime land-surface temperature (PNG + colour map → °C) | Real reference for the round-5 "temperature by zone" layer on the farmer's field; the zone detail is an estimate (engine Tmax + elevation + sun angle + land cover) and the legend says so. |
 
 All NASA data is open and used without login except where noted (Earthdata login for GES DISC products).

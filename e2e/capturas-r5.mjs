@@ -24,9 +24,12 @@ await page.getByRole('option').filter({ hasText: /Chiquimula|Guatemala/ }).first
 await page.getByTestId('siembra-elegir').click()
 await page.getByTestId('siembra-fecha').fill(`${año}-07-20`)
 await page.getByTestId('siembra-rec').locator('[data-testid=siembra-cosecha]').waitFor({ timeout: 60_000 })
+await page.keyboard.press('Escape') // cierra el calendario nativo
+await page.locator('h1, h2').first().click({ force: true }).catch(() => {})
 await page.waitForTimeout(2500)
 await jpg('29-planting-date-recommendation')
 console.log('29 ok')
+if (process.env.SOLO === '29') { await browser.close(); process.exit(0) }
 
 // 30) guía con siembra y cosecha en 3D
 await page.getByTestId('ver-temporada').click()
@@ -44,7 +47,7 @@ await page.waitForURL(/terrenos|mis-terrenos/, { timeout: 20_000 })
 await page.waitForTimeout(6000)
 await jpg('31-my-fields-dashboard')
 console.log('31 ok')
-await page.locator('a[href*="/terreno"]').first().click()
+await page.locator('a[href*="/terreno/"]').first().click()
 await page.locator('[data-test="riego-mm"]').waitFor({ timeout: 90_000 })
 await page.waitForTimeout(3000)
 await png('32-field-today-irrigation-agenda-pests', { fullPage: true })
