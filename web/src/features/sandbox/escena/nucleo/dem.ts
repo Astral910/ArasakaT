@@ -26,16 +26,18 @@ export async function decodificarPNG(bytes: Uint8Array, inflar: Inflar = inflarN
   if (dv.getUint32(0) !== 0x89504e47) throw new Error('png: firma')
   let p = 8, w = 0, h = 0, tipo = 0, prof = 0, entrelazado = 0
   const idat: Uint8Array[] = []
+  let plte: Uint8Array | null = null
   while (p + 8 <= bytes.length) {
     const len = dv.getUint32(p)
     const t = String.fromCharCode(bytes[p + 4], bytes[p + 5], bytes[p + 6], bytes[p + 7])
     const d = bytes.subarray(p + 8, p + 8 + len)
     if (t === 'IHDR') { w = dv.getUint32(p + 8); h = dv.getUint32(p + 12); prof = d[8]; tipo = d[9]; entrelazado = d[12] }
     else if (t === 'IDAT') idat.push(d)
+    else if (t === 'PLTE') plte = d
     else if (t === 'IEND') break
     p += 12 + len
   }
-  const bpp = tipo === 6 ? 4 : tipo === 2 ? 3 : tipo === 4 ? 2 : tipo === 0 ? 1 : 0
+  const bpp = tipo === 6 ? 4 : tipo === 2 ? 3 : tipo === 4 ? 2 : tipo === 0 || tipo === 3 ? 1 : 0
   if (!w || !h || prof !== 8 || !bpp || entrelazado) throw new Error(`png: formato no soportado (tipo ${tipo}, ${prof} bits)`)
   let total = 0
   for (const d of idat) total += d.length
@@ -62,6 +64,13 @@ export async function decodificarPNG(bytes: Uint8Array, inflar: Inflar = inflarN
       }
       out[lo + x] = v & 255
     }
+  }
+  // paleta (WMS de cobertura): se expande a RGB
+  if (tipo === 3) {
+    if (!plte) throw new Error('png: paleta sin PLTE')
+    const rgb = new Uint8Array(w * h * 3)
+    for (let k = 0; k < w * h; k++) { const c = out[k] * 3; rgb[k * 3] = plte[c]; rgb[k * 3 + 1] = plte[c + 1]; rgb[k * 3 + 2] = plte[c + 2] }
+    return { w, h, bpp: 3, datos: rgb }
   }
   return { w, h, bpp, datos: out }
 }
