@@ -233,6 +233,17 @@ type Servicio struct {
 	Store    *Store
 	Avisador Avisador
 	Ahora    func() time.Time
+	// Observador (integrador5): la estación de campo del terreno (internal/sensores), si tiene una con dato fresco.
+	// Hoy, el agua del suelo medida reemplaza la del modelo y sus eventos se suman a los avisos.
+	Observador func(parcelaID, idioma string) (*Observacion, bool)
+}
+
+// Observacion lo que mide hoy la estación de campo del terreno.
+type Observacion struct {
+	DrParaTAW   func(taw float64) float64 // agotamiento de la zona de raíces medido, escalado a la TAW del modelo
+	LluviaHoyMM float64
+	Avisos      []Aviso
+	Fuente      string
 }
 
 // ErrSinDatos el motor no tiene clima para el punto.
@@ -467,6 +478,12 @@ func (s *Servicio) calcular(p Parcela, idioma string, reps []Reporte) (*Hoy, err
 	var pasos []paso
 	dr := 0.3 * hyd.TAWmm(math.Min(crop.ZrAt(0), zrCap))
 	hoyK := h.DiasSiembra
+	var obsSensor *Observacion
+	if s.Observador != nil {
+		if o, ok := s.Observador(p.ID, h.Idioma); ok && o != nil && o.DrParaTAW != nil {
+			obsSensor = o
+		}
+	}
 	for j := k0; j < len(ser); j++ {
 		k := j - k0
 		if k >= fin {
@@ -480,6 +497,12 @@ func (s *Servicio) calcular(p Parcela, idioma string, reps []Reporte) (*Hoy, err
 		}
 		pp.taw = hyd.TAWmm(math.Min(crop.ZrAt(k), zrCap))
 		pp.raw = crop.P * pp.taw
+		if obsSensor != nil && k == hoyK && !d.Pron {
+			// la estación ya midió el suelo con la lluvia de hoy adentro: se parte de lo medido y no se suma otra vez
+			dr = clampDr(obsSensor.DrParaTAW(pp.taw), pp.taw)
+			pp.drIni = dr
+			pp.prMod, pp.prUse, pp.obs = obsSensor.LluviaHoyMM, 0, true
+		}
 		pp.etc = crop.KcAt(k) * d.ET0
 		ro := fao56.RunoffCN(pp.prUse, 78)
 		pp.pe = math.Max(0, pp.prUse-ro-sim.Interception)
@@ -619,6 +642,12 @@ func (s *Servicio) calcular(p Parcela, idioma string, reps []Reporte) (*Hoy, err
 
 	// avisos: los del balance + los del sistema de alertas
 	h.Avisos = append(h.Avisos, avisosBalance(h, pro, en)...)
+	if obsSensor != nil {
+		h.Avisos = append(h.Avisos, obsSensor.Avisos...)
+		if obsSensor.Fuente != "" {
+			h.Fuentes = append(h.Fuentes, obsSensor.Fuente)
+		}
+	}
 	if s.Avisador != nil {
 		if av, err := s.Avisador(p, h.Idioma); err == nil {
 			h.Avisos = append(h.Avisos, av...)

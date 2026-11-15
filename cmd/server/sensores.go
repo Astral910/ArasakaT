@@ -30,7 +30,7 @@ func (m sueloMotor) Textura(lat, lon float64) (sensores.Textura, error) {
 	return sensores.Textura{Arena: s.Soil.Sand, Arcilla: s.Soil.Clay, MO: s.Soil.OM, Fuente: s.Soil.Source}, nil
 }
 
-func montarSensores(mux *http.ServeMux, cfg Config, eng *plan.Engine) (*sensores.Servicio, func()) {
+func montarSensores(mux *http.ServeMux, cfg Config, eng *plan.Engine, ps sensores.Parcelas, sesion func(http.Handler) http.Handler) (*sensores.Servicio, func()) {
 	path := os.Getenv("SENSORES_DB")
 	if path == "" {
 		path = filepath.Join(filepath.Dir(cfg.DBPath), "sensores.db")
@@ -40,10 +40,10 @@ func montarSensores(mux *http.ServeMux, cfg Config, eng *plan.Engine) (*sensores
 		log.Printf("sensores: %v → sin estación de campo", err)
 		return nil, func() {}
 	}
-	s := &sensores.Servicio{Store: st, Parcelas: sensores.ParcelasAbiertas{}, Pron: &sensores.OpenMeteo{}}
+	s := &sensores.Servicio{Store: st, Parcelas: ps, Pron: &sensores.OpenMeteo{}}
 	if eng != nil {
 		s.Suelos = sueloMotor{eng}
 	}
-	sensores.Routes(mux, s, nil)
+	sensores.Routes(mux, s, sesion)
 	return s, func() { st.Close() }
 }

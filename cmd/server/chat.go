@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 
 	"fieldshift/internal/bot"
@@ -25,12 +26,7 @@ func montarChat(mux *http.ServeMux, cfg Config, planner contract.Planner, sim ch
 	ccfg, modo, modelo, bin, esfuerzo := chat.ConfigDesdeEnv()
 	dir := filepath.Join(filepath.Dir(cfg.DBPath), "chat")
 	ccfg.Dir = dir
-	secreto := os.Getenv("CHAT_SECRETO")
-	if secreto == "" {
-		b := make([]byte, 16)
-		_, _ = rand.Read(b)
-		secreto = hex.EncodeToString(b)
-	}
+	secreto := chatSecreto() // integrador5: lo comparte con el adaptador de cuentas (X-FieldShift-Interno)
 	h := &chat.Herramientas{Planner: planner, Simulador: sim, Campo: chat.CampoHTTP{H: mux, Secreto: secreto}}
 	var motor chat.Motor
 	estado := "respaldo"
@@ -79,4 +75,23 @@ func compilarMCP(dir string) string {
 		return ""
 	}
 	return out
+}
+
+var (
+	secretoUna sync.Once
+	secretoVal string
+)
+
+// chatSecreto: CHAT_SECRETO o uno al azar por proceso. Autoriza las llamadas internas del asistente (WhatsApp:
+// X-FieldShift-Interno + X-FieldShift-Tel) a campo y cuentas, siempre dentro del mismo proceso.
+func chatSecreto() string {
+	secretoUna.Do(func() {
+		secretoVal = os.Getenv("CHAT_SECRETO")
+		if secretoVal == "" {
+			b := make([]byte, 16)
+			_, _ = rand.Read(b)
+			secretoVal = hex.EncodeToString(b)
+		}
+	})
+	return secretoVal
 }

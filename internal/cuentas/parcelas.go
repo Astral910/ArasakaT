@@ -250,7 +250,7 @@ func scanParcela(r interface{ Scan(...any) error }) (Parcela, error) {
 
 // ParcelasDe lista los terrenos de la cuenta (más viejos primero).
 func (s *Servicio) ParcelasDe(uid string) ([]Parcela, error) {
-	filas, err := s.db.Query(`SELECT `+colsParcela+` FROM parcelas WHERE usuario_id=? ORDER BY creado, id`, uid)
+	filas, err := s.db.Query(`SELECT `+colsParcela+` FROM parcelas WHERE usuario_id=? ORDER BY creado, rowid`, uid)
 	if err != nil {
 		return nil, err
 	}
@@ -269,6 +269,12 @@ func (s *Servicio) ParcelasDe(uid string) ([]Parcela, error) {
 // Parcela devuelve un terreno solo si es de la cuenta (si no, ErrNoEncontrado: no revela que existe).
 func (s *Servicio) Parcela(uid, id string) (Parcela, error) {
 	return scanParcela(s.db.QueryRow(`SELECT `+colsParcela+` FROM parcelas WHERE id=? AND usuario_id=?`, id, uid))
+}
+
+// ParcelaPorID el terreno sin mirar el dueño. Solo para procesos ya autorizados de otra forma
+// (la ingesta de la estación de campo, con el token del dispositivo).
+func (s *Servicio) ParcelaPorID(id string) (Parcela, error) {
+	return scanParcela(s.db.QueryRow(`SELECT `+colsParcela+` FROM parcelas WHERE id=?`, id))
 }
 
 // CrearParcela valida y guarda un terreno nuevo.

@@ -78,7 +78,7 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 
 	// SENSOR (internal/sensores): estación de campo, cmd/server/sensores.go
 	var cerrarSens func()
-	a.sensores, cerrarSens = montarSensores(mux, cfg, motor)
+	a.sensores, cerrarSens = montarSensores(mux, cfg, motor, parcelasCuentas{a}, a.sesionSensores) // integrador5: terrenos de cuentas
 	a.cerrar = append(a.cerrar, cerrarSens)
 
 	// ALERTAS (internal/alerts, internal/forecast, internal/store). Se arma antes que el bot:
@@ -105,9 +105,15 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		a.comp.Alertas = "falso"
 	}
 
-	// CAMPO (internal/campo, cmd/server/campo.go): estado de hoy y reportes de cada parcela. Resolver nil = parcela
-	// por parámetros; al integrar cuentas, pasar el Resolver que lee la parcela de la sesión.
-	a.campo = montarCampo(mux, cfg, a.planner, alSvc, nil)
+	// CAMPO (internal/campo, cmd/server/campo.go): estado de hoy y reportes de cada parcela.
+	// integrador5: la parcela sale de la cuenta (cookie o WhatsApp vinculado); si no, de los parámetros.
+	// Con sesión, las escrituras piden CSRF. La estación de campo (sensores) entra al balance de hoy.
+	campoMux := http.NewServeMux()
+	a.campo = montarCampo(campoMux, cfg, a.planner, alSvc, a.resolverCampo())
+	if a.campo != nil {
+		a.montarCampoRutas(mux, campoMux)
+		a.campo.Observador = a.observadorSensores()
+	}
 	if a.campo != nil && a.campo.Store != nil {
 		a.cerrar = append(a.cerrar, func() { a.campo.Store.Close() })
 	}
@@ -159,6 +165,7 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 	// CHAT: POST /api/chat/asistente + el texto libre del bot (WhatsApp y simulador) va al asistente.
 	chatSvc, chatEstado := montarChat(mux, cfg, a.planner, simulador)
 	svc.Bot.Asistente = chat.ParaBot{S: chatSvc, WebURL: d.WebURL}
+	svc.Bot.Vinculador = vinculadorCuentas{a} // integrador5: VINCULAR 123456
 	a.comp.Chat = chatEstado
 	a.mensajero = svc.Mensajero
 	diferido.set(svc.Mensajero)
@@ -187,8 +194,10 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		cdb = filepath.Join(filepath.Dir(cfg.DBPath), "cuentas.db")
 	}
 	if cs, err := cuentas.Abrir(cuentas.Config{DBPath: cdb, Mensajero: diferido, Correo: cuentas.CorreoDesdeEnv(), DemoPass: cfg.DemoPass}); err == nil {
-		cuentas.Routes(mux, cs)
+		cuentasMux := http.NewServeMux()
+		cuentas.Routes(cuentasMux, cs)
 		a.cuentas = cs
+		a.montarCuentasRutas(mux, cuentasMux) // integrador5: + lectura del asistente de WhatsApp
 		a.comp.Cuentas = "real"
 		a.cerrar = append(a.cerrar, func() { cs.Close() })
 	} else {

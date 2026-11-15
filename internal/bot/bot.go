@@ -61,6 +61,7 @@ type Bot struct {
 	Geo        Geocoder         // lugares del mundo por nombre y nombre de una coordenada (opcional)
 	Pruebas    Probador         // PRUEBA ALERTA (opcional; lo cumple alerts.Service)
 	Asistente  Asistente        // texto libre fuera del flujo guiado → asistente (internal/chat); nil = AYUDA
+	Vinculador Vinculador       // VINCULAR 123456: une este WhatsApp a una cuenta (internal/cuentas); nil = no se ofrece
 
 	locks sync.Map
 }
@@ -130,6 +131,26 @@ func (b *Bot) IdiomaInicial(tel, idioma string) {
 	}
 }
 
+// Vinculador une el teléfono a la cuenta que generó el código (lo cumple un adaptador de cuentas en cmd/server).
+// Devuelve el nombre o correo de la cuenta.
+type Vinculador interface {
+	Vincular(tel, codigo string) (string, error)
+}
+
+// codigoVincular: "VINCULAR 123456" / "LINK 123456" → "123456".
+func codigoVincular(texto string) (string, bool) {
+	f := strings.Fields(strings.ToUpper(strings.TrimSpace(texto)))
+	if len(f) != 2 || (f[0] != "VINCULAR" && f[0] != "LINK") || len(f[1]) != 6 {
+		return "", false
+	}
+	for _, c := range f[1] {
+		if c < '0' || c > '9' {
+			return "", false
+		}
+	}
+	return f[1], true
+}
+
 // Asistente: contesta el texto libre que no es parte del flujo guiado (lo cumple chat.ParaBot).
 type Asistente interface {
 	Conversar(se *Sesion, texto string) []Salida
@@ -167,6 +188,21 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 	// Ubicación en cualquier momento: fija el municipio y sigue con el cultivo.
 	if e.Lat != nil && e.Lon != nil {
 		return b.ubicacion(se, *e.Lat, *e.Lon)
+	}
+
+	// VINCULAR 123456 (integrador5): el código lo da la web en Mi cuenta (cuentas).
+	if c, ok := codigoVincular(e.Texto); ok && b.Vinculador != nil {
+		quien, err := b.Vinculador.Vincular(se.Tel, c)
+		if err != nil {
+			if L == "en" {
+				return txt("Invalid or expired code. Ask for a new one on the web (My account → Link WhatsApp).")
+			}
+			return txt("Código inválido o vencido. Pedí uno nuevo en la web (Mi cuenta → Vincular WhatsApp).")
+		}
+		if L == "en" {
+			return txt("Done: this WhatsApp is now linked to the account of " + quien + ". Ask me about your fields any time.")
+		}
+		return txt("Listo: este WhatsApp quedó en la cuenta de " + quien + ". Preguntame por tus terrenos cuando quieras.")
 	}
 
 	// PRUEBA ALERTA: alerta real calculada ahora para su lugar (demo).

@@ -313,3 +313,33 @@ func TestHTTPPorParametros(t *testing.T) {
 		t.Fatalf("tipo malo: %d", rec.Code)
 	}
 }
+
+// integrador5: la estación de campo (suelo lleno medido) manda sobre el modelo hoy y suma su aviso.
+func TestObservadorSensorManda(t *testing.T) {
+	s := servicio(t, nil)
+	antes, err := s.Hoy(parcela, "es")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if antes.Riego.MM <= 0 {
+		t.Fatalf("sin sensor tenía que pedir riego: %+v", antes.Riego)
+	}
+	s.Observador = func(id, idioma string) (*Observacion, bool) {
+		return &Observacion{DrParaTAW: func(float64) float64 { return 0 }, LluviaHoyMM: 22,
+			Avisos: []Aviso{{Nivel: "ok", Tipo: "sensor_lluvia", Texto: "Llovió 22 mm hoy", Fuente: "Estación"}}, Fuente: "Estación de campo"}, true
+	}
+	h, err := s.Hoy(parcela, "es")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.Riego.MM != 0 {
+		t.Fatalf("con el suelo lleno medido no se riega: %+v", h.Riego)
+	}
+	var av bool
+	for _, a := range h.Avisos {
+		av = av || a.Tipo == "sensor_lluvia"
+	}
+	if !av || h.AguaSueloPct < 90 {
+		t.Fatalf("aviso del sensor %v, agua %v", av, h.AguaSueloPct)
+	}
+}

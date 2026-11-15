@@ -45,9 +45,11 @@ func (c CampoHTTP) llamar(ctx context.Context, u Usuario, metodo, ruta string, c
 	if u.Cookie != "" {
 		req.Header.Set("Cookie", u.Cookie)
 	}
-	if u.Tel != "" && c.Secreto != "" {
-		req.Header.Set("X-FieldShift-Tel", u.Tel)
+	if c.Secreto != "" { // llamada interna (mismo proceso): cmd/server no le pide CSRF
 		req.Header.Set("X-FieldShift-Interno", c.Secreto)
+		if u.Tel != "" {
+			req.Header.Set("X-FieldShift-Tel", u.Tel)
+		}
 	}
 	rec := httptest.NewRecorder()
 	c.H.ServeHTTP(rec, req)

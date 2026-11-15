@@ -360,3 +360,12 @@ func TestComandoInforme(t *testing.T) {
 		t.Fatalf("INFORME debía mandar el PDF: %s", todo(out))
 	}
 }
+
+func TestCodigoVincular(t *testing.T) {
+	for in, want := range map[string]string{"VINCULAR 123456": "123456", " vincular 000111 ": "000111", "link 987654": "987654", "VINCULAR 12345": "", "VINCULAR abcdef": "", "vincular mi terreno": ""} {
+		got, ok := codigoVincular(in)
+		if got != want || ok != (want != "") {
+			t.Fatalf("%q → %q %v", in, got, ok)
+		}
+	}
+}

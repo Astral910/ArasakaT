@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -239,5 +240,45 @@ func TestCuentasCableadas(t *testing.T) {
 	hdr["X-CSRF-Token"] = v.CSRF
 	if rec = do(h, "POST", "/api/parcelas", `{"nombre":"x","lat":14,"lon":-90}`, hdr); rec.Code != 201 {
 		t.Fatalf("crear %d %s", rec.Code, rec.Body)
+	}
+}
+
+// integrador5: el asistente de WhatsApp (interno + teléfono vinculado) lee los terrenos de la cuenta; sin el
+// secreto, no; VINCULAR 123456 une el teléfono; la estación de campo usa los terrenos de cuentas.
+func TestIntegracion5CuentasChatSensores(t *testing.T) {
+	cfg := testConfig(t)
+	cfg.DemoPass = "jurado-2026"
+	h, a := newServer(cfg)
+	defer a.Close()
+	u, err := a.cuentas.Autenticar("demo@fieldshift.app", "jurado-2026")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// código para escribir al bot
+	cod, _, err := a.cuentas.CodigoParaBot(u.ID)
+	if err != nil {
+		t.Skipf("sin CodigoParaBot: %v", err)
+	}
+	quien, err := vinculadorCuentas{a}.Vincular("+50255550199", cod)
+	if err != nil || quien == "" {
+		t.Fatalf("vincular: %q %v", quien, err)
+	}
+	tel := map[string]string{hdrTel: "+50255550199"}
+	if rec := do(h, "GET", "/api/parcelas", "", tel); rec.Code != 401 {
+		t.Fatalf("sin secreto debería pedir sesión: %d", rec.Code)
+	}
+	tel[hdrInterno] = chatSecreto()
+	rec := do(h, "GET", "/api/parcelas", "", tel)
+	var ps struct{ Parcelas []map[string]any }
+	json.Unmarshal(rec.Body.Bytes(), &ps)
+	if rec.Code != 200 || len(ps.Parcelas) != 3 {
+		t.Fatalf("parcelas por WhatsApp %d %s", rec.Code, rec.Body)
+	}
+	id := ps.Parcelas[0]["id"].(string)
+	if p, ok := (parcelasCuentas{a}).PorID(context.Background(), id); !ok || p.Lat == 0 {
+		t.Fatalf("sensores PorID %+v %v", p, ok)
+	}
+	if _, ok := (parcelasCuentas{a}).PorID(context.Background(), "no-existe"); ok {
+		t.Fatal("PorID de un terreno que no existe")
 	}
 }
