@@ -166,7 +166,7 @@ export function colorMuro(region: Region, semilla: number, tags: Record<string, 
 export function fachadaDe(region: Region, tags: Record<string, string>, niveles: number, areaM2: number): Fachada {
   const t = tags.building ?? 'yes'
   if (['industrial', 'warehouse', 'hangar', 'barn', 'farm_auxiliary', 'garage', 'garages', 'shed', 'greenhouse'].includes(t)) return Fachada.bodega
-  if (niveles >= 7 || (['office', 'commercial'].includes(t) && niveles >= 4)) return Fachada.torre
+  if (niveles >= 8 || (['office', 'commercial', 'hotel'].includes(t) && niveles >= 6)) return Fachada.torre
   if (region === 'colonial') return Fachada.colonial
   if (region === 'europa') return Fachada.ladrillo
   if (region === 'surasia' || (niveles >= 3 && areaM2 > 300)) return Fachada.concreto
