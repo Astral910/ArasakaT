@@ -6,7 +6,7 @@ import { createRouter, createMemoryHistory } from 'vue-router'
 import motor from './motor_jocotan.json'
 import Informe from '../index.vue'
 import { resolver, formatear } from '../fuente'
-import { consultaDesdeQuery, queryDe, nivelRiego, normalizarConfianza, planRequest } from '../datos'
+import { consultaDesdeQuery, queryDe, nivelRiego, normalizarConfianza, planRequest, tieneAlertas } from '../datos'
 import { codificarPolilinea, decodificarPolilinea, areaPoligonoM2 } from '../geometria'
 import { aCSV } from '../exportar'
 import type { DatosInforme } from '../tipos'
@@ -202,5 +202,13 @@ describe('informe: página con salida real del motor', () => {
     expect((window as any).__informe.error).toMatch(/no respondió/)
     expect(w.find('.doc').exists()).toBe(false)
     w.unmount()
+  })
+})
+
+describe('alertas solo en Guatemala', () => {
+  it('no pide la línea de tiempo para celdas de grilla fuera de GT', () => {
+    expect(tieneAlertas('jocotan-chiquimula')).toBe(true)
+    expect(tieneAlertas('g_-0.42_36.95')).toBe(false)
+    expect(tieneAlertas('')).toBe(false)
   })
 })

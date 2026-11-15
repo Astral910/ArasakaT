@@ -59,7 +59,9 @@ export const useSesion = defineStore('sesion', () => {
   function yo(forzar = false): Promise<Usuario | null> {
     if (cargado.value && !forzar) return Promise.resolve(usuario.value)
     if (enCurso && !forzar) return enCurso
-    enCurso = pedir<{ usuario?: Usuario; csrf?: string }>('/api/auth/yo', {}, 6000)
+    // /sesion responde 200 aun sin cuenta (sin 401 rojo en la consola); servidores viejos sin esa ruta → /yo
+    enCurso = pedir<{ usuario?: Usuario; csrf?: string }>('/api/auth/sesion', {}, 6000)
+      .catch((e) => (e instanceof FalloCuenta && e.estado === 404 ? pedir<{ usuario?: Usuario; csrf?: string }>('/api/auth/yo', {}, 6000) : Promise.reject(e)))
       .then(tomar)
       .catch(() => tomar(null))
       .finally(() => { enCurso = null })

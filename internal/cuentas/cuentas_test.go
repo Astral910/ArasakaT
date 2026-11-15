@@ -431,3 +431,29 @@ func TestRegistroCurriculo(t *testing.T) {
 		t.Fatalf("leído %q", u.Curriculo)
 	}
 }
+
+// Detrás de Vercel + túnel: el visitante sin cuenta no debe ver un 401 rojo en cada carga,
+// y la cookie sale Secure cuando el proxy avisa https.
+func TestSesionOpcionalYCookieDetrasDeProxy(t *testing.T) {
+	e := nuevo(t, "")
+	anon := e.cliente(t)
+	if code, out := anon.pedir("GET", "/api/auth/sesion", nil); code != 200 || out["usuario"] != nil {
+		t.Fatalf("sesion anónima %d %v", code, out)
+	}
+	a := e.cliente(t)
+	u := a.registrar("jurado@example.com")
+	if code, out := a.pedir("GET", "/api/auth/sesion", nil); code != 200 || out["usuario"].(map[string]any)["id"] != u["id"] || out["csrf"] != a.csrf {
+		t.Fatalf("sesion con cuenta %d %v", code, out)
+	}
+	req, _ := http.NewRequest("POST", e.srv.URL+"/api/auth/login", strings.NewReader(`{"usuario":"jurado@example.com","contrasena":"maiz-y-frijol"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Forwarded-Proto", "https")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ck := res.Header.Get("Set-Cookie")
+	if !strings.Contains(ck, "Secure") || !strings.Contains(ck, "SameSite=Lax") || strings.Contains(strings.ToLower(ck), "domain=") {
+		t.Fatalf("cookie tras proxy %q", ck)
+	}
+}

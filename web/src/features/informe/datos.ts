@@ -180,7 +180,12 @@ async function simular(c: ConsultaInf, estrategia: string, escenario: string): P
   return recortarSim(tl)
 }
 
+/** Las alertas existen solo para municipios de Guatemala; las celdas de grilla (`g_lat_lon`, fuera de GT)
+ *  no tienen línea de tiempo → ni se piden (dos 404 rojos en la consola del jurado). */
+export const tieneAlertas = (id: string) => !!id && !id.startsWith('g_')
+
 async function alertasDe(id: string): Promise<TimelineAlertas | null> {
+  if (!tieneAlertas(id)) return null
   try {
     return await getJSON<TimelineAlertas>(`${API}/api/alerts/timeline?municipio=${encodeURIComponent(id)}&anio=2026`)
   } catch { /* sigue */ }
