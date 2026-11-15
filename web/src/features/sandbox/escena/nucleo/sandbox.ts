@@ -295,8 +295,18 @@ class SandboxImpl implements Sandbox {
     cierra('ciudad')
     // 4) casas y rancho
     etapa('casas', 0)
-    this.props = construirProps(this.U, this.parcela, mq.alturaEn, L, datos.satelite, this.calidad, this.bioma, semilla)
+    const libre = (x: number, z: number) => ocupacion.libre(x, z, 0, ['arbol', 'casa'])
+    this.props = construirProps(this.U, this.parcela, mq.alturaEn, L, datos.satelite, this.calidad, this.bioma, semilla, {
+      // agua del suelo (si no hay, props usa el color del satélite) + calles/edificios de la ciudad
+      esAgua: sueloAgua || this.ciudad ? (x, z) => esAgua(x, z) || !libre(x, z) : undefined,
+      cobertura: this.suelo?.cobertura?.bind(this.suelo),
+      altura: datos.relieveReal ? datos.alturaMedia : undefined,
+    })
     quitarCercoCaja(this.props.grupo)
+    // el suelo no pone briznas en el patio, caminos ni corrales del rancho
+    const rch = this.props.rancho as unknown as { esTierra?: (x: number, z: number) => boolean }
+    const sx = this.suelo as unknown as { excluir?: (f: (x: number, z: number) => boolean) => void } | null
+    if (rch.esTierra && sx?.excluir) { try { sx.excluir(rch.esTierra.bind(rch)) } catch (e) { console.warn(e) } }
     this.mundo.add(this.props.grupo)
     cierra('casas')
     // 5) vegetación: cerco por el borde real, cultivos dentro, árboles fuera del agua/calles/edificios
