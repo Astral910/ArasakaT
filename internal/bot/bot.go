@@ -60,6 +60,7 @@ type Bot struct {
 	Ahora      func() time.Time // reloj (tests)
 	Geo        Geocoder         // lugares del mundo por nombre y nombre de una coordenada (opcional)
 	Pruebas    Probador         // PRUEBA ALERTA (opcional; lo cumple alerts.Service)
+	Asistente  Asistente        // texto libre fuera del flujo guiado → asistente (internal/chat); nil = AYUDA
 
 	locks sync.Map
 }
@@ -127,6 +128,20 @@ func (b *Bot) IdiomaInicial(tel, idioma string) {
 		se.Idioma = idioma
 		b.Sesiones.Put(se)
 	}
+}
+
+// Asistente: contesta el texto libre que no es parte del flujo guiado (lo cumple chat.ParaBot).
+type Asistente interface {
+	Conversar(se *Sesion, texto string) []Salida
+}
+
+// textoLibre: una frase de verdad (pregunta o reporte), no un número ni una palabra suelta.
+func textoLibre(e Entrada) bool {
+	if e.BotonID != "" || e.Tipo == "interactive" {
+		return false
+	}
+	s := strings.TrimSpace(e.Texto)
+	return strings.Contains(s, "?") || len(strings.Fields(s)) >= 3
 }
 
 var reNumero = regexp.MustCompile(`^\s*(\d{1,2})\s*[\.\)]?\s*$`)
@@ -220,6 +235,9 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 				return b.buscarMunicipio(se, e.Texto)
 			}
 		}
+		if b.Asistente != nil && textoLibre(e) { // pregunta antes de empezar: contesta y luego saluda
+			return append(b.Asistente.Conversar(se, e.Texto), b.saludo(se)...)
+		}
 		return b.saludo(se)
 	case PasoUbicacion:
 		return b.buscarMunicipio(se, e.Texto)
@@ -299,6 +317,9 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 			if f, ok := parseFecha(e.Texto, b.ahora()); ok {
 				return b.suscribir(se, f)
 			}
+		}
+		if b.Asistente != nil && textoLibre(e) { // fuera del flujo: al asistente, con el plan de la sesión
+			return b.Asistente.Conversar(se, e.Texto)
 		}
 		return txt(t(L, "ayuda"))
 	case PasoSembro:

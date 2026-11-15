@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"fieldshift/internal/contract"
 )
@@ -29,6 +30,10 @@ type Consulta struct {
 	Idioma      string  // idioma: es | en
 	Calidad     string  // calidad: 720p | 1080p
 	Vertical    bool    // vertical=1 (720×1280)
+	// Agregado por chatbot (ronda 5): rango a reproducir y fecha de siembra elegida (AAAA-MM-DD; vacío = todo / la recomendada).
+	Desde   string // desde
+	Hasta   string // hasta
+	Siembra string // siembra
 }
 
 // Niveles de riego del bot (mm por semana; mismos valores que sim.IrrigLevels del motor).
@@ -79,7 +84,20 @@ func (c Consulta) Normalizar() Consulta {
 	if c.Calidad != "1080p" {
 		c.Calidad = "720p"
 	}
+	c.Desde, c.Hasta, c.Siembra = fechaValida(c.Desde), fechaValida(c.Hasta), fechaValida(c.Siembra)
+	if c.Desde != "" && c.Hasta != "" && c.Hasta < c.Desde {
+		c.Desde, c.Hasta = c.Hasta, c.Desde
+	}
 	return c
+}
+
+// fechaValida: AAAA-MM-DD o vacío.
+func fechaValida(s string) string {
+	s = strings.TrimSpace(s)
+	if _, err := time.Parse("2006-01-02", s); err != nil {
+		return ""
+	}
+	return s
 }
 
 func limpio(s string) string {
@@ -114,6 +132,11 @@ func (c Consulta) Query() url.Values {
 	if c.Vertical {
 		v.Set("vertical", "1")
 	}
+	for k, x := range map[string]string{"desde": c.Desde, "hasta": c.Hasta, "siembra": c.Siembra} {
+		if x != "" {
+			v.Set(k, x)
+		}
+	}
 	return v
 }
 
@@ -136,6 +159,9 @@ func DesdeQuery(v url.Values) Consulta {
 		Idioma:      uno("idioma", "lang"),
 		Calidad:     uno("calidad"),
 		Vertical:    uno("vertical") == "1" || uno("vertical") == "true",
+		Desde:       uno("desde"),
+		Hasta:       uno("hasta"),
+		Siembra:     uno("siembra", "fecha_siembra"),
 	}
 	r := uno("riego_mm_semana", "riego_mm", "riego")
 	if mm, ok := NivelesRiego[r]; ok {
@@ -180,6 +206,9 @@ func (c Consulta) NombrePrecalc() string {
 	}
 	if c.Vertical {
 		n += "_v"
+	}
+	if c.Desde != "" || c.Hasta != "" || c.Siembra != "" { // con rango o siembra no hay precalculado que sirva
+		n += "_" + c.Clave()
 	}
 	return n + ".mp4"
 }
