@@ -399,6 +399,8 @@ export const en: Record<string, string> = {
   'auth.err.usuario': "Type an email or a phone with country code (+502…).",
   'auth.err.red': "We couldn't reach the account server. Try again in a while.",
   'auth.err.otro': "Something went wrong ({e}). Try again.",
+  'auth.demo': 'Try the demo account',
+  'auth.demoSub': '3 sample fields: Jocotán, zona 10 and Punjab',
   'auth.privacy': "Your location and data are yours. We don't sell or share them.",
   'guardar.title': "Saving your field…",
   'guardar.nombre': "Field name",

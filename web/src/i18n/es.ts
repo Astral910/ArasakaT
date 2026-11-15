@@ -399,6 +399,8 @@ export const es: Record<string, string> = {
   'auth.err.usuario': "Escribí un correo o un teléfono con código de país (+502…).",
   'auth.err.red': "No pudimos hablar con el servidor de cuentas. Probá de nuevo en un rato.",
   'auth.err.otro': "Algo salió mal ({e}). Probá de nuevo.",
+  'auth.demo': 'Probar con la cuenta demo',
+  'auth.demoSub': '3 terrenos de ejemplo: Jocotán, zona 10 y Punjab',
   'auth.privacy': "Tu ubicación y tus datos son tuyos. No los vendemos ni los compartimos.",
   'guardar.title': "Guardando tu terreno…",
   'guardar.nombre': "Nombre del terreno",

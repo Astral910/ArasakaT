@@ -59,7 +59,7 @@ func loadConfig() Config {
 		WADebug:       os.Getenv("WA_DEBUG") == "1",
 		Geo:           !strings.EqualFold(os.Getenv("GEOCODER"), "off"),
 		CuentasDB:     os.Getenv("CUENTAS_DB"),
-		DemoPass:      os.Getenv("DEMO_PASS"),
+		DemoPass:      demoPass(), // integrador5: "demo1234" por defecto (cuenta pública del jurado); DEMO_PASS=off la apaga
 	}
 }
 
@@ -110,5 +110,17 @@ func loadDotEnv(path string) {
 		if _, exists := os.LookupEnv(k); !exists {
 			os.Setenv(k, v)
 		}
+	}
+}
+
+// demoPass: contraseña de la cuenta demo del jurado. Sin DEMO_PASS = "demo1234" (la que muestra la pantalla de entrar).
+func demoPass() string {
+	switch v := os.Getenv("DEMO_PASS"); strings.ToLower(v) {
+	case "":
+		return "demo1234"
+	case "off", "0", "no":
+		return ""
+	default:
+		return v
 	}
 }

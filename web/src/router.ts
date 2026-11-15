@@ -19,12 +19,14 @@ export const routes: RouteRecordRaw[] = [
   { path: '/how', name: 'how', component: feature('how'), meta: { feature: 'how' } },
   { path: '/sandbox', name: 'sandbox', component: feature('sandbox'), meta: { feature: 'sandbox', bare: true } },
   { path: '/informe', name: 'informe', component: feature('informe'), meta: { feature: 'informe', bare: true } },
-  // ronda 5 · cuentas (landing3: /entrar y /guardar; dashboard: features/dashboard y features/cuenta)
+  // ronda 5 · cuentas. Entrar/registro: landing3 (CNB marcado por defecto + cuenta demo). Dashboard: features/dashboard.
+  // integrador5: /terrenos (landing3) y /mis-terrenos (dashboard) son la misma pantalla; el dashboard maneja su sesión
+  // (servidor o, sin servidor, la cuenta local) así que sus rutas no llevan la guardia `cuenta`.
   { path: '/entrar', name: 'entrar', component: () => import('./views/Entrar.vue') },
+  { path: '/registro', name: 'registro', redirect: (to) => ({ path: '/entrar', query: { ...to.query, modo: 'registro' } }) },
   { path: '/guardar', name: 'guardar', component: () => import('./views/Guardar.vue') },
-  { path: '/terrenos', name: 'terrenos', component: feature('dashboard'), meta: { feature: 'dashboard', cuenta: true } },
-  { path: '/terrenos/:id', name: 'terreno', component: feature('dashboard'), meta: { feature: 'dashboard', cuenta: true } },
-  { path: '/cuenta', name: 'cuenta', component: feature('cuenta'), meta: { feature: 'cuenta', cuenta: true } },
+  { path: '/mis-terrenos', name: 'mis-terrenos', component: () => import('./features/dashboard/index.vue'), alias: ['/terrenos', '/cuenta'] },
+  { path: '/terreno/:id', name: 'terreno', component: () => import('./features/dashboard/Terreno.vue'), alias: ['/terrenos/:id'] },
   { path: '/:pathMatch(.*)*', name: 'notfound', component: () => import('./views/NotFound.vue') },
 ]
 

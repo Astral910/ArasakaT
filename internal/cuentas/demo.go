@@ -51,17 +51,17 @@ func terrenosDemo() []CambiosParcela {
 		{ // las mismas coordenadas que la demo del sandbox (1 manzana en el Corredor Seco)
 			Nombre: str("Milpa en Jocotán"), Lat: num(14.82), Lon: num(-89.39), Forma: str("circulo"), Radio: num(47),
 			Cultivo: str("maiz"), Siembra: str("2026-05-20"), Riego: str("secano"),
-			Notas: str("Corredor Seco, Chiquimula. Ladera con maíz y frijol de primera."),
+			Notas: str("Jocotán, Chiquimula · GT · Corredor Seco: ladera con maíz y frijol de primera."),
 		},
 		{ // residencial exacta de la demo (Condominio Las Margaritas, zona 10)
 			Nombre: str("Huerto en casa · zona 10"), Lat: num(14.6053), Lon: num(-90.5077), Forma: str("circulo"), Radio: num(6),
 			Cultivo: str("frijol"), Siembra: str("2026-06-01"), Riego: str("goteo"),
-			Notas: str("Patio de una casa en Ciudad de Guatemala."),
+			Notas: str("Zona 10, Ciudad de Guatemala · GT · Patio de una casa."),
 		},
 		{
 			Nombre: str("Parcela en Punjab (India)"), Lat: num(la), Lon: num(lo), Forma: str("poligono"), Poly: str(punjab),
 			Cultivo: str("sorgo"), Siembra: str("2026-06-25"), Riego: str("gravedad"),
-			Notas: str("Fuera de Guatemala: el motor global con NASA POWER."),
+			Notas: str("Ludhiana, Punjab · IN · Fuera de Guatemala: el motor global con NASA POWER."),
 		},
 	}
 }

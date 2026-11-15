@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Eye, EyeOff, ShieldCheck, Loader2, Sprout } from 'lucide-vue-next'
 import { useSesion, FalloCuenta, type ErrorCuenta } from '@/stores/sesion'
 import { t } from '@/i18n'
+import { DEMO, entrarDemo } from '@/features/cuenta/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -42,6 +43,25 @@ function cambiar(m: Modo) {
   enfocar()
 }
 
+// integrador5: la cuenta demo del jurado (cuentas la siembra con DEMO_PASS). Sin servidor, la del navegador (dashboard).
+async function demo() {
+  error.value = ''
+  enviando.value = true
+  try {
+    try { await sesion.entrar(DEMO.email, DEMO.password) } catch (e) {
+      if (!(e instanceof FalloCuenta && e.tipo === 'red')) throw e
+      await entrarDemo()
+    }
+    router.replace(volver.value)
+  } catch (e) {
+    const f = e instanceof FalloCuenta ? e : new FalloCuenta('otro', 0, String(e))
+    error.value = f.tipo
+    detalle.value = f.message
+  } finally {
+    enviando.value = false
+  }
+}
+
 async function enviar() {
   error.value = ''
   if (!usuario.value.trim()) { error.value = 'usuario'; return }
@@ -68,6 +88,11 @@ async function enviar() {
       <Sprout class="ic" aria-hidden="true" />
       <h1>{{ t('auth.title.' + modo) }}</h1>
       <p class="sub">{{ motivo === 'guardar' ? t('auth.sub.guardar') : t('auth.sub.' + modo) }}</p>
+
+      <button type="button" class="demo" :disabled="enviando" data-testid="auth-demo" data-test="demo" @click="demo">
+        <Sprout aria-hidden="true" />
+        <span><b>{{ t('auth.demo') }}</b><small>{{ t('auth.demoSub') }}</small></span>
+      </button>
 
       <div class="tabs" role="tablist">
         <button v-for="m in (['registro', 'entrar'] as const)" :key="m" type="button" role="tab" class="tab" :class="{ on: modo === m }" :aria-selected="modo === m" :data-testid="'tab-' + m" @click="cambiar(m)">
@@ -118,6 +143,11 @@ async function enviar() {
 .ic { width: 34px; height: 34px; color: var(--milpa); }
 h1 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.2rem); letter-spacing: -0.02em; }
 .sub { margin: 0; color: var(--ink-2); }
+.demo { display: flex; align-items: center; gap: 0.8rem; text-align: left; width: 100%; padding: 0.9rem 1rem; border-radius: 14px; font: inherit; border: 1.5px solid color-mix(in srgb, var(--jade) 45%, transparent); background: color-mix(in srgb, var(--jade) 9%, var(--surface)); color: var(--ink); cursor: pointer; }
+.demo svg { width: 22px; height: 22px; color: var(--jade); flex: none; }
+.demo span { display: grid; gap: 0.1rem; }
+.demo small { color: var(--ink-3); font-size: 0.84rem; }
+.demo:disabled { opacity: 0.6; cursor: wait; }
 .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
 .tab { font: inherit; font-weight: 700; min-height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--ink-2); cursor: pointer; }
 .tab.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-1); }
