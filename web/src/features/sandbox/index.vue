@@ -73,6 +73,8 @@ const area_m2 = computed(() => ajustes.value.area_valor * M2[ajustes.value.area_
 type Fase = 'vuelo' | 'transicion' | 'sandbox'
 const saltarIntro = !rec && (reducido || !ruta.intro)
 const autoplay = (route.query.auto as string | undefined) !== '0' && !reducido
+// ronda 8: visor 3D incrustado en el dashboard (iframe): sin barra de arriba, sin tarjeta final, en bucle
+const embed = route.query.embed === '1'
 const fase = ref<Fase>(saltarIntro ? 'sandbox' : 'vuelo')
 const progreso = ref(0)
 const mapaVivo = ref(!saltarIntro)
@@ -382,6 +384,7 @@ function tick(now: number) {
   }
   // fin de la guía: tarjeta con el resultado
   if (antes < d1 && dia.value >= d1) {
+    if (embed) { dia.value = rango.value[0]; return } // visor del dashboard: en bucle
     jugando.value = false
     finVisible.value = true
   }
@@ -690,7 +693,7 @@ onBeforeUnmount(() => roPie?.disconnect())
 </script>
 
 <template>
-  <div class="sandbox" :class="['f-' + fase, { rec, movil, comparar: ajustes.comparar, tormenta: cielo.tormenta, calor: cielo.calor, real: !alineable }]" :style="{ '--cielo-a': cielo.a, '--cielo-b': cielo.b, '--pie-h': pieAlto + 'px' }">
+  <div class="sandbox" :class="['f-' + fase, { rec, embed, movil, comparar: ajustes.comparar, tormenta: cielo.tormenta, calor: cielo.calor, real: !alineable }]" :style="{ '--cielo-a': cielo.a, '--cielo-b': cielo.b, '--pie-h': pieAlto + 'px' }">
     <h1 class="sr-only">{{ t('titulo') }} · {{ lugar.nombre }}</h1>
     <div class="cielo" :style="{ opacity: mapaVivo ? mapaFx : 1 }" aria-hidden="true"><i class="sol" /></div>
 
@@ -798,7 +801,7 @@ onBeforeUnmount(() => roPie?.disconnect())
     </Transition>
     <Transition name="sube">
       <Final
-        v-if="finVisible && res && insignia && !ajustarAbierto && !confirmarIr" :res="res" :recomendada="mostrada" :movil="movil"
+        v-if="!embed && finVisible && res && insignia && !ajustarAbierto && !confirmarIr" :res="res" :recomendada="mostrada" :movil="movil"
         :ca="hayLugar ? enCentroamerica(lugar.lat, lugar.lon) : enGT" :guardando="yendo"
         @guardar="guardarYIr" @cerrar="finVisible = false"
       />
@@ -821,6 +824,7 @@ onBeforeUnmount(() => roPie?.disconnect())
 </template>
 
 <style scoped>
+.sandbox.embed .top, .sandbox.embed .franjas, .sandbox.embed .subtitulos, .sandbox.embed .columna, .sandbox.embed :deep(.dash) { display: none !important; }
 .sandbox { position: fixed; inset: 0; overflow: hidden; overflow: clip; background: #05080f; color: #f4ebdb; font-family: var(--font-ui); z-index: 5; --punto-y: 44%; }
 .cielo { position: absolute; inset: 0; background: linear-gradient(180deg, var(--cielo-a) 0%, var(--cielo-b) 78%, #d9c7a8 100%); transition: background 1.2s ease, opacity .6s; }
 .cielo .sol { position: absolute; width: 46vmin; height: 46vmin; right: 6%; top: -10%; border-radius: 50%; background: radial-gradient(circle, rgba(255,246,214,.95) 0%, rgba(255,230,170,.35) 35%, transparent 70%); opacity: .55; transition: opacity 1.2s; }

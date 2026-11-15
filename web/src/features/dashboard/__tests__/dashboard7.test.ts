@@ -58,7 +58,7 @@ describe('Próximos días', () => {
     expect(w.find('[data-test="que-hacer"]').text()).toMatch(/No regués: llueve 12 mm|Regá/)
     await w.find('[data-test="dias-sig"]').trigger('click')
     expect(w.findAll('[data-test="dia"]')[0].text()).not.toContain('Hoy')
-    expect(w.find('[data-test="que-hacer"]').text()).toBe('Todavía sin pronóstico')
+    expect(w.find('[data-test="que-hacer"]').text()).toBe('Revisá cómo está el terreno y anotá lo que pasó hoy')
     await w.find('[data-test="ver-mes"]').trigger('click')
     expect(w.findAll('[data-test="mes-dia"]').length).toBeGreaterThanOrEqual(28)
   })
