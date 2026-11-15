@@ -45,7 +45,7 @@ func TestCaniculaIowaNo(t *testing.T) {
 	if p, ok := s.PeriodoSeco(); ok {
 		t.Fatalf("Iowa no tiene canícula: %v", p)
 	}
-	if Centroamerica(42, -93.5) || !Centroamerica(14.68, -90.70) {
+	if cajaCentroamerica(42, -93.5) || !cajaCentroamerica(14.68, -90.70) {
 		t.Fatal("caja de Centroamérica")
 	}
 }

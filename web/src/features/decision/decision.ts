@@ -8,8 +8,8 @@ export const HA_MZ = 0.6988
 export const KG_QQ = 45.36
 export const L_TONEL = 200
 
-/** misma caja que el motor (plan.Centroamerica): Guatemala a Panamá */
-export const enCentroamerica = (lat: number, lon: number) => lat >= 7 && lat <= 18.5 && lon >= -94.5 && lon <= -77
+/** misma caja que el motor (plan.cajaCentroamerica): Guatemala a Panamá */
+export const enCentroamerica = (lat: number, lon: number) => lat >= 7 && lat <= 18.5 && lon >= -92.5 && lon <= -77
 
 export interface PeriodoSeco { ini: string; fin: string; dias: number; mm_dia: number; ref_mm_dia: number; centroamerica: boolean; etapa: string; floracion?: string; fuente?: string }
 export interface SiembraDec {

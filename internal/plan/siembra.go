@@ -566,7 +566,7 @@ func decisiones(a *siembraArgs, out *contract.SimSiembra, evs []fechaEval, best,
 	}
 	if ps, ok := a.s.PeriodoSeco(); ok {
 		c := &contract.PeriodoSecoInfo{Ini: a.realDe(ps.Ini).Format("2006-01-02"), Fin: a.realDe(ps.Fin).Format("2006-01-02"),
-			Dias: ps.Dias, MMDia: ps.MMDia, RefMMDia: ps.RefMMDia, Centroamerica: Centroamerica(a.s.Lat, a.s.Lon),
+			Dias: ps.Dias, MMDia: ps.MMDia, RefMMDia: ps.RefMMDia, Centroamerica: cajaCentroamerica(a.s.Lat, a.s.Lon),
 			Floracion: a.realDe(ce.d + ce.floracionDD).Format("2006-01-02"),
 			Fuente: fuentePOWER + " · climatología diaria suavizada ±7 días"}
 		fl := ce.d + ce.floracionDD
@@ -586,5 +586,5 @@ func decisiones(a *siembraArgs, out *contract.SimSiembra, evs []fechaEval, best,
 	}
 }
 
-// Centroamerica caja aproximada (Guatemala a Panamá, sur de México incluido hasta el istmo).
-func Centroamerica(lat, lon float64) bool { return lat >= 7 && lat <= 18.5 && lon >= -94.5 && lon <= -77 }
+// cajaCentroamerica la misma caja que Centroamerica (temporada.go) para un punto sin municipio.
+func cajaCentroamerica(lat, lon float64) bool { return lat >= 7 && lat <= 18.5 && lon >= -92.5 && lon <= -77 }
