@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -110,6 +111,8 @@ type subReq struct {
 	contract.Suscriptor
 	Accion string `json:"accion"` // "" | alta | baja
 	Acepto *bool  `json:"acepto"` // consentimiento explícito (web)
+	Lugar   string `json:"lugar"`   // ronda 8: para el mensaje de bienvenida
+	Parcela string `json:"parcela"` // nombre del terreno (dashboard)
 }
 
 func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
@@ -160,6 +163,15 @@ func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fail(w, 500, "no se pudo guardar")
 		return
+	}
+	// ronda 8: al vincular desde la web, el bot escribe enseguida para confirmar que el número quedó enlazado
+	if s.Engine != nil && s.Engine.Mensajero != nil && in.Acepto != nil {
+		tel, txt := sus.Telefono, Bienvenida(in.Idioma, in.Parcela, in.Lugar)
+		go func() {
+			if err := s.Engine.Mensajero.EnviarTexto(tel, txt); err != nil {
+				log.Printf("alertas: bienvenida a %s: %v", store.Mask(tel), err)
+			}
+		}()
 	}
 	writeJSON(w, 200, map[string]any{"ok": true, "id": sus.ID, "activo": true, "municipio_id": sus.MunicipioID,
 		"telefono": store.Mask(sus.Telefono), "idioma": sus.Idioma})
@@ -381,4 +393,30 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(ks)
 	return ks
+}
+
+// Bienvenida: el primer mensaje al vincular un número desde el dashboard del terreno.
+func Bienvenida(idioma, parcela, lugar string) string {
+	donde := strings.TrimSpace(parcela)
+	if l := strings.TrimSpace(lugar); l != "" && l != donde {
+		if donde != "" {
+			donde += " (" + l + ")"
+		} else {
+			donde = l
+		}
+	}
+	if idioma == "en" {
+		if donde != "" {
+			donde = " *" + donde + "*"
+		}
+		return "Hi! 👋 You just linked your field" + donde + " with SEED · Field Shift.\n\n" +
+			"From now on I'll warn you here about heavy rain, dry spells and the midsummer drought, when to water, and pests.\n\n" +
+			"Write *today* to know if you should water, or ask me anything (e.g. \"will it rain on October 20?\")."
+	}
+	if donde != "" {
+		donde = " *" + donde + "*"
+	}
+	return "¡Hola! 👋 Acabás de vincular tu terreno" + donde + " con SEED · Field Shift.\n\n" +
+		"Desde ahora te aviso por aquí de lluvia fuerte, rachas secas y canícula, cuándo regar y plagas.\n\n" +
+		"Escribí *hoy* para saber si regar, o preguntame lo que quieras (por ejemplo: «¿va a llover el 20 de octubre?»)."
 }

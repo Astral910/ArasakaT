@@ -21,7 +21,9 @@ import TarjetaSensor from '../sensores/TarjetaSensor.vue'
 import { diaSemana, fmt, tx } from './textos'
 import Avisos from './Avisos.vue'
 import ProximosDias from './ProximosDias.vue'
-import PreguntasDec from './PreguntasDec.vue'
+import Temporada3D from './Temporada3D.vue'
+import { cargarTemporada, type Temporada } from './temporada'
+import { cargarSensor } from '../sensores/api'
 import { enCentroamerica, riegoTexto, semaforo, tarjetaAbono, tarjetaCanicula, tarjetaCosecha, tarjetaSiembra, type ConfDec, type SiembraDec } from '../decision/decision'
 import { t } from '@/i18n'
 
@@ -45,23 +47,32 @@ async function cargar() {
   if (!p.value) { noHay.value = true; return }
   h.value = await cargarHoy(p.value, lang.value)
   cargarDec(p.value) // después de «Hoy»: no compite con el primer pedido al servidor
+  const id = p.value.id
+  cargarSensor(id).then((d) => { if (p.value?.id === id) conSensor.value = !!d && !d.simulado }).catch(() => {})
 }
+// ronda 8: «Esperado vs vivido» solo con el sensor SEED conectado (con lecturas reales)
+const conSensor = ref(false)
+// ronda 8: la temporada completa del simulador (≈ 1 año) alimenta el visor 3D, el calendario y las preguntas
+const tp = ref<Temporada | null>(null)
+const cargandoTp = ref(false)
+const diaSel = ref<string | null>(null)
 onMounted(cargar)
 
 // granjero6: decisiones del motor (POST /api/simulate?resumen=1: siembra + confianza; sin datos → sin tarjetas)
 const dec = ref<{ siembra?: SiembraDec | null; confianza?: ConfDec | null } | null>(null)
 async function cargarDec(x: Parcela) {
   dec.value = null
+  tp.value = null
+  cargandoTp.value = true
   const ctl = new AbortController()
-  const tope = setTimeout(() => ctl.abort(), 30000)
+  const tope = setTimeout(() => ctl.abort(), 45000)
   try {
-    const base = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
-    const r = await fetch(`${base}/api/simulate?resumen=1`, {
-      method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan: { lat: x.lat, lon: x.lon, cultivo: x.cultivo }, estrategia: 'S0', escenario: 'pronostico', riego_mm_semana: x.riego ?? 0, fecha_siembra: x.siembra || undefined }),
-    })
-    if (r.ok && (r.headers.get('content-type') || '').includes('json')) dec.value = await r.json()
-  } catch { /* sin motor: no se muestran */ } finally { clearTimeout(tope) }
+    const t = await cargarTemporada({ lat: x.lat, lon: x.lon, cultivo: x.cultivo, riego: x.riego, siembra: x.siembra }, ctl.signal)
+    if (t && p.value?.id === x.id) {
+      tp.value = t
+      dec.value = { siembra: t.siembra as SiembraDec | null, confianza: t.confianza as ConfDec | null }
+    }
+  } catch { /* sin motor: no se muestran */ } finally { clearTimeout(tope); cargandoTp.value = false }
 }
 const ca = computed(() => (p.value ? enCentroamerica(p.value.lat, p.value.lon) : false))
 const tarjetas = computed(() => {
@@ -209,10 +220,12 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
           </article>
 
           <!-- 2 · PRÓXIMOS DÍAS (flechas, mes, qué hacer) -->
-          <ProximosDias :h="h" :lat="p.lat" :lon="p.lon" :ca="ca" />
+          <Temporada3D :parcela="p" :tp="tp" :cargando="cargandoTp" :tarjetas="tarjetas" :dia="diaSel" />
+
+          <ProximosDias :h="h" :lat="p.lat" :lon="p.lon" :ca="ca" :tp="tp" :cultivo="p.cultivo" @elegir="diaSel = $event" />
 
           <!-- decisiones como preguntas y respuestas (siembra, canícula, cosecha, abono) -->
-          <PreguntasDec :tarjetas="tarjetas" :ca="ca" />
+
 
           <!-- 3 · CRECIMIENTO -->
           <article class="card" data-tour="crecimiento">
@@ -255,7 +268,7 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
           </article>
 
           <!-- 5 · ESPERADO VS VIVIDO -->
-          <article class="card">
+          <article v-if="conSensor" class="card" data-test="esperado-vivido">
             <h2>{{ tx('esperadoVivido') }}</h2>
             <EsperadoVivido :puntos="h.comparativa" />
           </article>
