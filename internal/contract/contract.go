@@ -361,6 +361,8 @@ type SitioInfo struct {
 	PendientePct float64     `json:"pendiente_pct"`
 	Precalculado bool        `json:"precalculado"` // municipio de Guatemala con datos locales
 	Bimodal      bool        `json:"bimodal"`
+	// Centroamerica: true si las temporadas se llaman Primera y Postrera (fuera: «temporada de lluvias» / «temporada principal»)
+	Centroamerica bool `json:"centroamerica"`
 	Temporadas   []Temporada `json:"temporadas"`
 	Canicula     *Periodo    `json:"canicula,omitempty"` // solo si la lluvia es bimodal
 	RiesgoDe10   float64     `json:"riesgo_de_10"`       // temporadas difíciles de cada 10 (milpa de hoy, S0)
@@ -397,6 +399,7 @@ type SimSiembra struct {
 	CosechaRecomendada string         `json:"cosecha_recomendada"` // YYYY-MM-DD
 	DiasCicloElegida   int            `json:"dias_ciclo_elegida"`  // días de siembra a cosecha
 	DiasCicloRecom     int            `json:"dias_ciclo_recomendada"`
+	NoMadura           bool           `json:"no_madura"`    // el calor del lugar no alcanza los grados-día: ciclo acotado al máximo realista del cultivo
 	Recomendable       bool           `json:"recomendable"` // la elegida está cerca de la mejor (mismo riesgo ±5 pts y cosecha ≥ 90 %)
 	Veredicto          string         `json:"veredicto"`    // ok | ojo | mala
 	Texto              string         `json:"texto"`        // "Si sembrás el 12 may, cosechás el 28 ago…"

@@ -176,7 +176,9 @@ func (e *Engine) globalPoint(lat, lon float64, id string) (*geo.Municipio, error
 	m.Name = fmt.Sprintf("%.2f°, %.2f°", lat, lon)
 	if lugErr == nil && lugar.Nombre != "" {
 		m.Name = lugar.Nombre
-		m.Dept = strings.Trim(strings.Join(nonEmpty(lugar.Region, lugar.PaisNombre), ", "), ", ")
+		// sin repetir el nombre (región = país en Chile, ciudad = región en Singapur)
+		m.Dept = strings.TrimPrefix(UnirNombre(m.Name, lugar.Region, lugar.PaisNombre), UnirNombre(m.Name))
+		m.Dept = strings.TrimPrefix(m.Dept, ", ")
 		m.Pais = lugar.Pais
 	} else {
 		gp.notas = append(gp.notas, "Nombre del lugar: no disponible (se muestran las coordenadas).")
@@ -301,15 +303,11 @@ func (e *Engine) SitioOf(m *geo.Municipio) (*contract.SitioInfo, error) {
 	T := sim.DetectSeasons(s)
 	g := e.gp(m)
 	si := &contract.SitioInfo{ID: m.ID, Nombre: m.Name, Pais: m.Pais, Lat: m.Lat, Lon: m.Lon, ElevM: m.ElevM, PendientePct: m.SlopePct,
-		Precalculado: !m.Global, Bimodal: T.Bimodal, Motor: Version}
+		Precalculado: !m.Global, Bimodal: T.Bimodal, Centroamerica: Centroamerica(m), Motor: Version}
 	if !m.Global {
 		si.Pais = "GT"
-		if m.Dept != "" {
-			si.Nombre = m.Name + ", " + m.Dept
-		}
-	} else if m.Dept != "" {
-		si.Nombre = m.Name + ", " + m.Dept
 	}
+	si.Nombre = UnirNombre(m.Name, m.Dept)
 	md := func(doy int) string { return sim.MMDD(float64(doy)) }
 	if !m.Global { // Guatemala: el mismo calendario del plan (inicio de lluvias P50, canícula y Postrera medianas)
 		cl := e.Climatology(s)
