@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Reporte del día: botones rápidos (lluvia poco/normal/mucho, plaga, riego) y un formulario corto.
+// Reporte del día: chips rápidos (lluvia poco/normal/mucho, plaga, riego) y un formulario corto.
 import { ref } from 'vue'
 import { Bug, CloudDrizzle, CloudRain, CloudRainWind, Droplets, Plus } from 'lucide-vue-next'
 import { LLUVIA_MM, type Reporte, type TipoReporte } from './campo'
@@ -35,12 +35,12 @@ function enviar() {
 <template>
   <div class="rep">
     <div class="rapidos">
-      <button type="button" :disabled="ocupado" data-test="lluvia-poco" @click="lluvia('poco')"><CloudDrizzle :size="18" aria-hidden="true" />{{ tx('llovioPoco') }}</button>
-      <button type="button" :disabled="ocupado" data-test="lluvia-normal" @click="lluvia('normal')"><CloudRain :size="18" aria-hidden="true" />{{ tx('llovioNormal') }}</button>
-      <button type="button" :disabled="ocupado" data-test="lluvia-mucho" @click="lluvia('mucho')"><CloudRainWind :size="18" aria-hidden="true" />{{ tx('llovioMucho') }}</button>
-      <button type="button" :disabled="ocupado" :class="{ on: abierto === 'plaga' }" @click="abrir('plaga')"><Bug :size="18" aria-hidden="true" />{{ tx('viPlaga') }}</button>
-      <button type="button" :disabled="ocupado" :class="{ on: abierto === 'riego' }" data-test="regue" @click="abrir('riego')"><Droplets :size="18" aria-hidden="true" />{{ tx('regue') }}</button>
-      <button type="button" :disabled="ocupado" :class="{ on: abierto === 'otro' }" @click="abrir('otro')"><Plus :size="18" aria-hidden="true" />{{ tx('masDetalle') }}</button>
+      <button type="button" :disabled="ocupado" data-test="lluvia-poco" @click="lluvia('poco')"><CloudDrizzle :size="16" aria-hidden="true" />{{ tx('llovioPoco') }}</button>
+      <button type="button" :disabled="ocupado" data-test="lluvia-normal" @click="lluvia('normal')"><CloudRain :size="16" aria-hidden="true" />{{ tx('llovioNormal') }}</button>
+      <button type="button" :disabled="ocupado" data-test="lluvia-mucho" @click="lluvia('mucho')"><CloudRainWind :size="16" aria-hidden="true" />{{ tx('llovioMucho') }}</button>
+      <button type="button" :disabled="ocupado" :class="{ on: abierto === 'plaga' }" @click="abrir('plaga')"><Bug :size="16" aria-hidden="true" />{{ tx('viPlaga') }}</button>
+      <button type="button" :disabled="ocupado" :class="{ on: abierto === 'riego' }" data-test="regue" @click="abrir('riego')"><Droplets :size="16" aria-hidden="true" />{{ tx('regue') }}</button>
+      <button type="button" :disabled="ocupado" :class="{ on: abierto === 'otro' }" @click="abrir('otro')"><Plus :size="16" aria-hidden="true" />{{ tx('masDetalle') }}</button>
     </div>
 
     <form v-if="abierto" class="form" @submit.prevent="enviar">
@@ -61,8 +61,8 @@ function enviar() {
 
 <style scoped>
 .rep { display: grid; gap: 0.8rem; }
-.rapidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.5rem; }
-.rapidos button { display: inline-flex; align-items: center; gap: 0.45rem; min-height: 46px; padding: 0.5rem 0.8rem; border-radius: 12px; border: 1.5px solid var(--line-2); background: var(--surface); cursor: pointer; font-weight: 600; font-size: 0.9rem; text-align: left; transition: background-color 180ms, border-color 180ms; }
+.rapidos { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.rapidos button { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 40px; padding: 0.35rem 0.85rem; border-radius: 999px; color: var(--ink); border: 1.5px solid var(--line-2); background: var(--surface); cursor: pointer; font-weight: 600; font-size: 0.86rem; white-space: nowrap; transition: background-color 180ms, border-color 180ms; }
 .rapidos button:hover, .rapidos button.on { border-color: var(--anil); background: color-mix(in srgb, var(--anil) 7%, var(--surface)); }
 .rapidos button:disabled { opacity: 0.55; cursor: wait; }
 .rapidos svg { color: var(--anil); flex: none; }

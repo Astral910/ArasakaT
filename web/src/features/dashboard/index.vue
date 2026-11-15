@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // /mis-terrenos: tarjetas con la miniatura del terreno y su estado de hoy en una línea.
 import { onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Droplets, LogOut, Plus, TriangleAlert } from 'lucide-vue-next'
 import { lang } from '@/i18n'
 import GMapa from '../informe/graficos/GMapa.vue'
@@ -12,6 +12,7 @@ import { cargarHoy, lineaEstado, type Hoy } from './campo'
 import { fecha, tx } from './textos'
 
 const router = useRouter()
+const route = useRoute()
 const parcelas = ref<Parcela[] | null>(null)
 const hoy = reactive<Record<string, Hoy | null>>({})
 
@@ -21,7 +22,7 @@ async function cargar() {
 }
 
 onMounted(async () => {
-  if (!(await revisarSesion())) { router.replace({ name: 'entrar', query: { volver: '/mis-terrenos' } }); return }
+  if (!(await revisarSesion())) { router.replace({ name: 'entrar', query: { volver: route.path } }); return }
   cargar()
 })
 watch(lang, () => parcelas.value && cargar())
