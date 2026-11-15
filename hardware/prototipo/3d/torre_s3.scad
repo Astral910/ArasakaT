@@ -18,7 +18,7 @@ usb = [[-6.6, 12.5], [3.4, 12.5]];                       // x del centro de cada
 // ---------- sonda ----------
 son_w = 20.0; son_t = 1.6; cab_h = 20; son_l = 60;
 // ---------- caja ----------
-pared = 2.4; piso = 3; r = 4; h = 0.25;                  // h = holgura
+pared = 2.4; piso = 3; r = 4; h = 0.2;                   // h = holgura (PLA en A2L: ajuste firme)
 frente = mod_t + 1.2;
 iw = pcb_w + 1.2;
 id = frente + pcb_t + hdr_t + dupont + 11;               // atrás queda lugar para el canal de la sonda
@@ -71,10 +71,6 @@ module letras(prof) {
     text("FIELD SHIFT", size = 3.9, halign = "center", font = "Liberation Sans:style=Bold", spacing = 1.05);
     translate([0, -6.2]) text("HUMEDAD DEL SUELO", size = 2.6, halign = "center", font = "Liberation Sans:style=Bold");
   }
-  // hoja (brote) sobre el texto
-  translate([cx, prof, piso + 28.5]) rotate([90, 0, 0]) linear_extrude(prof + 0.01) {
-    intersection() { translate([-2.2, 0]) circle(3.4); translate([2.2, 0]) circle(3.4); }
-  }
 }
 
 module cuerpo() { difference() { cuerpo_bruto(); letras(0.6); } }
@@ -95,8 +91,8 @@ module tapa() {
     }
     // el labio no toca la placa ni sus costillas
     translate([pared - 1, pcb_y - 3, -labio - 1]) cube([iw + 2, pcb_t + hdr_t + 8, labio + 1]);
-    // pasaje de los dos enchufes USB-C
-    translate([cx - 1.6 - 12, pcb_y - 1.6 - 3.7, -labio - 1]) linear_extrude(tapa_t + labio + 2) offset(r = 2.5) offset(delta = -2.5) square([24, 7.4]);
+    // pasaje de los enchufes USB-C: abierto hacia el frente para que entre cualquier cable de power bank
+    translate([cx - 1.6 - 13, -1, -labio - 1]) linear_extrude(tapa_t + labio + 2) offset(r = 2) offset(delta = -2) square([26, pcb_y - 1.6 + 5.5 + 1]);
   }
 }
 
