@@ -155,7 +155,9 @@ export async function revisarSesion(forzar = false): Promise<Usuario | null> {
   if (revisada && !forzar) return usuario.value
   revisada = true
   try {
-    usuario.value = aUsuario(await pedir('/api/auth/yo'))
+    // /sesion: 200 aun sin cuenta (sin 401 rojo en consola); servidor viejo sin la ruta → /yo
+    const j = await pedir('/api/auth/sesion').catch((e) => ((e instanceof ErrorApi && e.estado === 404) || (e as Error).message === 'no-json' ? pedir('/api/auth/yo') : Promise.reject(e)))
+    usuario.value = aUsuario(j)
     origen.value = 'api'
   } catch (e) {
     if (noHay(e)) {
