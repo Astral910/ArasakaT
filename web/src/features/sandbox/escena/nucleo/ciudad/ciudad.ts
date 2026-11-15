@@ -442,24 +442,35 @@ export async function crearCiudad(ctx: CtxCiudad, opts: OpcionesCiudad = {}): Pr
       r = r / n * (1 - tierra) + 128 * tierra; gg = gg / n * (1 - tierra) + 106 * tierra; b = b / n * (1 - tierra) + 80 * tierra
       return `rgb(${Math.round(r)},${Math.round(gg)},${Math.round(b)})`
     }
-    const trazar = (q: P2[]) => {
-      g.beginPath()
-      q.forEach(([x, z], i) => { const [px, py] = P(x, z); if (i) g.lineTo(px, py); else g.moveTo(px, py) })
-      g.closePath()
-    }
     g.save()
-    // 1) bordes suaves alrededor de lo que queda en pie
-    g.filter = `blur(${Math.max(1, Math.round(sx * 0.9))}px)`
-    for (const p of vivosPoli) {
-      g.fillStyle = colorEntorno(p, 0.1)
-      trazar(desplazar(p, -1.6)); g.fill()
+    // las formas se dibujan sin filtro en una capa y se funden con UN solo blur por grupo
+    // (un blur por cada edificio sobre el lienzo grande costaba segundos en la CPU)
+    const capa = document.createElement('canvas')
+    capa.width = c.width; capa.height = c.height
+    const gc = capa.getContext('2d')!
+    const fundir = (blur: number) => {
+      g.filter = `blur(${blur}px)`
+      g.drawImage(capa, 0, 0)
+      g.filter = 'none'
+      gc.clearRect(0, 0, capa.width, capa.height)
     }
+    const trazarEn = (q: P2[]) => {
+      gc.beginPath()
+      q.forEach(([x, z], i) => { const [px, py] = P(x, z); if (i) gc.lineTo(px, py); else gc.moveTo(px, py) })
+      gc.closePath()
+    }
+    // 1) bordes suaves alrededor de lo que queda en pie
+    for (const p of vivosPoli) {
+      gc.fillStyle = colorEntorno(p, 0.1)
+      trazarEn(desplazar(p, -1.6)); gc.fill()
+    }
+    if (vivosPoli.length) fundir(Math.max(1, Math.round(sx * 0.9)))
     // 2) huellas quitadas → suelo (con un poco de tierra), más grandes por el alero y la inclinación
     for (const h of huellasQuitadas) {
-      g.filter = `blur(${Math.max(1, Math.round(sx * 1.4))}px)`
-      g.fillStyle = colorEntorno(h, 0.35)
-      trazar(desplazar(h, -2)); g.fill()
+      gc.fillStyle = colorEntorno(h, 0.35)
+      trazarEn(desplazar(h, -2)); gc.fill()
     }
+    if (huellasQuitadas.length) fundir(Math.max(1, Math.round(sx * 1.4)))
     // 3) calles bajo las cintas (por si un borde de la cinta deja ver la foto)
     g.filter = 'none'
     g.lineCap = 'round'; g.lineJoin = 'round'

@@ -243,6 +243,16 @@ export class Ocupacion {
   private ij(x: number, z: number): [number, number] {
     return [Math.round((x + this.L / 2) / this.paso), Math.round((z + this.L / 2) / this.paso)]
   }
+  /** Tipo en la celda (rápido, sin arreglos). */
+  private cod(x: number, z: number): number {
+    const i = Math.round((x + this.L / 2) / this.paso), j = Math.round((z + this.L / 2) / this.paso)
+    return i < 0 || j < 0 || i >= this.n || j >= this.n ? 0 : this.g[j * this.n + i]
+  }
+  /** true si la celda tiene agua, calle o edificio (lo que bloquea árboles y casas). */
+  bloqueado(x: number, z: number): boolean {
+    const v = this.cod(x, z)
+    return v >= 1 && v <= 3
+  }
   private poner(i: number, j: number, c: number, pisar: boolean) {
     if (i < 0 || j < 0 || i >= this.n || j >= this.n) return
     const k = j * this.n + i
@@ -295,13 +305,23 @@ export class Ocupacion {
   }
   /** true si no hay nada marcado en el disco (x, z, radio). `ignorar` deja pasar tipos (p. ej. la parcela para el cerco). */
   libre(x: number, z: number, radio = 0, ignorar?: TipoOcupa[]): boolean {
-    const [ci, cj] = this.ij(x, z), r = Math.ceil(radio / this.paso)
-    const ign = ignorar ? new Set(ignorar.map((t) => COD[t])) : null
-    for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) {
-      if (i < 0 || j < 0 || i >= this.n || j >= this.n) continue
-      if (r && (i - ci) ** 2 + (j - cj) ** 2 > (r + 0.5) ** 2) continue
-      const v = this.g[j * this.n + i]
-      if (v && !(ign && ign.has(v))) return false
+    // máscara de tipos ignorados (sin crear objetos: se llama millones de veces al plantar)
+    let ign = 0
+    if (ignorar) for (const t of ignorar) ign |= 1 << COD[t]
+    const [ci, cj] = this.ij(x, z)
+    if (radio <= 0) {
+      if (ci < 0 || cj < 0 || ci >= this.n || cj >= this.n) return true
+      const v = this.g[cj * this.n + ci]
+      return !v || ((ign >> v) & 1) === 1
+    }
+    const r = Math.ceil(radio / this.paso), r2 = (r + 0.5) ** 2
+    for (let j = cj - r; j <= cj + r; j++) {
+      if (j < 0 || j >= this.n) continue
+      for (let i = ci - r; i <= ci + r; i++) {
+        if (i < 0 || i >= this.n || (i - ci) ** 2 + (j - cj) ** 2 > r2) continue
+        const v = this.g[j * this.n + i]
+        if (v && ((ign >> v) & 1) === 0) return false
+      }
     }
     return true
   }

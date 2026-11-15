@@ -316,10 +316,9 @@ class SandboxImpl implements Sandbox {
     if (this.ciudad?.pintar) { try { this.ciudad.pintar(datos.satelite) } catch (e) { console.warn(e) } }
     // 4) casas y rancho
     etapa('casas', 0)
-    const libre = (x: number, z: number) => ocupacion.libre(x, z, 0, ['arbol', 'casa'])
     this.props = construirProps(this.U, this.parcela, mq.alturaEn, L, datos.satelite, this.calidad, this.bioma, semilla, {
       // agua del suelo (si no hay, props usa el color del satélite) + calles/edificios de la ciudad
-      esAgua: sueloAgua || this.ciudad ? (x, z) => esAgua(x, z) || !libre(x, z) : undefined,
+      esAgua: sueloAgua || this.ciudad ? (x, z) => ocupacion.bloqueado(x, z) || esAgua(x, z) : undefined,
       cobertura: this.suelo?.cobertura?.bind(this.suelo),
       altura: datos.relieveReal ? datos.alturaMedia : undefined,
     })
