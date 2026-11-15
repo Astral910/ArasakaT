@@ -23,6 +23,7 @@ export const LUGARES: Record<string, { lat: number; lon: number; nombre: string;
   atitlan: { lat: 14.7295, lon: -91.1525, nombre: 'Lago de Atitlán, Panajachel' },
   amatitlan: { lat: 14.473, lon: -90.585, nombre: 'Lago de Amatitlán' },
   motagua: { lat: 14.9201, lon: -90.0031, nombre: 'Río Motagua, El Rancho' },
+  costa: { lat: 13.9235, lon: -90.8125, nombre: 'Playa de Puerto San José, Escuintla' },
 }
 
 declare global { interface Window { __suelo?: Record<string, unknown> } }
@@ -112,7 +113,15 @@ async function main() {
     L, N, lat, lon, phi: rec.phi, Cx: rec.Cx, Cz: rec.Cz, B, superficie: sup, alturas: mq.alturas, alturaEn: mq.alturaEn,
     satelite: rec.datos.satelite, parcela, bioma, calidad, semilla: 7, U, US, precarga: pre, sol,
   })
-  escena.add(suelo.grupo)
+  if (q.get('antes') === '1') {
+    // comparación: la superficie como era antes (foto plana), mismas cámaras
+    const m = sup.material as THREE.MeshStandardMaterial
+    const parchado = m.onBeforeCompile
+    m.onBeforeCompile = (sh, r) => { parchado.call(m, sh, r) }
+    const mq2 = construirMaqueta(rec.datos, parcela, exag, U, US, calidad)
+    const sup2 = mq2.grupo.getObjectByName('superficie') as THREE.Mesh
+    sup.material = sup2.material
+  } else escena.add(suelo.grupo)
   const tc = performance.now()
   await renderer.compileAsync(escena, camara)
   const msCompilar = Math.round(performance.now() - tc)

@@ -126,8 +126,8 @@ vec3 sueloColor(vec3 sat, vec3 satB, vec3 P){
   g = clamp(g, vec2(-1.5), vec2(1.5));
   // orilla mojada (barro/arena oscura y brillante junto al agua)
   float wet = clamp(b.a*1.15, 0.0, 1.0) * (1.0 - smoothstep(0.4, 0.75, agua));
-  col = mix(col, col*vec3(0.52,0.5,0.48), wet*0.85);
-  rough = mix(rough, 0.28, wet);
+  col = mix(col, col*vec3(0.64,0.62,0.6), wet*0.75);
+  rough = mix(rough, 0.35, wet*0.8);
   // la foto manda el dibujo (campos, caminos, sombras) y el material pone el detalle encima;
   // solo muy cerca de la cámara el color es el del material, teñido por la foto
   vec3 satM = mix(sat, satB, 0.35);
