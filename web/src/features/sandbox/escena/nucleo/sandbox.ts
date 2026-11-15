@@ -354,7 +354,7 @@ class SandboxImpl implements Sandbox {
       ms: Math.round(performance.now() - t0), relieveReal: datos.relieveReal, satelite: datos.sateliteReal, rumboCamara: Math.round(this.rumbo),
       bioma: this.bioma, casas: this.props.rancho.casas, picosCorregidos: datos.picosCorregidos,
       forma: prep.forma, areaM2: Math.round(prep.area), escalaParcela: escala, aguaEnParcela: Math.round(fracAgua * 100) / 100,
-      tiempos, quitados: this.quitados, edificios: this.ciudad?.edificios ?? 0,
+      tiempos, quitados: this.quitados, edificios: this.ciudad?.edificios ?? 0, casasQuitadas: this.ciudad?.quitados ?? 0,
     })
     // la ciudad que tardó (Overpass saturado) entra cuando llega: se pinta y se quitan los árboles que quedaron encima
     if (ciudadTarde) {

@@ -104,7 +104,8 @@ export interface SandboxEvents {
     ms: number; relieveReal: boolean; satelite: boolean; rumboCamara: number; bioma: Bioma; casas: number; picosCorregidos: number
     /** Ronda 4: forma dibujada, área real (m²), escala (1 = real; <1 si la parcela no entraba), fracción en agua, ms por etapa. */
     forma: 'punto' | 'circulo' | 'poligono'; areaM2: number; escalaParcela: number; aguaEnParcela: number
-    tiempos: Record<string, number>; quitados: number; edificios: number
+    /** quitados = árboles/props sacados del agua, calles o la parcela; casasQuitadas = edificios dentro de la parcela que se quitaron. */
+    tiempos: Record<string, number>; quitados: number; edificios: number; casasQuitadas: number
   }
   progress: { fase: string; p: number }
   /** Carga por etapas (ronda 4): p = avance total 0..1, texto listo para la pantalla de carga. */
