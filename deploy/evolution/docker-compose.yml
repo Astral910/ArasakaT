@@ -1,0 +1,50 @@
+# Evolution API v2 para la nube (VPS con Docker). En la PC del dueño se usa instalar.ps1/arrancar.ps1 (sin Docker).
+# Uso:  EVOLUTION_APIKEY=<clave larga> FIELDSHIFT_WEBHOOK=https://<server-go>/webhook/evolution docker compose up -d
+# El server Go (WA_MODO=evolution) crea la instancia "fieldshift" y registra el webhook (con ?k=) al arrancar.
+# Expone 8080 solo en 127.0.0.1: ponelo detrás de un proxy con TLS o en la misma red privada que el server Go.
+services:
+  evolution-api:
+    image: evoapicloud/evolution-api:v2.3.7
+    restart: unless-stopped
+    depends_on: [postgres]
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: ${EVOLUTION_PUBLIC_URL:-http://127.0.0.1:8080}
+      AUTHENTICATION_API_KEY: ${EVOLUTION_APIKEY:?definí EVOLUTION_APIKEY}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "false"
+      DEL_INSTANCE: "false"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${POSTGRES_PASSWORD:-evolution}@postgres:5432/evolution?schema=public
+      DATABASE_CONNECTION_CLIENT_NAME: fieldshift
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_CHATS: "false"
+      DATABASE_SAVE_DATA_HISTORIC: "false"
+      CACHE_REDIS_ENABLED: "false"
+      CACHE_LOCAL_ENABLED: "true"
+      CONFIG_SESSION_PHONE_CLIENT: FieldShift
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: 30
+      LOG_LEVEL: ERROR,WARN,INFO
+      LOG_BAILEYS: error
+      TELEMETRY_ENABLED: "false"
+    volumes:
+      - evolution_instances:/evolution/instances
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-evolution}
+      POSTGRES_DB: evolution
+    volumes:
+      - evolution_pg:/var/lib/postgresql/data
+
+volumes:
+  evolution_instances:
+  evolution_pg:
