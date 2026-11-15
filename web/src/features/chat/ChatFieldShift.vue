@@ -42,7 +42,8 @@ const claveMsg = () => 'fs-chat-msgs' + (props.parcelaId ? ':' + props.parcelaId
 const conv = ref(conversacionId())
 const mensajes = ref<MensajeUI[]>(cargar())
 const nombreServidor = ref('')
-const nombre = computed(() => props.terreno || nombreServidor.value || props.contexto?.lugar || '')
+// Encabezado: el terreno, o el lugar sin el departamento ("Jocotán, Chiquimula" → "Jocotán") para que entre en el celular.
+const nombre = computed(() => props.terreno || (props.parcelaId && nombreServidor.value) || (nombreServidor.value || props.contexto?.lugar || '').split(',')[0].trim())
 const texto = ref('')
 const esperando = ref(false)
 const lista = ref<HTMLElement | null>(null)

@@ -65,7 +65,7 @@ describe('ChatFieldShift', () => {
 
   it('sin terreno: el lugar actual en el encabezado (inglés)', () => {
     const w = mount(ChatFieldShift, { props: { flotante: false, contexto: { idioma: 'en', lugar: 'Jocotán, Chiquimula' } } })
-    expect(w.find('.cab-nombre').text()).toBe('Jocotán, Chiquimula assistant')
+    expect(w.find('.cab-nombre').text()).toBe('Jocotán assistant')
   })
 
   it('en línea, inglés y error honesto', async () => {

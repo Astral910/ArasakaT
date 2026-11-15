@@ -105,7 +105,7 @@ func (h *Herramientas) lluviaFecha(ctx context.Context, t *Turno, args map[strin
 					fmt.Sprintf("weather forecast %d days ahead (Open-Meteo: ECMWF IFS / NOAA GFS)", dias))
 				out["fuente"] = "Open-Meteo Forecast API"
 				out["que_hacer"] = queHacer(p, d.MM, en)
-				t.Fuente(Fuente{Titulo: tr("Open-Meteo · pronóstico 16 días", "Open-Meteo · 16-day forecast"), URL: urlOpenMeteo})
+				t.Fuente(Fuente{Titulo: "Open-Meteo Forecast", URL: urlOpenMeteo})
 				return out, nil
 			}
 		}
@@ -141,10 +141,10 @@ func (h *Herramientas) lluviaFecha(ctx context.Context, t *Turno, args map[strin
 	out["escenario"] = map[string]any{"enso": hi.ENSO, "oni": hi.Trim, "anios": base.Anios, "usados": escNombre, "prob_pct": math.Round(f1.Prob)}
 	out["metodo"] = tr(fmt.Sprintf("frecuencia histórica: días con lluvia ≥ 1 mm del %s ±3 días en %d–%d (NASA POWER), en %s (%d años, como la temporada que viene según el ONI de NOAA)", fechaLinda(fecha.Format("2006-01-02"), "es"), f0.Desde, f0.Hasta, escNombre, base.Anios),
 		fmt.Sprintf("historical frequency: days with ≥ 1 mm rain on %s ±3 days in %d–%d (NASA POWER), in %s (%d years, like the coming season per NOAA's ONI)", fechaLinda(fecha.Format("2006-01-02"), "en"), f0.Desde, f0.Hasta, escNombre, base.Anios))
-	out["fuente"] = "NASA POWER PRECTOTCORR, " + fmt.Sprintf("%d–%d", f0.Desde, f0.Hasta)
+	out["fuente"] = fmt.Sprintf("NASA POWER PRECTOTCORR %d–%d", f0.Desde, f0.Hasta)
 	out["no_es_pronostico"] = tr("faltan más de 16 días: no hay pronóstico del tiempo; es la probabilidad climática de esa fecha", "more than 16 days away: no weather forecast exists; this is the climate probability for that date")
 	out["que_hacer"] = queHacer(p, base.MMTipico, en)
-	t.Fuente(Fuente{Titulo: tr("NASA POWER · lluvia diaria 2001–2025", "NASA POWER · daily rain 2001–2025"), URL: urlPower})
+	t.Fuente(Fuente{Titulo: "NASA POWER PRECTOTCORR 2001–2025", URL: urlPower}) // mismo título que "fuente": el modelo lo cita igual y no se duplica
 	return out, nil
 }
 
@@ -183,11 +183,11 @@ func queHacer(p, mm float64, en bool) string {
 
 // FreqLluvia: resultado de Frecuencia.
 type FreqLluvia struct {
-	Prob        float64 // % de días con ≥ 1 mm
-	Dias        int     // días mirados
-	Anios       int     // años usados
-	MMTipico    float64 // mediana de los días con lluvia
-	MMP75       float64
+	Prob         float64 // % de días con ≥ 1 mm
+	Dias         int     // días mirados
+	Anios        int     // años usados
+	MMTipico     float64 // mediana de los días con lluvia
+	MMP75        float64
 	Desde, Hasta int
 }
 
