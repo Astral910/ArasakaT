@@ -11,6 +11,9 @@ import Hud from './ui/Hud.vue'
 import Guia from './ui/Guia.vue'
 import Ajustar from './ui/Ajustar.vue'
 import Final from './ui/Final.vue'
+import Carga, { type Etapa } from './ui/Carga.vue'
+import { consultaParcela, extensionM } from './ui/parcela'
+import type { EtapaEscena } from './vuelo/escena'
 import { ladoMaqueta } from './vuelo/trayecto'
 import type { CamaraMapa } from './vuelo/escena'
 import { crearGrabable, type Grabable } from './vuelo/grabable'
@@ -48,10 +51,14 @@ const lugar = reactive({
 })
 const hayLugar = computed(() => isFinite(lugar.lon) && isFinite(lugar.lat))
 const sitioListo = ref(false)
-const lado = ladoMaqueta(typeof window !== 'undefined' ? window.innerWidth : 1280)
 const ajustes = ref({ ...ruta.ajustes })
 const recomendada = ref<Estrategia>('S2')
 const M2 = { cuerda: 436.7, manzana: 6987, ha: 10000 }
+// el encuadre final deja el terreno entero con aire alrededor (un terreno grande agranda la toma)
+const lado = Math.max(
+  ladoMaqueta(typeof window !== 'undefined' ? window.innerWidth : 1280),
+  ruta.parcela ? Math.ceil(extensionM(ruta.parcela, ruta.ajustes.area_valor * M2[ruta.ajustes.area_unidad]) * 2.2) : 0,
+)
 const area_m2 = computed(() => ajustes.value.area_valor * M2[ajustes.value.area_unidad])
 
 // ---------- fases de la toma ----------
@@ -74,6 +81,7 @@ const alineable = ref(true) // stub: maqueta alineada al mapa; escena real: fund
 const rumbo = ref<number | null>(null)
 const escala = computed(() => (lento.value ? 0.3 : 1))
 function alListo(info: { alineable: boolean; rumbo?: number }) {
+  if (import.meta.env.DEV) console.info(`[vuelo] escena lista a los ${Math.round(performance.now())} ms`)
   alineable.value = info.alineable
   if (info.rumbo != null) rumbo.value = info.rumbo
   escenaLista.value = true
@@ -87,7 +95,7 @@ const region = computed(() => lugar.depto || nombrePais(lugar.pais, lang.value))
 const enGT = computed(() => (lugar.pais ? lugar.pais === 'GT' : enGuatemala(lugar.lon, lugar.lat)))
 const captura = computed(() => {
   const u = progreso.value
-  if (fase.value !== 'vuelo') return null
+  if (fase.value !== 'vuelo' || cargaVisible.value) return null
   if (u < 0.3) return { t: t('cap0'), s: t('cap0b'), k: 0 }
   if (u < 0.6) {
     if (enGT.value) return { t: t('cap1'), s: t('cap1b'), k: 1 }
@@ -134,6 +142,51 @@ async function alFinal(c: CamaraMapa) {
   setTimeout(() => (mapaVivo.value = false), 900)
   // la cámara sigue bajando despacio hacia la parcela mientras corre el tiempo
   setTimeout(() => { if (preset.value === 'iso') { durCam.value = 4200; preset.value = 'cerca'; presetSeq.value++ } }, 900)
+}
+
+// ---------- pantalla de carga: satélite de la ruta + escena armándose en el navegador ----------
+const cargaMapa = ref({ hechas: 0, total: 0 })
+const despego = ref(false)
+const etapasEscena = ref<EtapaEscena[]>([])
+const agua = ref<{ tipo?: string } | null>(null)
+const seguirAgua = ref(false)
+const topeCarga = ref(false)
+const cargaVisible = computed(() => !rec && fase.value === 'vuelo' && mapaVivo.value && !despego.value && !sinWebgl.value)
+const avisoAgua = computed(() => (agua.value && !seguirAgua.value ? agua.value : null))
+// la toma espera a que la escena esté armada (tope 20 s) y, si el terreno cae al agua, a que el usuario decida
+const esperaEscena = computed(() => (!escenaLista.value && !topeCarga.value) || !!avisoAgua.value)
+const NOMBRE_ETAPA: Record<string, string> = { relieve: 'cgRelieve', suelo: 'cgSuelo', ciudad: 'cgCiudad', casas: 'cgCasas', vegetacion: 'cgVegetacion', arboles: 'cgVegetacion', cultivo: 'cgCultivo', agua: 'cgAgua' }
+function alEtapa(e: EtapaEscena) {
+  const k = e.etapa.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+  const l = etapasEscena.value.filter((x) => x.etapa !== k)
+  // al llegar una etapa nueva, las anteriores quedan terminadas
+  const i = etapasEscena.value.findIndex((x) => x.etapa === k)
+  const previas = i < 0 ? l.map((x) => ({ ...x, u: 1 })) : l
+  const nueva = { etapa: k, u: e.u, texto: e.texto }
+  etapasEscena.value = i < 0 ? [...previas, nueva] : etapasEscena.value.map((x) => (x.etapa === k ? nueva : x))
+}
+function alAgua(d: { tipo?: string }) { agua.value = d ?? {} }
+const etapas = computed<Etapa[]>(() => {
+  const m = cargaMapa.value
+  const mapaListo = despego.value || (m.total > 0 && m.hechas >= m.total)
+  const out: Etapa[] = [{ clave: 'mapa', nombre: t('cgMapa'), u: m.total ? m.hechas / m.total : 0, lista: mapaListo }]
+  if (!etapasEscena.value.length) out.push({ clave: 'escena', nombre: t('cgEscena'), u: null, lista: escenaLista.value })
+  for (const e of etapasEscena.value) {
+    out.push({ clave: e.etapa, nombre: NOMBRE_ETAPA[e.etapa] ? t(NOMBRE_ETAPA[e.etapa]) : e.texto || e.etapa, u: e.u ?? null, lista: escenaLista.value || (e.u ?? 0) >= 1 })
+  }
+  return out
+})
+const terreno = computed(() => {
+  const p = ruta.parcela
+  if (!p || p.forma === 'punto') return ''
+  return t('cgTerreno', { f: p.forma === 'circulo' ? t('fCirculo', { r: Math.round(p.radioM ?? 0) }) : t('fPoligono', { n: p.poligono?.length ?? 0 }) })
+})
+function elegirOtro() {
+  router.push({ path: '/', query: { lat: lugar.lat.toFixed(5), lon: lugar.lon.toFixed(5), ...(lugar.nombre ? { lugar: lugar.nombre } : {}), elegir: '1' } })
+}
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  // pruebas: simular eventos de la escena mientras escena4 no los emita (capturas de vuelo4)
+  ;(window as any).__fsCarga = { etapa: alEtapa, agua: alAgua }
 }
 
 function saltar() {
@@ -346,6 +399,8 @@ const res = computed(() => {
 const consulta = computed(() => {
   const a = ajustes.value
   const q: Record<string, string> = {}
+  // la geometría del terreno viaja al informe (forma/radio/poly), con los nombres del contrato
+  Object.assign(q, consultaParcela(ruta.parcela))
   for (const [k, v] of Object.entries(route.query)) if (typeof v === 'string' && !['rec', 'intro', 'auto', 'calidad', 'vertical'].includes(k)) q[k] = v
   Object.assign(q, {
     lat: lugar.lat.toFixed(5), lon: lugar.lon.toFixed(5), cultivo: a.cultivo, area: String(a.area_valor), unidad: a.area_unidad,
@@ -450,6 +505,7 @@ onMounted(async () => {
   window.addEventListener('resize', onResize)
   raf = requestAnimationFrame(tick)
   await resolverSitio()
+  setTimeout(() => (topeCarga.value = true), 20000)
   // plan del lugar (calendario, estrategia recomendada); con el motor global sirve para cualquier coordenada
   const p = store.plan
   if (!p || p.municipio.id !== lugar.id || !lugar.id) {
@@ -500,6 +556,7 @@ onBeforeUnmount(() => roPie?.disconnect())
       v-if="mapaVivo && hayLugar && sitioListo" ref="vuelo" class="capa-mapa"
       :style="{ filter: `blur(${mapaFx * 7}px) saturate(${1 - mapaFx * 0.45}) brightness(${1 - mapaFx * 0.35})`, opacity: 1 - mapaFx * 0.15, transform: alineable ? 'none' : `scale(${1 + mapaFx * 0.35})` }"
       :lon="lugar.lon" :lat="lugar.lat" :municipio-id="lugar.id" :riesgo="lugar.riesgo" :lado="lado" :duracion="duracion" :rumbo="rumbo"
+      :parcela="ruta.parcela" :area-m2="area_m2" :espera="esperaEscena" @carga="cargaMapa = $event" @despegue="despego = true"
       :manual="rec" @preparado="vueloListo = true"
       @progreso="progreso = $event" @final="alFinal" @error="sinWebgl = true; mapaVivo = false; fase = 'sandbox'; subida = 1; escenaVisible = true; preset = 'iso'; presetSeq++; empezarGuia()"
     />
@@ -509,9 +566,9 @@ onBeforeUnmount(() => roPie?.disconnect())
       <div class="panel-escena">
         <Escena
           ref="escena1" :auto-render="!rec"
-          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tl" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" :estrategia="ajustes.comparar ? 'S0' : ajustes.estrategia" :bioma="lugar.bioma"
+          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tl" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" :estrategia="ajustes.comparar ? 'S0' : ajustes.estrategia" :bioma="lugar.bioma" :parcela="ruta.parcela"
           :dia="diaEntero" :fraccion="fraccion" :preset="preset" :seq="presetSeq" :duracion="durCam" :mapa="camMapa" :subida="subida" :calidad="calidad"
-          @listo="alListo"
+          @listo="alListo" @etapa="alEtapa" @agua="alAgua"
         />
         <div v-if="ajustes.comparar && fase === 'sandbox' && estado" class="vidrio hud-mitad">
           <Hud :estado="estado" :fecha="fecha" :fuente="fuente" :estacion="estacion" :origen="origen" :titulo="estrNombre('S0')" compacto />
@@ -519,7 +576,7 @@ onBeforeUnmount(() => roPie?.disconnect())
       </div>
       <div v-if="ajustes.comparar && tlB" class="panel-escena">
         <Escena
-          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tlB" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" estrategia="S2" :bioma="lugar.bioma"
+          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tlB" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" estrategia="S2" :bioma="lugar.bioma" :parcela="ruta.parcela"
           :dia="diaEntero" :fraccion="fraccion" :preset="preset === 'llegada' ? 'iso' : preset" :seq="presetSeq" :duracion="0" :subida="1" :calidad="'baja'"
         />
         <div v-if="fase === 'sandbox' && estadoB" class="vidrio hud-mitad b">
@@ -539,7 +596,11 @@ onBeforeUnmount(() => roPie?.disconnect())
         <p class="cap-s">{{ captura.s }}</p>
       </div>
     </Transition>
-    <div v-if="fase === 'vuelo'" class="progreso" aria-hidden="true"><b :style="{ width: progreso * 100 + '%' }" /></div>
+    <Carga
+      :oculta="!cargaVisible && !avisoAgua" :lugar="lugar.nombre || t('titulo')" :region="region" :terreno="terreno" :etapas="etapas"
+      :agua="avisoAgua" :movil="movil" @elegir="elegirOtro" @seguir="seguirAgua = true"
+    />
+    <div v-if="fase === 'vuelo' && !cargaVisible" class="progreso" aria-hidden="true"><b :style="{ width: progreso * 100 + '%' }" /></div>
 
     <!-- barra superior -->
     <header class="top">

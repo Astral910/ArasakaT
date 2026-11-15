@@ -2,6 +2,7 @@
 //   createSandbox(canvas, opts) · setTemplate(params) · setDay(indice, fraccion) · setCamera(preset) · dispose()
 // Si ../escena/api.ts todavía no existe, se usa el stub propio (./stub.ts) con la misma interfaz.
 import type { SimTimeline } from '../ui/tipos'
+import type { Parcela } from '../ui/parcela'
 
 /** Fracción del alto reservada abajo para la guía: el punto del vuelo y la maqueta de ESCENA3D (`margenInferior`)
  *  se centran en el resto de la pantalla, así la maqueta se levanta exactamente donde estaba el punto. */
@@ -38,7 +39,8 @@ export interface OpcionesSandbox {
 }
 
 export interface ParamsPlantilla {
-  timeline: SimTimeline
+  /** null = la escena arranca a armarse (relieve, suelo, casas) antes de que llegue la simulación */
+  timeline: SimTimeline | null
   cultivo: string
   area_m2: number
   area_valor: number
@@ -49,7 +51,14 @@ export interface ParamsPlantilla {
   pendiente_pct?: number
   /** bioma del sitio (/api/sitio): ESCENA3D elige la plantilla (vegetación, suelo) para cualquier lugar del mundo */
   bioma?: string
+  /** terreno exacto (contrato ronda 4): la maqueta se levanta con esa forma */
+  parcela?: Parcela | null
+  /** lado de la maqueta en metros (el mismo que encuadra el vuelo) */
+  ladoM?: number
 }
+
+/** Etapa de armado de la escena (evento `progreso`, ver COORDINACION ronda 4). */
+export interface EtapaEscena { etapa: string; u?: number; texto?: string }
 
 export interface OpcionesCamara { duracion?: number; mapa?: CamaraMapa }
 
@@ -70,6 +79,8 @@ export interface Sandbox {
   setTimeScale?(s: number): void
   /** dibuja un cuadro (autoRender:false, video) */
   renderFrame?(dt: number): void
+  /** eventos de armado: `progreso` (etapas) y `parcelaEnAgua` */
+  on?(ev: 'progreso' | 'parcelaEnAgua', cb: (d: any) => void): () => void
 }
 
 type Fabrica = (canvas: HTMLCanvasElement, o: OpcionesSandbox) => Sandbox | Promise<Sandbox>
@@ -120,15 +131,16 @@ function adaptarReal(crear: any, canvas: HTMLCanvasElement, o: OpcionesSandbox):
     listo,
     rumbo: () => rumbo,
     setTemplate(p) {
-      const k = [p.lat, p.lon, p.area_valor, p.area_unidad, p.cultivo, p.estrategia, p.bioma].join('|')
+      const k = [p.lat, p.lon, p.area_valor, p.area_unidad, p.cultivo, p.estrategia, p.bioma, JSON.stringify(p.parcela ?? null)].join('|')
       if (k !== clave) {
         clave = k
         pend = Promise.resolve(sb.setTemplate({
           lat: p.lat, lon: p.lon, areaValor: p.area_valor, areaUnidad: p.area_unidad, cultivo: p.cultivo,
           estrategia: p.estrategia, pendientePct: p.pendiente_pct, ...(p.bioma ? { bioma: p.bioma } : {}),
+          ...(p.parcela ? { parcela: p.parcela } : {}), ...(p.ladoM ? { ladoM: p.ladoM } : {}),
         })).catch(() => {})
       }
-      if (p.timeline !== tlActual) {
+      if (p.timeline && p.timeline !== tlActual) {
         tlActual = p.timeline
         sb.setTimeline(p.timeline)
       }
@@ -139,6 +151,8 @@ function adaptarReal(crear: any, canvas: HTMLCanvasElement, o: OpcionesSandbox):
     setCamera: (preset, op) => sb.setCamera(PRESET_REAL[preset] ?? preset, { duracion: op?.duracion == null ? undefined : op.duracion / 1000 }),
     setTimeScale: (s) => sb.setTimeScale?.(s),
     renderFrame: (dt) => sb.renderFrame?.(dt),
+    // eventos nuevos de la ronda 4 (si la escena todavía no los emite, nunca llegan y la UI usa solo 'ready')
+    on: (ev, cb) => { try { return sb.on(ev, cb) ?? (() => {}) } catch { return () => {} } },
     dispose: () => sb.dispose(),
   }
 }

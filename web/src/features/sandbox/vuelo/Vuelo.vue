@@ -1,21 +1,28 @@
 <script setup lang="ts">
 // Toma continua, parte 1: la Tierra entera (globo, satélite y relieve) gira hasta el punto y la cámara baja sobre él,
 // siempre centrado. Guatemala con sus 342 municipios por riesgo; el resto de Mesoamérica si hay capa; si no, el punto.
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+// Satélite Esri World Imagery con toda la ruta precargada (./teselas.ts) y el contorno real del terreno.
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { cargarMaplibre, hayWebGL } from '../../mapa/comun/maplibre'
-import { DEM, SATELITE } from '../../mapa/capas'
+import { SAT_ESRI, DEM_FSX, registrarProtocolo, urlsRuta, precargar } from './teselas'
+import { anillo, extensionM, type Parcela } from '../ui/parcela'
 import { cargarGeo, cargarRiesgo } from '../../mapa/cargar'
 import { ESCALA_RIESGO, colorDe } from '../../mapa/riesgo'
 import { pub } from '@/api/client'
 import { toma, inicioGlobo, zoomFinal, MARGEN_INF, type Toma } from './trayecto'
-import { tesela, type CamaraMapa } from './escena'
+import type { CamaraMapa } from './escena'
 
 const props = defineProps<{
   lon: number; lat: number; municipioId?: string; lado: number; duracion: number; rumbo?: number | null; manual?: boolean
   /** temporadas difíciles de cada 10 del punto (colorea el marcador fuera de Guatemala) */
   riesgo?: number | null
+  /** terreno exacto (contorno real durante el zoom); sin él, cuadrado del área */
+  parcela?: Parcela | null
+  areaM2?: number
+  /** true = el mapa ya puede cargar pero la toma espera (la escena se está armando, pantalla de carga) */
+  espera?: boolean
 }>()
-const emit = defineEmits<{ progreso: [u: number]; final: [c: CamaraMapa]; error: []; preparado: [] }>()
+const emit = defineEmits<{ progreso: [u: number]; final: [c: CamaraMapa]; error: []; preparado: []; despegue: []; carga: [d: { hechas: number; total: number }] }>()
 
 const caja = ref<HTMLDivElement | null>(null)
 let mapa: any = null
@@ -26,13 +33,16 @@ let saltarYa = false
 let inicio: Toma | null = null
 const EXAG = 1.35
 
-function cuadrado(lon: number, lat: number, lado: number) {
-  const dLat = lado / 2 / 111320
-  const dLon = lado / 2 / (111320 * Math.cos((lat * Math.PI) / 180))
-  return {
-    type: 'Feature' as const, properties: {},
-    geometry: { type: 'Polygon' as const, coordinates: [[[lon - dLon, lat - dLat], [lon + dLon, lat - dLat], [lon + dLon, lat + dLat], [lon - dLon, lat + dLat], [lon - dLon, lat - dLat]]] },
-  }
+/** Contorno del terreno (GeoJSON): polígono tal cual, círculo de 96 lados o el cuadrado del área si es un punto. */
+function contorno() {
+  const p: Parcela = props.parcela ?? { forma: 'punto', centro: [props.lat, props.lon] }
+  return { type: 'Feature' as const, properties: {}, geometry: { type: 'Polygon' as const, coordinates: [anillo(p, props.areaM2)] } }
+}
+
+/** Zoom desde el que el contorno mide ≥ 14 px: ahí el punto se convierte en el terreno. */
+function zoomContorno() {
+  const ext = extensionM(props.parcela ?? { forma: 'punto', centro: [props.lat, props.lon] }, props.areaM2)
+  return Math.log2((14 * 2 * Math.PI * 6378137 * Math.cos((props.lat * Math.PI) / 180)) / (512 * Math.max(5, ext)))
 }
 
 /** El mapa termina mirando hacia donde mira la cámara de la escena (rumbo que avisa ESCENA3D al estar lista). */
@@ -121,24 +131,6 @@ async function capaRiesgo(nombre: 'mundo' | 'mesoamerica'): Promise<any | null> 
   }
 }
 
-/** Precarga (caché del navegador) las teselas de satélite y relieve alrededor del punto, de z5 a la final:
- *  la cámara baja muy rápido y sin esto los niveles intermedios llegan tarde y se ve el fondo. */
-function precargar(lon: number, lat: number) {
-  const pedir = (plantilla: string, z: number, r: number) => {
-    const c = tesela(lon, lat, z)
-    const n = 2 ** z
-    for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) {
-      const x = (Math.floor(c.x) + dx + n) % n, y = Math.floor(c.y) + dy
-      if (y < 0 || y >= n) continue
-      const img = new Image()
-      img.crossOrigin = 'anonymous'
-      img.src = plantilla.replace('{z}', String(z)).replace('{x}', String(x)).replace('{y}', String(y))
-    }
-  }
-  for (let z = 4; z <= SATELITE.maxzoom; z++) pedir(SATELITE.tiles[0], z, z >= 12 ? 2 : 1)
-  for (let z = 4; z <= DEM.maxzoom; z++) pedir(DEM.tiles[0], z, 1)
-}
-
 const RIESGO_COLOR: any = ['step', ['to-number', ['coalesce', ['get', 'riesgo'], -1]], '#cfc6b6', 0, ESCALA_RIESGO[0].color, ...ESCALA_RIESGO.slice(0, -1).flatMap((e, i) => [e.hasta, ESCALA_RIESGO[i + 1].color])]
 const OPAC_RIESGO: any = ['interpolate', ['linear'], ['zoom'], 2.5, 0.0, 4, 0.72, 9.5, 0.42, 11.5, 0]
 
@@ -166,17 +158,23 @@ onMounted(async () => {
     emit('error')
     return
   }
-  precargar(props.lon, props.lat)
+  registrarProtocolo(ml)
   const el = caja.value!
-  el.style.opacity = '0' // el plano alto aparece con fundido cuando ya cargaron teselas (sin cuadros a medio cargar)
+  el.style.opacity = '0' // el globo aparece con fundido cuando la ruta ya está precargada (sin cuadros vacíos)
   const a: Toma = inicio = inicioGlobo({ lon: props.lon, lat: props.lat }, el.clientWidth, el.clientHeight * (1 - MARGEN_INF))
+  // todas las teselas de la ruta, antes de volar (la pantalla de carga muestra el avance)
+  const { urls, esenciales } = urlsRuta(a, destino(), el.clientWidth, el.clientHeight)
+  const tPre = performance.now()
+  let hechasPre = 0
+  const precarga = precargar(urls, (hechas, total) => { hechasPre = hechas; emit('carga', { hechas, total }) }, props.manual ? 25000 : 14000, props.manual ? urls.length : esenciales)
+    .then(() => { if (import.meta.env.DEV) console.info(`[vuelo] precarga ${hechasPre}/${esenciales} esenciales (de ${urls.length}) teselas en ${Math.round(performance.now() - tPre)} ms`) })
   let colorPunto = props.riesgo != null && isFinite(props.riesgo) ? colorDe(ESCALA_RIESGO, props.riesgo) : '#e0a526'
   mapa = new ml.Map({
     container: el,
     style: {
       version: 8,
       projection: { type: 'globe' },
-      sources: { dem: DEM, sombra: { ...DEM }, sat: SATELITE },
+      sources: { dem: DEM_FSX, sombra: { ...DEM_FSX }, sat: SAT_ESRI },
       sky: {
         'sky-color': '#7fb4e0', 'horizon-color': '#e8e2d2', 'fog-color': '#efe6d2',
         'sky-horizon-blend': 0.5, 'horizon-fog-blend': 0.6, 'fog-ground-blend': 0.4,
@@ -184,7 +182,7 @@ onMounted(async () => {
       },
       layers: [
         { id: 'fondo', type: 'background', paint: { 'background-color': '#3d4433' } },
-        { id: 'sat', type: 'raster', source: 'sat', paint: { 'raster-saturation': -0.08, 'raster-contrast': 0.06, 'raster-fade-duration': 0 } },
+        { id: 'sat', type: 'raster', source: 'sat', paint: { 'raster-saturation': -0.04, 'raster-contrast': 0.05, 'raster-fade-duration': 0 } },
         {
           id: 'sombra', type: 'hillshade', source: 'sombra',
           paint: { 'hillshade-shadow-color': '#3a2a1e', 'hillshade-highlight-color': '#fffaf0', 'hillshade-accent-color': '#6a4a30', 'hillshade-exaggeration': ['interpolate', ['linear'], ['zoom'], 3, 0.15, 7, 0.35, 10, 0.2, 12, 0] },
@@ -193,8 +191,11 @@ onMounted(async () => {
     } as any,
     center: [a.lon, a.lat], zoom: a.zoom, pitch: a.pitch, bearing: a.bearing,
     maxPitch: 75, interactive: false, attributionControl: false, fadeDuration: 0, renderWorldCopies: false,
+    // caché grande y sin cancelar pedidos al hacer zoom: los padres quedan visibles mientras llega el detalle
+    maxTileCacheSize: 1600, maxTileCacheZoomLevels: 8, cancelPendingTileRequestsWhileZooming: false, refreshExpiredTiles: false,
     canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true },
   })
+  if (import.meta.env.DEV) (window as any).__fsMapa = mapa
   mapa.addControl(new ml.AttributionControl({ compact: true }), 'bottom-left')
   mapa.on('error', () => { /* una tesela que falla no rompe la toma */ })
   mapa.on('load', async () => {
@@ -219,44 +220,56 @@ onMounted(async () => {
       if (props.municipioId) {
         mapa.addLayer({
           id: 'sel-brillo', type: 'line', source: 'municipios', filter: ['==', ['get', 'id'], props.municipioId],
-          paint: { 'line-color': '#e0a526', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 4, 11, 14], 'line-blur': 8, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0, 6, 0.75] },
+          paint: { 'line-color': '#e0a526', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 4, 11, 14], 'line-blur': 8, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0, 6, 0.75, 10, 0.75, 12, 0] },
         })
         mapa.addLayer({
           id: 'sel', type: 'line', source: 'municipios', filter: ['==', ['get', 'id'], props.municipioId],
-          paint: { 'line-color': '#fff6dc', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.2, 11, 3], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0, 6, 1] },
+          paint: { 'line-color': '#fff6dc', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.2, 11, 3], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0, 6, 1, 10, 1, 12, 0] },
         })
       }
       for (const f of datos.filas) mapa.setFeatureState({ source: 'municipios', id: f.id }, { color: colorDe(ESCALA_RIESGO, f.riesgo) })
       const fila = props.riesgo == null && props.municipioId ? datos.filas.find((f) => f.id === props.municipioId) : null
       if (fila) colorPunto = colorDe(ESCALA_RIESGO, fila.riesgo)
     } catch { /* la toma sigue sin colores */ }
-    mapa.addSource('terreno', { type: 'geojson', data: cuadrado(props.lon, props.lat, props.lado) })
-    mapa.addLayer({ id: 'terreno-luz', type: 'line', source: 'terreno', paint: { 'line-color': '#ffe7a8', 'line-width': 9, 'line-blur': 7, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 12.5, 0, 14, 0.7] } })
-    mapa.addLayer({ id: 'terreno', type: 'line', source: 'terreno', paint: { 'line-color': '#fffaf0', 'line-width': 2, 'line-dasharray': [2, 1.5], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 12.5, 0, 14, 1] } })
+    // el terreno real: relleno tenue, halo cálido y borde; aparece cuando mide ~14 px y el punto se apaga
+    const zc = zoomContorno()
+    mapa.addSource('terreno', { type: 'geojson', data: contorno(), tolerance: 0 }) // sin simplificar: el círculo queda redondo
+    const op = (max: number): any => ['interpolate', ['linear'], ['zoom'], zc - 1, 0, zc + 0.4, max]
+    mapa.addLayer({ id: 'terreno-relleno', type: 'fill', source: 'terreno', paint: { 'fill-color': '#ffe7a8', 'fill-opacity': ['interpolate', ['linear'], ['zoom'], zc - 1, 0, zc + 0.5, 0.3, zc + 3, 0.16] } })
+    // sombra oscura debajo del borde: se lee igual sobre ciudad clara que sobre bosque
+    mapa.addLayer({ id: 'terreno-sombra', type: 'line', source: 'terreno', layout: { 'line-join': 'round' }, paint: { 'line-color': '#1a1208', 'line-width': 6, 'line-blur': 2, 'line-opacity': op(0.45) } })
+    mapa.addLayer({ id: 'terreno-luz', type: 'line', source: 'terreno', layout: { 'line-join': 'round' }, paint: { 'line-color': '#ffd77a', 'line-width': 12, 'line-blur': 9, 'line-opacity': op(0.8) } })
+    mapa.addLayer({ id: 'terreno', type: 'line', source: 'terreno', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#fffaf0', 'line-width': ['interpolate', ['linear'], ['zoom'], zc, 2.2, zc + 4, 3.2], 'line-opacity': op(1) } })
     mapa.addSource('punto', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [props.lon, props.lat] } } })
     mapa.addLayer({ id: 'punto-halo', type: 'circle', source: 'punto', paint: { 'circle-radius': 22, 'circle-color': colorPunto, 'circle-opacity': 0.3, 'circle-blur': 0.5, 'circle-pitch-alignment': 'viewport' } })
     mapa.addLayer({
       id: 'punto', type: 'circle', source: 'punto',
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 6, 12, 7, 14.5, 0], 'circle-color': colorPunto,
-        'circle-stroke-color': '#fffaf0', 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 1, 2.5, 14.5, 0], 'circle-pitch-alignment': 'viewport',
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 6, Math.max(1.5, zc - 0.5), 7, Math.max(2, zc + 0.6), 0], 'circle-color': colorPunto,
+        'circle-stroke-color': '#fffaf0', 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 1, 2.5, Math.max(2, zc + 0.6), 0], 'circle-pitch-alignment': 'viewport',
       },
     })
-    // espera breve a que carguen las teselas del globo (máx. 2.5 s) y arranca la toma
+    // arranca cuando: la ruta está precargada, el globo pintó y la escena terminó de armarse (prop espera)
     let empezo = false
     const empezar = () => {
-      if (empezo) return
+      if (empezo || !mapa) return
       empezo = true
       if (caja.value) caja.value.style.opacity = '1'
+      emit('despegue')
       if (props.manual) emit('preparado')
       else saltarYa ? terminar() : volar(a)
     }
-    // 'idle' puede llegar antes de que el worker procese los municipios: se espera a fuente y teselas
-    const cargado = () => (!mapa.getSource('municipios') || mapa.isSourceLoaded('municipios')) && mapa.areTilesLoaded()
-    const revisar = () => { if (!empezo && cargado()) { mapa.off('render', revisar); empezar() } }
-    mapa.on('render', revisar)
-    mapa.once('idle', revisar)
-    setTimeout(() => { mapa?.off('render', revisar); empezar() }, 2500)
+    // 'idle' puede llegar antes de que el worker procese los municipios: se espera a fuente y teselas (tope 2.5 s)
+    const pintoGlobo = new Promise<void>((res) => {
+      const cargado = () => (!mapa.getSource('municipios') || mapa.isSourceLoaded('municipios')) && mapa.areTilesLoaded()
+      const revisar = () => { if (cargado()) { mapa.off('render', revisar); res() } }
+      mapa.on('render', revisar)
+      mapa.once('idle', revisar)
+      setTimeout(() => { mapa?.off('render', revisar); res() }, 2500)
+    })
+    await Promise.all([precarga, pintoGlobo])
+    if (!props.espera || props.manual) empezar()
+    else { const s = watch(() => props.espera, (v) => { if (!v) { s(); empezar() } }) }
   })
 })
 
