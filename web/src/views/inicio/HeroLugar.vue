@@ -108,7 +108,7 @@ function elegir(l: Lugar) {
   q.value = ''
   resultados.value = []
   abierto.value = false
-  aviso.value = l.aproximado ? 'marcar' : ''
+  aviso.value = '' // el pedido de marcar ya está bajo el lugar (ini.mark.hintAprox): no repetirlo abajo
   marcado.value = false
   dibujando.value = false
   forma.value = 'punto'

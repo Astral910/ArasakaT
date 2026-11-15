@@ -146,7 +146,10 @@ type RunResult struct {
 
 // Run corre el motor para el día `date` (YYYY-MM-DD local de Guatemala). Idempotente: una corrida terminada no se repite
 // salvo force; y nunca se guarda ni se envía dos veces la misma alerta (suscriptor, tipo, fecha de emisión).
-func (e *Engine) Run(date time.Time, force bool) (RunResult, error) {
+func (e *Engine) Run(date time.Time, force bool) (RunResult, error) { return e.correr(date, force, false) }
+
+// correr sinHorario: corrida pedida a mano (POST /api/admin/run-alerts con fecha o force=1), no espera el horario decente.
+func (e *Engine) correr(date time.Time, force, sinHorario bool) (RunResult, error) {
 	e.run.Lock()
 	defer e.run.Unlock()
 	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
@@ -175,7 +178,7 @@ func (e *Engine) Run(date time.Time, force bool) (RunResult, error) {
 		}
 		// Horario decente (7:00–20:00 hora local de la persona): fuera de hora no se evalúa ni se guarda;
 		// la corrida siguiente (cada 3 h) lo manda cuando ya es de día.
-		if !HoraDecente(HoraLocal(m, e.now())) {
+		if !sinHorario && !HoraDecente(HoraLocal(m, e.now())) {
 			res.FueraDeHora++
 			continue
 		}

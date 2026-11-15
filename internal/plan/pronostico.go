@@ -329,6 +329,15 @@ func elegirAnalogo(s *sim.Site, crop string, pin *PronInput, oni func(string) (f
 		a.Peso[i] /= tot
 		a.ProbClase[ct.cls[y]] += a.Peso[i]
 	}
+	// honestidad: k análogos no alcanzan para decir 100 %. Se encoge hacia la frecuencia de la clase en
+	// los años base (Dirichlet con tantos años "virtuales" de clima como análogos → mitad y mitad).
+	var clim [3]float64
+	for _, y := range a.Base {
+		clim[ct.cls[y]]++
+	}
+	for c := range a.ProbClase {
+		a.ProbClase[c] = (a.ProbClase[c] + clim[c]/float64(len(a.Base))) / 2
+	}
 	a.Clase = 0
 	for c := 1; c < 3; c++ {
 		if a.ProbClase[c] > a.ProbClase[a.Clase]+1e-9 {
@@ -529,6 +538,21 @@ func buildConfianza(env SimEnv, s *sim.Site, def sim.StratDef, cfg sim.Config, c
 	if totW > 0 {
 		c.ProbPerdida = lossW / totW
 	}
+	// con análogos, la pérdida se encoge igual que la clase: mitad grupo, mitad frecuencia en los años base
+	if ca.an != nil && totW > 0 {
+		nl, nt := 0, 0
+		for _, y := range ct.years {
+			if yo := s.RunYear(def, y, 0, 1, cfg); !math.IsNaN(yo.FoodQQ) {
+				nt++
+				if yo.FoodQQ < sim.LossThreshold*def.Main.YmQQMz {
+					nl++
+				}
+			}
+		}
+		if nt > 0 {
+			c.ProbPerdida = (c.ProbPerdida + float64(nl)/float64(nt)) / 2
+		}
+	}
 	c.CosechaP10, c.CosechaP50, c.CosechaP90 = pctW(qq, w, 0.1), pctW(qq, w, 0.5), pctW(qq, w, 0.9)
 	r1 := func(x float64) float64 {
 		if math.IsNaN(x) {
@@ -620,7 +644,7 @@ func confTexto(c *contract.SimConfianza, ca confArgs) (string, string) {
 	clsEN := map[string]string{"perdida": "a lost season", "regular": "a fair season", "buena": "a good season"}[c.Clase]
 	nivES := map[string]string{"alta": "alta", "media": "media", "baja": "baja"}[c.Nivel]
 	nivEN := map[string]string{"alta": "high", "media": "medium", "baja": "low"}[c.Nivel]
-	rango := fmt.Sprintf("%.0f–%.0f qq/mz", c.CosechaP10, c.CosechaP90)
+	rango := fmt.Sprintf("%.0f–%.0f qq/mz", math.Round(c.CosechaP10), math.Round(c.CosechaP90)) // mismo redondeo que la web (Math.round)
 	switch c.Metodo {
 	case "analogo-pronostico", "remuestreo-enso":
 		if ca.an != nil {
