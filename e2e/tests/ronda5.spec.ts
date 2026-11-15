@@ -40,8 +40,8 @@ test('landing: fecha de siembra → recomendación → guía con siembra y cosec
   await page.getByTestId('ver-temporada').click()
   await expect(page).toHaveURL(new RegExp(`/sandbox\\?.*siembra=${fecha}`))
   await expect(page.locator('canvas').first()).toBeVisible({ timeout: 60_000 })
-  // la guía dice cuándo se siembra y cuándo se cosecha
-  await expect(page.locator('body')).toContainText(/Sembrás el .+ cosechás/, { timeout: 90_000 })
+  // ronda 6: la barra de abajo muestra el avance de la siembra (antes, cuánto falta o ya cosechado)
+  await expect(page.locator('body')).toContainText(/Siembra en \d+ d|Crecimiento \d+ %|Cosechado/, { timeout: 90_000 })
   await page.waitForTimeout(3000)
   await snap(page, 'guia-siembra-cosecha')
   noErrors(errors)
@@ -68,11 +68,8 @@ test('registro → guardar terreno → dashboard (riego de hoy) → "llovió muc
   const mm = page.locator('[data-test="riego-mm"]')
   await expect(mm).toBeVisible({ timeout: 90_000 })
   await expect(page.locator('body')).not.toContainText(/el servidor de campo aún no está|field server is not/i)
-  const leer = async () => {
-    const t = (await mm.innerText()).replace(/\s+/g, ' ')
-    const m = /(\d+(?:[.,]\d+)?)\s*mm/.exec(t)
-    return m ? parseFloat(m[1].replace(',', '.')) : 0
-  }
+  // granjero6: el riego se muestra en toneles por cuerda; los mm van en data-mm
+  const leer = async () => parseFloat((await mm.getAttribute('data-mm')) ?? '0') || 0
   const antes = await leer()
   await snap(page, 'dashboard-terreno-antes', true)
   const resp = page.waitForResponse((r) => /\/api\/parcelas\/p_[^/]+\/reportes/.test(r.url()) && r.request().method() === 'POST', { timeout: 60_000 })

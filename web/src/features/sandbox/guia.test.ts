@@ -89,9 +89,11 @@ describe('confianza', () => {
     tl.confianza = { metodo: 'analogo-pronostico', anios_analogos: [2015], anios_base: 25, anios_parecidos: 9, prob_escenario: 0.72, nivel: 'media', texto: 'x' }
     tl.anual[0].el_nino = true
     const i = insignia(tl, 'api', 'es')
-    expect(i.texto).toBe('Escenario El Niño · 72 % probable · se repitió en 9 de 25 años · confianza media')
+    expect(i.texto).toBe('Confianza media')
+    expect(i.detalle).toMatch(/^Escenario El Niño · 72 % probable · se repitió en 9 de 25 años/)
+    expect(i.detalle).toMatch(/informe/)
     expect(i.sustituto).toBe(false)
-    expect(insignia(tl, 'api', 'en').texto).toBe('El Niño scenario · 72 % likely · happened in 9 of 25 years · medium confidence')
+    expect(insignia(tl, 'api', 'en').texto).toBe('Medium confidence')
   })
   it('sin confianza del motor: sustituto honesto (frecuencia histórica, nivel baja)', () => {
     const tl = fixture()
@@ -102,8 +104,8 @@ describe('confianza', () => {
     expect(c.anios_analogos).toEqual(tl.anual.map((a) => a.anio_real))
     const i = insignia(tl, 'static', 'es')
     expect(i.sustituto).toBe(true)
-    expect(i.texto).toMatch(/frecuencia histórica/)
-    expect(i.texto).toMatch(/confianza baja$/)
+    expect(i.detalle).toMatch(/frecuencia histórica/)
+    expect(i.texto).toBe('Confianza baja')
     expect(insignia(tl, 'ejemplo', 'es').nivel).toBe('ejemplo')
   })
 })

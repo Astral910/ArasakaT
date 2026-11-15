@@ -361,6 +361,8 @@ type SitioInfo struct {
 	PendientePct float64     `json:"pendiente_pct"`
 	Precalculado bool        `json:"precalculado"` // municipio de Guatemala con datos locales
 	Bimodal      bool        `json:"bimodal"`
+	// Centroamerica: true si las temporadas se llaman Primera y Postrera (fuera: «temporada de lluvias» / «temporada principal»)
+	Centroamerica bool `json:"centroamerica"`
 	Temporadas   []Temporada `json:"temporadas"`
 	Canicula     *Periodo    `json:"canicula,omitempty"` // solo si la lluvia es bimodal
 	RiesgoDe10   float64     `json:"riesgo_de_10"`       // temporadas difíciles de cada 10 (milpa de hoy, S0)
@@ -397,6 +399,7 @@ type SimSiembra struct {
 	CosechaRecomendada string         `json:"cosecha_recomendada"` // YYYY-MM-DD
 	DiasCicloElegida   int            `json:"dias_ciclo_elegida"`  // días de siembra a cosecha
 	DiasCicloRecom     int            `json:"dias_ciclo_recomendada"`
+	NoMadura           bool           `json:"no_madura"`    // el calor del lugar no alcanza los grados-día: ciclo acotado al máximo realista del cultivo
 	Recomendable       bool           `json:"recomendable"` // la elegida está cerca de la mejor (mismo riesgo ±5 pts y cosecha ≥ 90 %)
 	Veredicto          string         `json:"veredicto"`    // ok | ojo | mala
 	Texto              string         `json:"texto"`        // "Si sembrás el 12 may, cosechás el 28 ago…"
@@ -407,6 +410,29 @@ type SimSiembra struct {
 	GDDCiclo           float64        `json:"gdd_ciclo"`        // grados-día (base 10 °C) a madurez
 	Escenarios         bool           `json:"escenarios"`       // true si la fecha cae más allá del pronóstico estacional (son escenarios, no pronóstico)
 	Fuentes            []string       `json:"fuentes"`
+
+	// Agregado por granjero6 (15-nov): decisiones para quien siembra.
+	CosechaEsperada float64           `json:"cosecha_esperada,omitempty"` // qq/mz: P50 de la fecha de siembra CosechaDe en esta temporada
+	CosechaNormal   float64           `json:"cosecha_normal,omitempty"`   // qq/mz: P50 de la fecha elegida en todos los años 2001–2025 (un año normal)
+	CosechaDe       string            `json:"cosecha_de,omitempty"`       // YYYY-MM-DD: fecha de siembra de esas cosechas (la elegida; la recomendada si la elegida cae fuera de la ventana)
+	RangoIni        string            `json:"rango_ini,omitempty"`        // YYYY-MM-DD: fechas tan buenas como la recomendada (riesgo ±5 pts, cosecha ≥ 95 %)
+	RangoFin        string            `json:"rango_fin,omitempty"`
+	UltimoSeguro    string            `json:"ultimo_seguro,omitempty"` // YYYY-MM-DD: última fecha con cosecha P50 ≥ 85 % de la recomendada
+	Tarde           *RiesgoFecha      `json:"tarde,omitempty"`         // primera fecha después del último día seguro (para "sembrar el X ≈ −N")
+	Canicula        *PeriodoSecoInfo  `json:"canicula,omitempty"`      // período seco climatológico dentro de la temporada (si existe)
+}
+
+// PeriodoSecoInfo canícula (Centroamérica) o período seco / dry spell (otros lugares), cruzado con el cultivo.
+type PeriodoSecoInfo struct {
+	Ini           string  `json:"ini"` // YYYY-MM-DD
+	Fin           string  `json:"fin"`
+	Dias          int     `json:"dias"`
+	MMDia         float64 `json:"mm_dia"`     // lluvia media del período (mm/día)
+	RefMMDia      float64 `json:"ref_mm_dia"` // lluvia de los picos que lo rodean (mm/día)
+	Centroamerica bool    `json:"centroamerica"`
+	Etapa         string  `json:"etapa"`      // etapa del cultivo (fecha elegida): antes | crecimiento | floracion | llenado | despues
+	Floracion     string  `json:"floracion"` // YYYY-MM-DD: floración de la fecha elegida
+	Fuente        string  `json:"fuente"`
 }
 
 // RazonSiembra una razón concreta (con fuente) a favor o en contra de una fecha.

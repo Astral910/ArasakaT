@@ -30,7 +30,7 @@ describe('ChatFieldShift', () => {
     await w.find('textarea').setValue('Generame del 1 de julio al 1 de agosto')
     await w.find('form').trigger('submit')
     await flushPromises()
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const [url, init] = fetchMock.mock.calls.find((c) => String((c as unknown[])[0]).includes('/api/chat/asistente')) as unknown as [string, RequestInit]
     expect(url).toContain('/api/chat/asistente')
     const body = JSON.parse(String(init.body))
     expect(body.parcelaId).toBe('p1')
@@ -44,6 +44,28 @@ describe('ChatFieldShift', () => {
     expect(w.find('.accion').text()).toContain('1 jul – 1 ago')
     expect(w.emitted('accion')?.[0]?.[0]).toMatchObject({ tipo: 'abrir_simulacion', params: { desde: '2026-07-01' } })
     vi.unstubAllGlobals()
+  })
+
+  it('un asistente por terreno: encabezado con el nombre y su conversación guardada', async () => {
+    const fetchMock = vi.fn(async (u: string) => {
+      if (String(u).includes('/api/chat/historial')) {
+        expect(String(u)).toContain('parcelaId=p9')
+        return new Response(JSON.stringify({ terreno: 'Santo Domingo Xenacoj', mensajes: [{ rol: 'usuario', texto: '¿va a llover el 20 de octubre?' }, { rol: 'asistente', texto: 'Sí, es probable: 62 %.' }] }), { status: 200 })
+      }
+      return new Response(JSON.stringify({ ...respuesta, terreno: 'Santo Domingo Xenacoj' }), { status: 200 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const w = mount(ChatFieldShift, { props: { flotante: false, parcelaId: 'p9', contexto: { idioma: 'es' } } })
+    await flushPromises()
+    expect(w.find('.cab-nombre').text()).toBe('Asistente de Santo Domingo Xenacoj')
+    expect(w.text()).toContain('Sí, es probable: 62 %.')
+    expect(w.findAll('article.msg').length).toBe(2)
+    vi.unstubAllGlobals()
+  })
+
+  it('sin terreno: el lugar actual en el encabezado (inglés)', () => {
+    const w = mount(ChatFieldShift, { props: { flotante: false, contexto: { idioma: 'en', lugar: 'Jocotán, Chiquimula' } } })
+    expect(w.find('.cab-nombre').text()).toBe('Jocotán assistant')
   })
 
   it('en línea, inglés y error honesto', async () => {

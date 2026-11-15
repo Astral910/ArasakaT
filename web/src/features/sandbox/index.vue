@@ -35,6 +35,7 @@ import { createAudio, BotonSonido, Subtitulos, type ControlAudio } from './audio
 import { usePlanStore, requestFromQuery } from '@/stores/plan'
 import { lang, setLang } from '@/i18n'
 import type { PlanRequest } from '@/api/types'
+import { enCentroamerica } from '../decision/decision'
 
 const route = useRoute()
 const router = useRouter()
@@ -436,7 +437,8 @@ const insignia = computed(() => (tl.value ? armarInsignia(tl.value, origen.value
 // ---------- siembra → cosecha (ronda 5) ----------
 const sie = computed(() => (tl.value ? infoSiembra(tl.value, bandas.value, siembraElegida.value, lang.value) : null))
 const fc = (iso: string) => fechaCorta(iso, lang.value)
-const siembraTxt = computed(() => (sie.value ? t('sembrasCosechas', { s: fc(sie.value.elegida), c: fc(sie.value.cosechaElegida) }) : ''))
+/** ronda 6: siembra y cosecha en la barra de abajo, con el avance en % */
+const ciclo = computed(() => (sie.value ? { siembra: sie.value.elegida, cosecha: sie.value.cosechaElegida } : null))
 /** marcador 3D: la fecha que el motor simuló (si todavía no honra la elegida, la de su timeline) */
 const siembraEscena = computed(() => (sie.value ? (sie.value.estimado ? sie.value.recomendada : sie.value.elegida) : null))
 const franja = computed(() => {
@@ -755,7 +757,7 @@ onBeforeUnmount(() => roPie?.disconnect())
       <footer v-if="fase === 'sandbox' && tl && insignia" ref="pie" class="vidrio abajo-ui">
         <Guia
           :tl="tl" :bandas="bandas" :dia="dia" :fecha="fecha" :jugando="jugando" :ritmo="ritmo" :fin="finVisible || dia >= rango[1] - 0.5"
-          :linea="linea" :insignia="insignia" :compacto="movil" :textos-motor="origen !== 'ejemplo'" :siembra="siembraTxt" :rango="rangoFechas ? rango : null"
+          :linea="linea" :insignia="insignia" :compacto="movil" :textos-motor="origen !== 'ejemplo'" :ciclo="ciclo" :rango="rangoFechas ? rango : null"
           @ir="ir" @evento="alEvento" @play="toggle" @ritmo="cambiarRitmo"
         />
       </footer>
@@ -763,6 +765,7 @@ onBeforeUnmount(() => roPie?.disconnect())
     <Transition name="sube">
       <Final
         v-if="finVisible && res && insignia && !ajustarAbierto" :res="res" :recomendada="mostrada" :informe="informe" :whatsapp="whatsapp" :insignia="insignia" :movil="movil"
+        :siembra="tl?.siembra" :ca="hayLugar ? enCentroamerica(lugar.lat, lugar.lon) : enGT"
         @otra-vez="otraVez" @cerrar="finVisible = false"
       >
         <BotonExportar v-if="BotonExportar && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" />

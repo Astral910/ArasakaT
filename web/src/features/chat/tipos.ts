@@ -36,6 +36,7 @@ export interface RespuestaChat {
   conversacion: string
   motor: 'claude' | 'respaldo'
   ms: number
+  terreno?: string // nombre del terreno (o del lugar): «Asistente de …»
 }
 
 export interface MensajeUI {

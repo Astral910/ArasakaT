@@ -7,7 +7,7 @@ import StrategyCard from '@/components/plan/StrategyCard.vue'
 import SoilProfile from '@/components/plan/SoilProfile.vue'
 import CropIllustration from '@/components/illus/CropIllustration.vue'
 import { fixturePlan } from '@/api/client'
-import { setLang } from '@/i18n'
+import { setLang, t } from '@/i18n'
 
 setLang('en')
 const plan = fixturePlan({ idioma: 'en' })
@@ -49,7 +49,7 @@ describe('componentes', () => {
   it('ilustraciones de los 5 cultivos', () => {
     for (const crop of ['maiz', 'frijol', 'sorgo', 'mucuna', 'milpa'] as const) {
       const w = mount(CropIllustration, { props: { crop, stage: 3, health: 0.3 } })
-      expect(w.find('svg').attributes('aria-label')).toBe(crop)
+      expect(w.find('svg').attributes('aria-label')).toBe(t(`crop.${crop}`))
     }
   })
 })

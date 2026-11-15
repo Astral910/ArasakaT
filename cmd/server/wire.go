@@ -164,7 +164,7 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 	svc := channels.Routes(mux, d)
 	// CHAT: POST /api/chat/asistente + el texto libre del bot (WhatsApp y simulador) va al asistente.
 	chatSvc, chatEstado := montarChat(mux, cfg, a.planner, simulador)
-	svc.Bot.Asistente = chat.ParaBot{S: chatSvc, WebURL: d.WebURL}
+	svc.Bot.Asistente = asistenteTerreno{S: chatSvc, WebURL: d.WebURL} // bot6: el terreno de la cuenta (uno o varios)
 	svc.Bot.Vinculador = vinculadorCuentas{a} // integrador5: VINCULAR 123456
 	a.comp.Chat = chatEstado
 	a.mensajero = svc.Mensajero

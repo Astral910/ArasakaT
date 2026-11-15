@@ -2,6 +2,7 @@
 // Ilustraciones propias de cultivos. stage: 0 semilla · 1 plántula · 2 crecimiento · 3 floración/cosecha.
 // health 0..1: 1 = sana (verde, hojas firmes); 0 = marchita (amarilla, hojas caídas).
 import { computed } from 'vue'
+import { t } from '../../i18n'
 
 type Crop = 'maiz' | 'frijol' | 'sorgo' | 'mucuna' | 'milpa'
 const props = withDefaults(defineProps<{ crop: Crop; stage?: number; health?: number; size?: number; soil?: boolean; label?: string }>(), { stage: 3, health: 1, size: 120, soil: true })
@@ -36,7 +37,7 @@ const sorgoH = computed(() => [0, 30, 58, 80][s.value])
 </script>
 
 <template>
-  <svg :width="size" :height="size * 1.1" viewBox="0 0 120 132" role="img" :aria-label="label || crop" class="crop">
+  <svg :width="size" :height="size * 1.1" viewBox="0 0 120 132" role="img" :aria-label="label || t(`crop.${crop}`)" class="crop">
     <!-- suelo -->
     <g v-if="soil">
       <ellipse cx="60" cy="118" rx="52" ry="9" fill="#8a5a3b" opacity="0.9" />

@@ -53,7 +53,7 @@ async function guiaHastaFinal(page: Page, pre2: string) {
   await snap(page, `${pre2}02-guia-corriendo`)
   const final = page.locator('section.final')
   await expect(final).toBeVisible({ timeout: 90_000 })
-  await expect(final).toContainText(/qq\/mz/)
+  await expect(final).toContainText(/qq\/mz|qq por cuerda|qq per cuerda|t\/ha/) // granjero6: unidad del lugar
   await snap(page, `${pre2}03-tarjeta-final`)
   return final
 }
@@ -65,7 +65,8 @@ test('ronda 3: Jocotán → guía centrada → tarjeta final → informe web y P
   // nunca "ejemplo" con motor; la insignia de confianza dice el escenario con su probabilidad
   await expect(page.locator('body')).not.toContainText(/Example data|Datos de ejemplo|Ejemplo ilustrativo/i)
   const final = await guiaHastaFinal(page, 'jocotan-')
-  await expect(final).toContainText(/%/)
+  // ronda 6: la insignia solo dice el nivel; el % va al informe
+  await expect(final).toContainText(/Confianza (media|alta|baja)|(Medium|High|Low) confidence/)
   // Ajustar: riego alto recalcula; Exportar video está en el panel
   await final.getByRole('button', { name: /Cerrar|Close/ }).click()
   await page.getByRole('button', { name: /^(Ajustar|Adjust)$/ }).click()

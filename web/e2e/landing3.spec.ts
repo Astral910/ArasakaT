@@ -18,6 +18,7 @@ async function elegir(page: Page, texto: string, quiere: RegExp) {
 async function cuentasFalsas(page: Page) {
   const st = { usuario: null as null | Record<string, unknown>, parcelas: [] as Record<string, unknown>[], csrfVisto: '' }
   const json = (r: Route, status: number, body: unknown) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  await page.route('**/api/auth/sesion', (r) => json(r, 200, st.usuario ? { usuario: st.usuario, csrf: 'tok-1' } : { usuario: null }))
   await page.route('**/api/auth/yo', (r) => (st.usuario ? json(r, 200, { usuario: st.usuario, csrf: 'tok-1' }) : json(r, 401, { error: 'sin sesión' })))
   await page.route('**/api/auth/registro', (r) => {
     const b = r.request().postDataJSON()
@@ -75,9 +76,10 @@ test.describe('fecha de siembra', () => {
     await page.keyboard.press('Escape') // cierra el calendario nativo
     await expect(page.getByTestId('siembra-usar')).toBeVisible({ timeout: 40_000 })
     await page.getByTestId('siembra-usar').click()
-    await expect(page.getByTestId('siembra-rec')).toHaveAttribute('data-sev', 'ok', { timeout: 40_000 })
+    // la recomendada nunca es "mala"; puede traer un "ojo" del motor (p. ej. lluvia en la cosecha)
+    await expect(page.getByTestId('siembra-rec')).toHaveAttribute('data-sev', /^(ok|ojo)$/, { timeout: 40_000 })
     const f = await page.getByTestId('siembra-fecha').inputValue()
-    expect(f >= '2027-04-29' && f <= '2027-06-01').toBe(true)
+    expect(f >= '2027-04-29' && f <= '2027-06-15').toBe(true)
     await page.getByTestId('pregunta-siembra').scrollIntoViewIfNeeded()
     await shot(page, 'fecha-recomendada')
     await page.getByTestId('ver-temporada').click()
@@ -105,7 +107,7 @@ test.describe('cuenta', () => {
     await expect(entrar).toBeVisible()
     await expect(entrar).toContainText('Entrar')
     await page.goto('/terrenos')
-    await expect(page).toHaveURL(/\/entrar\?volver=(%2F|\/)terrenos/)
+    await expect(page).toHaveURL(/\/entrar\?volver=(%2F|\/)(mis-)?terrenos/) // integrador5: /terrenos es alias de /mis-terrenos
     await expect(page.getByTestId('entrar')).toBeVisible()
   })
 

@@ -85,6 +85,7 @@ func Routes(mux *http.ServeMux, s *Servicio) {
 	mux.Handle("POST /api/auth/restablecer", pub(s.hRestablecer))
 	mux.HandleFunc("POST /api/auth/logout", s.hLogout)
 	mux.Handle("GET /api/auth/yo", s.Requiere(http.HandlerFunc(s.hYo)))
+	mux.HandleFunc("GET /api/auth/sesion", s.hSesion)
 
 	mux.Handle("POST /api/auth/vincular-whatsapp", s.Requiere(http.HandlerFunc(s.hVincular)))
 	mux.Handle("POST /api/auth/vincular-whatsapp/confirmar", s.Requiere(http.HandlerFunc(s.hConfirmarVinculo)))
@@ -268,6 +269,16 @@ func (s *Servicio) hLogout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Servicio) hYo(w http.ResponseWriter, r *http.Request) {
 	u, csrf, _ := s.deCookie(r)
+	writeJSON(w, http.StatusOK, respSesion{u, csrf})
+}
+
+// hSesion: como /yo pero sin sesión responde 200 {"usuario":null} (un 401 en cada carga ensucia la consola del visitante).
+func (s *Servicio) hSesion(w http.ResponseWriter, r *http.Request) {
+	u, csrf, ok := s.deCookie(r)
+	if !ok {
+		writeJSON(w, http.StatusOK, map[string]any{"usuario": nil})
+		return
+	}
 	writeJSON(w, http.StatusOK, respSesion{u, csrf})
 }
 

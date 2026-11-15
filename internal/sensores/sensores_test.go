@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -300,5 +301,52 @@ func TestLluviaAnocheNoRegar(t *testing.T) {
 	}
 	if txt, ok := e.NoRegarHoy("es"); !ok || !strings.Contains(txt, "No regués hoy") {
 		t.Fatalf("NoRegarHoy = %q, %v", txt, ok)
+	}
+}
+
+// El prototipo de una sonda (fieldshift_humedad.ino) postea {"lecturas":[{"humedad":..,"crudo":..,...}]}
+// sin hora ni h10/h30: se toma como lectura de ahora en las dos profundidades y cambia regar sí/no.
+func TestPrototipoHumedad(t *testing.T) {
+	s := nuevo(t, 0)
+	mux := http.NewServeMux()
+	Routes(mux, s, nil)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	res, _ := http.Post(srv.URL+"/api/sensores", "application/json", strings.NewReader(`{"parcela_id":"p7"}`))
+	var a struct{ Token, Ingesta string }
+	json.NewDecoder(res.Body).Decode(&a)
+	res.Body.Close()
+	estado := func(hum float64) *Estado {
+		cuerpo := `{"lecturas":[{"humedad":` + strconv.FormatFloat(hum, 'f', 1, 64) + `,"crudo":300,"estado":"x","seco":20,"mojado":600,"ms":1234,"ip":"192.168.1.9"}]}`
+		q, _ := http.NewRequest("POST", srv.URL+a.Ingesta, strings.NewReader(cuerpo))
+		q.Header.Set("Authorization", "Bearer "+a.Token)
+		r, err := http.DefaultClient.Do(q)
+		if err != nil || r.StatusCode != 202 {
+			t.Fatalf("ingesta: %v %v", err, r.StatusCode)
+		}
+		var out Resultado
+		json.NewDecoder(r.Body).Decode(&out)
+		r.Body.Close()
+		if out.Guardadas != 1 || out.Estado == nil {
+			t.Fatalf("resultado: %+v", out)
+		}
+		return out.Estado
+	}
+	regar := func(e *Estado) bool {
+		for _, ev := range e.Eventos {
+			if ev.Tipo == "regar" {
+				return true
+			}
+		}
+		return false
+	}
+	seco := estado(5)
+	if seco.H10.Raw != 300 || !regar(seco) || seco.AguaPct >= seco.Umbral {
+		t.Fatalf("seco: agua %v umbral %v eventos %+v", seco.AguaPct, seco.Umbral, seco.Eventos)
+	}
+	s.Ahora = func() time.Time { return ahoraTest.Add(2 * time.Minute) }
+	mojado := estado(95)
+	if regar(mojado) || mojado.AguaPct < mojado.Umbral {
+		t.Fatalf("mojado: agua %v eventos %+v", mojado.AguaPct, mojado.Eventos)
 	}
 }

@@ -5,6 +5,7 @@
 export const ESRI_IMG = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
 export const ESRI_LBL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
 export const ESRI_VIAS = 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'
+export const ESRI_CALLES = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
 export const TERRARIUM = 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'
 /** OpenStreetMap en vectores (OpenFreeMap, CORS, sin clave): capas water/waterway para saber si un punto es agua. */
 export const OFM = 'https://tiles.openfreemap.org/planet'
@@ -59,4 +60,19 @@ export function precargar(urls: string[], ms = 900, paralelo = 12): Promise<numb
   }
   const todo = Promise.all(Array.from({ length: Math.min(paralelo, faltan.length) }, una)).then(() => listas)
   return Promise.race([todo, new Promise<number>((r) => setTimeout(() => r(listas), ms))])
+}
+
+/**
+ * Zoom máximo nativo de Esri World Imagery en un punto: 19 si hay foto real, si no 18. Donde no hay foto,
+ * Esri devuelve una tesela gris "Map data not yet available" de ~2.5 KB: más allá de eso solo se agranda (borroso).
+ */
+export async function zoomNativo(lat: number, lon: number): Promise<18 | 19> {
+  try {
+    const [x, y] = tesela(lat, lon, 19)
+    const r = await fetch(ESRI_IMG.replace('{z}', '19').replace('{y}', String(y)).replace('{x}', String(x)), { mode: 'cors', credentials: 'omit' })
+    if (!r.ok) return 18
+    return (await r.blob()).size > 4000 ? 19 : 18
+  } catch {
+    return 18
+  }
 }

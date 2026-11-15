@@ -14,11 +14,13 @@ const paso = computed(() => (W - M.l - M.r) / Math.max(1, props.puntos.length))
 const y = (v: number) => M.t + (H - M.t - M.b) * (1 - v / max.value)
 const ticks = computed(() => [0, max.value / 2, max.value])
 const hay = computed(() => props.puntos.some((p) => p.observado !== null))
+// sin reportes ni lluvia esperada el gráfico queda vacío: solo la nota
+const grafico = computed(() => hay.value || props.puntos.some((p) => p.esperado > 0))
 </script>
 
 <template>
   <div class="ev">
-    <svg :viewBox="`0 0 ${W} ${H}`" role="img" :aria-label="tx('esperadoVivido')">
+    <svg v-if="grafico" :viewBox="`0 0 ${W} ${H}`" role="img" :aria-label="tx('esperadoVivido')">
       <g v-for="t in ticks" :key="t">
         <line :x1="M.l" :x2="W - M.r" :y1="y(t)" :y2="y(t)" class="grid" />
         <text :x="M.l - 6" :y="y(t) + 4" text-anchor="end" class="eje">{{ t }}</text>
@@ -33,7 +35,7 @@ const hay = computed(() => props.puntos.some((p) => p.observado !== null))
       </g>
       <text :x="M.l + 4" :y="M.t - 3" class="eje">mm</text>
     </svg>
-    <div class="ley">
+    <div v-if="grafico" class="ley">
       <span><i class="k-esp" />{{ tx('esperado') }}</span>
       <span><i class="k-obs" />{{ tx('vivido') }}</span>
     </div>

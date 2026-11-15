@@ -46,6 +46,10 @@ type Lectura struct {
 	BatPct *float64 `json:"bat_pct,omitempty"`
 	RSSI   *int     `json:"rssi,omitempty"`
 	Pulsos int      `json:"pulsos,omitempty"` // golpes desde la lectura anterior (informativo; la verdad son los golpes con hora)
+	// Prototipo de una sola sonda (hardware/prototipo/fieldshift_humedad): manda humedad en % (0–100)
+	// y el valor crudo. Ingerir lo pasa a h10/h30; no se guarda aparte.
+	Humedad *float64 `json:"humedad,omitempty"`
+	Crudo   int      `json:"crudo,omitempty"`
 }
 
 // Paquete cuerpo de POST /api/sensores/{id}/lecturas.

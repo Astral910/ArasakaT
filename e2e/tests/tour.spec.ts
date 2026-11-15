@@ -82,7 +82,8 @@ test('simulador: bot completo con video, informe PDF y PRUEBA ALERTA', async ({ 
   await shot(page, `${pre}06-simulador-prueba-alerta`)
 })
 
-test('asistente "Plan my milpa" en 4 pasos → Mi plan', async ({ page }) => {
+// /plan ya no existe (redirige al inicio desde 7944ee4): el asistente lo hace la landing
+test.skip('asistente "Plan my milpa" en 4 pasos → Mi plan', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/plan')
   await settle(page, 1500)

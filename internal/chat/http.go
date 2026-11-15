@@ -10,10 +10,23 @@ import (
 // Routes monta:
 //   - POST /api/chat/asistente  {parcelaId?, mensaje, conversacion?, contexto} → Respuesta
 //   - GET  /api/chat/asistente  → {disponible, motor}
+//   - GET  /api/chat/historial?parcelaId=… → {terreno, mensajes} (conversación guardada del terreno)
 //   - POST /api/chat/herramienta {token, nombre, args} → {resultado} | {error}  (solo 127.0.0.1: lo llama cmd/fieldshift-mcp)
 func Routes(mux *http.ServeMux, s *Servicio) {
 	mux.HandleFunc("/api/chat/asistente", s.handleAsistente)
 	mux.HandleFunc("/api/chat/herramienta", s.handleHerramienta)
+	mux.HandleFunc("/api/chat/historial", s.handleHistorial)
+}
+
+// GET /api/chat/historial?parcelaId=…|conversacion=… → {terreno, mensajes[]} (solo terrenos de la cuenta).
+func (s *Servicio) handleHistorial(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		escribir(w, http.StatusMethodNotAllowed, map[string]string{"error": "usar GET"})
+		return
+	}
+	q := r.URL.Query()
+	nombre, ms := s.Historial(r.Context(), Usuario{Cookie: r.Header.Get("Cookie")}, q.Get("parcelaId"), q.Get("conversacion"), 40)
+	escribir(w, http.StatusOK, map[string]any{"terreno": nombre, "mensajes": ms})
 }
 
 func escribir(w http.ResponseWriter, code int, v any) {

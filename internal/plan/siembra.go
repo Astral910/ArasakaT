@@ -57,7 +57,8 @@ type fechaEval struct {
 	exceso      float64 // fracción con > 150 mm en la cosecha
 	excesoMM    float64
 	cicloDias   int
-	floracionDD int // días de siembra a floración
+	floracionDD int  // días de siembra a floración
+	noMadura    bool // el calor del lugar no alcanza los grados-día dentro del ciclo máximo realista
 }
 
 // realDe fecha real (con el año mostrado) del día d de la temporada.
@@ -171,8 +172,8 @@ func (a *siembraArgs) eval(d int) fechaEval {
 	}
 	// ciclo en la temporada que se muestra (grados-día con la temperatura del año de la línea de tiempo)
 	idx := a.xs.Idx(a.Y, 1, 1) + d
-	mc := a.xs.ScaledGDD(main0, idx)
-	ev.cicloDias = mc.Season()
+	mc, madura := a.xs.CicloGDD(main0, idx)
+	ev.cicloDias, ev.noMadura = mc.Season(), !madura
 	ev.floracionDD = mc.L[0] + mc.L[1]
 	return ev
 }
@@ -264,11 +265,13 @@ func evalSiembra(a *siembraArgs, elegida string) (*contract.SimSiembra, int) {
 			}
 		}
 	}
+	decisiones(a, out, evs, best, el, d1)
 	tEl, tRec := a.realDe(el.d), a.realDe(best.d)
 	out.Elegida = tEl.Format("2006-01-02")
 	out.CosechaElegida = a.realDe(el.d + el.cicloDias).Format("2006-01-02")
 	out.CosechaRecomendada = a.realDe(best.d + best.cicloDias).Format("2006-01-02")
 	out.DiasCicloElegida, out.DiasCicloRecom = el.cicloDias, best.cicloDias
+	out.NoMadura = el.noMadura
 	if !a.hoy.IsZero() && tEl.After(a.hoy.AddDate(0, 0, diasEstac)) {
 		out.Escenarios = true
 	}
@@ -303,6 +306,10 @@ func evalSiembra(a *siembraArgs, elegida string) (*contract.SimSiembra, int) {
 			fechaCorta(tEl, false), fechaCorta(cEl, false), el.cicloDias, de10(el.prob), fechaCorta(tRec, false), fechaCorta(cRec, false), de10(best.prob), best.p50, el.p50)
 		out.TextoEN = fmt.Sprintf("If you sow on %s, you harvest around %s (%d days), with loss in %d of 10 similar seasons. We don't recommend that date: better %s (harvest around %s, loss %d of 10, typical harvest %.0f vs %.0f qq/mz).",
 			fechaCorta(tEl, true), fechaCorta(cEl, true), el.cicloDias, de10(el.prob), fechaCorta(tRec, true), fechaCorta(cRec, true), de10(best.prob), best.p50, el.p50)
+	}
+	if out.NoMadura {
+		out.Texto = "El cultivo no madura bien aquí: el calor no alcanza para completar el ciclo. " + out.Texto
+		out.TextoEN = "The crop does not mature well here: there is not enough heat to complete the cycle. " + out.TextoEN
 	}
 	// razones concretas de la fecha elegida (comparadas con la recomendada)
 	add := func(cod, sv, es, en, f string) {
@@ -419,12 +426,22 @@ func evalSiembra(a *siembraArgs, elegida string) (*contract.SimSiembra, int) {
 				"No 16-day forecast for this date: risk comes from similar years 2001–2025.", fuentePOWER)
 		}
 	}
-	add("ciclo", "ok",
-		fmt.Sprintf("Ciclo de %d días hasta la cosecha: el %s necesita ~%.0f grados-día y en %s junta ese calor en ese tiempo desde el %s.",
-			el.cicloDias, nombreCultivo(a.def.Main.ID, false), out.GDDCiclo, a.lugar, fechaCorta(tEl, false)),
-		fmt.Sprintf("A %d-day cycle to harvest: %s needs ~%.0f degree-days and %s accumulates that heat in that time from %s.",
-			el.cicloDias, nombreCultivo(a.def.Main.ID, true), out.GDDCiclo, a.lugar, fechaCorta(tEl, true)),
-		fuenteGDD+" · "+fuentePOWER)
+	if el.noMadura {
+		_, hi := a.xs.CicloRangoEn(a.def.Main.ID)
+		add("ciclo", "mala",
+			fmt.Sprintf("El cultivo no madura bien aquí: el %s necesita ~%.0f grados-día y en %s no junta ese calor en %d días desde el %s (cosecha estimada al tope del ciclo).",
+				nombreCultivo(a.def.Main.ID, false), out.GDDCiclo, a.lugar, hi, fechaCorta(tEl, false)),
+			fmt.Sprintf("The crop does not mature well here: %s needs ~%.0f degree-days and %s does not accumulate that heat within %d days from %s (harvest estimated at the cycle limit).",
+				nombreCultivo(a.def.Main.ID, true), out.GDDCiclo, a.lugar, hi, fechaCorta(tEl, true)),
+			fuenteGDD+" · "+fuentePOWER)
+	} else {
+		add("ciclo", "ok",
+			fmt.Sprintf("Ciclo de %d días hasta la cosecha: el %s necesita ~%.0f grados-día y en %s junta ese calor en ese tiempo desde el %s.",
+				el.cicloDias, nombreCultivo(a.def.Main.ID, false), out.GDDCiclo, a.lugar, fechaCorta(tEl, false)),
+			fmt.Sprintf("A %d-day cycle to harvest: %s needs ~%.0f degree-days and %s accumulates that heat in that time from %s.",
+				el.cicloDias, nombreCultivo(a.def.Main.ID, true), out.GDDCiclo, a.lugar, fechaCorta(tEl, true)),
+			fuenteGDD+" · "+fuentePOWER)
+	}
 	if out.Escenarios {
 		add("ventana", "ojo", "La fecha está a más de 7 meses: lo que se ve es un escenario con años parecidos, no un pronóstico.",
 			"The date is more than 7 months away: what you see is a scenario from similar years, not a forecast.", fuenteSEAS5)
@@ -487,3 +504,87 @@ func nombreCultivo(id string, en bool) string {
 	}
 	return strings.ToLower(id)
 }
+
+// decisiones (granjero6): cosecha esperada vs año normal, rango de siembra, último día seguro y canícula.
+//
+// Último día seguro: la última fecha (desde la recomendada, cada 7 días, hasta 6 semanas después de la ventana)
+// cuya cosecha típica (P50) no cae más de 15 % bajo la de la recomendada ni sube el riesgo de pérdida más de
+// 15 puntos; se corta en la primera que no cumple (esa va en Tarde, para mostrar cuánto se pierde).
+func decisiones(a *siembraArgs, out *contract.SimSiembra, evs []fechaEval, best, el fechaEval, d1 int) {
+	// fuera de la ventana (p. ej. un terreno sembrado en la época seca) la cosecha de esa fecha no sirve para decidir:
+	// se da la de la recomendada (CosechaDe dice de qué fecha es)
+	ce := el
+	if el.d < evs[0].d-7 || el.d > d1+42 {
+		ce = best
+	}
+	out.CosechaDe = a.realDe(ce.d).Format("2006-01-02")
+	out.CosechaEsperada = math.Round(ce.p50*10) / 10
+	if ys := a.s.ClimYears(); len(ys) > 0 {
+		n := *a
+		n.pool, n.peso, n.base = ys, nil, nil
+		out.CosechaNormal = math.Round(n.eval(ce.d).p50*10) / 10
+	}
+	bi := 0
+	for i, e := range evs {
+		if e.d == best.d {
+			bi = i
+		}
+	}
+	bueno := func(e fechaEval) bool { return e.prob <= best.prob+0.05+1e-9 && e.p50 >= 0.95*best.p50-1e-9 }
+	i0, i1 := bi, bi
+	for i0 > 0 && bueno(evs[i0-1]) {
+		i0--
+	}
+	for i1+1 < len(evs) && bueno(evs[i1+1]) {
+		i1++
+	}
+	out.RangoIni, out.RangoFin = a.realDe(evs[i0].d).Format("2006-01-02"), a.realDe(evs[i1].d).Format("2006-01-02")
+	seguro := func(e fechaEval) bool { return e.p50 >= 0.85*best.p50-1e-9 && e.prob <= best.prob+0.15+1e-9 }
+	ult := best
+	var tarde *fechaEval
+	for i := bi + 1; i < len(evs); i++ {
+		if !seguro(evs[i]) {
+			tarde = &evs[i]
+			break
+		}
+		ult = evs[i]
+	}
+	if tarde == nil && ult.d == evs[len(evs)-1].d {
+		for d := ult.d + 7; d <= d1+42; d += 7 {
+			e := a.eval(d)
+			if !seguro(e) {
+				tarde = &e
+				break
+			}
+			ult = e
+		}
+	}
+	out.UltimoSeguro = a.realDe(ult.d).Format("2006-01-02")
+	if tarde != nil {
+		out.Tarde = &contract.RiesgoFecha{Fecha: a.realDe(tarde.d).Format("2006-01-02"), ProbPerdida: math.Round(tarde.prob*100) / 100,
+			CosechaP50: math.Round(tarde.p50*10) / 10, Cosecha: a.realDe(tarde.d + tarde.cicloDias).Format("2006-01-02")}
+	}
+	if ps, ok := a.s.PeriodoSeco(); ok {
+		c := &contract.PeriodoSecoInfo{Ini: a.realDe(ps.Ini).Format("2006-01-02"), Fin: a.realDe(ps.Fin).Format("2006-01-02"),
+			Dias: ps.Dias, MMDia: ps.MMDia, RefMMDia: ps.RefMMDia, Centroamerica: cajaCentroamerica(a.s.Lat, a.s.Lon),
+			Floracion: a.realDe(ce.d + ce.floracionDD).Format("2006-01-02"),
+			Fuente: fuentePOWER + " · climatología diaria suavizada ±7 días"}
+		fl := ce.d + ce.floracionDD
+		switch {
+		case ps.Fin < ce.d:
+			c.Etapa = "antes"
+		case ps.Fin >= fl-7 && ps.Ini <= fl+21:
+			c.Etapa = "floracion"
+		case ps.Fin < fl-7:
+			c.Etapa = "crecimiento"
+		case ps.Ini <= ce.d+ce.cicloDias:
+			c.Etapa = "llenado"
+		default:
+			c.Etapa = "despues"
+		}
+		out.Canicula = c
+	}
+}
+
+// cajaCentroamerica la misma caja que Centroamerica (temporada.go) para un punto sin municipio.
+func cajaCentroamerica(lat, lon float64) bool { return lat >= 7 && lat <= 18.5 && lon >= -92.5 && lon <= -77 }

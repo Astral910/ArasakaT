@@ -446,18 +446,18 @@ func (s *Servicio) calcular(p Parcela, idioma string, reps []Reporte) (*Hoy, err
 	for _, d := range ser {
 		usa[d.Fuente] = true
 	}
-	h.Fuentes = append(h.Fuentes, "FAO-56 (Allen et al. 1998): ET0 Penman-Monteith, Kc por etapa, balance en la zona de raíces (TAW, RAW, Ks)")
+	h.Fuentes = append(h.Fuentes, enEs(en, "FAO-56 (Allen et al. 1998): Penman-Monteith ET0, Kc by stage, root-zone water balance (TAW, RAW, Ks)", "FAO-56 (Allen et al. 1998): ET0 Penman-Monteith, Kc por etapa, balance en la zona de raíces (TAW, RAW, Ks)"))
 	if usa[fNASA] {
-		h.Fuentes = append(h.Fuentes, fmt.Sprintf("NASA POWER diario (lluvia, temperatura, humedad, radiación) hasta el %s", lastNASA.Format(time.DateOnly)))
+		h.Fuentes = append(h.Fuentes, fmt.Sprintf(enEs(en, "NASA POWER daily (rain, temperature, humidity, radiation) up to %s", "NASA POWER diario (lluvia, temperatura, humedad, radiación) hasta el %s"), lastNASA.Format(time.DateOnly)))
 	}
 	if usa[fOM] {
-		h.Fuentes = append(h.Fuentes, SrcOpenMeteo)
+		h.Fuentes = append(h.Fuentes, enEs(en, "Open-Meteo Forecast API (ECMWF IFS / NOAA GFS): recent days NASA POWER has not published yet (2–3 days behind) and 7-day forecast", SrcOpenMeteo))
 	}
 	if usa[fClima] {
-		h.Fuentes = append(h.Fuentes, "Climatología NASA POWER 2001–2025 del lugar para días sin dato (estimado)")
+		h.Fuentes = append(h.Fuentes, enEs(en, "NASA POWER 2001–2025 local climatology for days without data (estimate)", "Climatología NASA POWER 2001–2025 del lugar para días sin dato (estimado)"))
 	}
 	if len(reps) > 0 {
-		h.Fuentes = append(h.Fuentes, "Reportes del agricultor (la lluvia reportada reemplaza a la del modelo ese día)")
+		h.Fuentes = append(h.Fuentes, enEs(en, "Farmer reports (reported rain replaces the model's rain that day)", "Reportes del agricultor (la lluvia reportada reemplaza a la del modelo ese día)"))
 	}
 
 	// suelo

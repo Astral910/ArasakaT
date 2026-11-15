@@ -67,6 +67,7 @@ func (s *Servicio) Ingerir(d Dispositivo, p Paquete) (*Resultado, error) {
 	}
 	var ls []Lectura
 	for _, l := range p.Lecturas {
+		prototipo(&l)
 		if l.T <= 0 {
 			l.T = ahora.Unix() - max(0, l.EdadS)
 		} else {
@@ -124,6 +125,19 @@ func antirrebote(gs []int64) []int64 {
 		out = append(out, g)
 	}
 	return out
+}
+
+// prototipo: la sonda única del prototipo (humedad %, crudo) cuenta para las dos profundidades.
+func prototipo(l *Lectura) {
+	if l.Humedad == nil || l.H10 != nil || l.H30 != nil || math.IsNaN(*l.Humedad) {
+		return
+	}
+	i := math.Min(100, math.Max(0, *l.Humedad)) / 100
+	l.H10, l.H30 = &i, &i
+	if l.Raw10 == 0 {
+		l.Raw10, l.Raw30 = l.Crudo, l.Crudo
+	}
+	l.Humedad = nil
 }
 
 func valida(l Lectura) bool {

@@ -286,7 +286,7 @@ func (l lang) uncertainty(p *contract.Plan, s *sim.Site, req contract.PlanReques
 
 func (l lang) sources(e *Engine) []contract.Fuente {
 	f := []contract.Fuente{
-		{Dato: "NASA POWER (T2M_MAX, T2M_MIN, RH2M, WS2M, ALLSKY_SFC_SW_DWN, PRECTOTCORR, GWETROOT)", Origen: "power.larc.nasa.gov (MERRA-2, CERES; lluvia corregida)", Periodo: "2001–2026, diario",
+		{Dato: "NASA POWER (T2M_MAX, T2M_MIN, RH2M, WS2M, ALLSKY_SFC_SW_DWN, PRECTOTCORR, GWETROOT)", Origen: l.t("power.larc.nasa.gov (MERRA-2, CERES; lluvia corregida)", "power.larc.nasa.gov (MERRA-2, CERES; bias-corrected rain)"), Periodo: "2001–2026, diario",
 			Uso: l.t("ET0 FAO-56, balance de agua, inicio de lluvias, canícula", "FAO-56 ET0, water balance, rainy-season onset, canícula")},
 		{Dato: "SRTM (AWS Terrain Tiles)", Origen: "NASA/USGS SRTM vía s3://elevation-tiles-prod", Periodo: "2000", Uso: l.t("altitud (corrección de temperatura) y pendiente (erosión)", "elevation (temperature correction) and slope (erosion)")},
 		{Dato: "NOAA CPC ONI", Origen: "cpc.ncep.noaa.gov", Periodo: "2001–2026", Uso: l.t("años El Niño para condicionar el Monte Carlo", "El Niño years to condition the Monte Carlo")},
@@ -315,8 +315,10 @@ func (l lang) summary(p *contract.Plan, m *geo.Municipio) []string {
 		l.f("📍 %s, %s · zona NASA POWER (~50 km)", "📍 %s, %s · NASA POWER zone (~50 km)", m.Name, m.Dept),
 		l.f("🌱 Primera: sembrá entre el %s y el %s (lo más común: desde el %s, con la tierra mojada).",
 			"🌱 Primera: plant between %s and %s (most common: from %s, with moist soil).", l.date(p.VentanaPrimera.Inicio), l.date(p.VentanaPrimera.Fin), l.date(p.SiembraAqui)),
-		l.f("🌵 Canícula típica: %s al %s; la floración cae en esas fechas: es la etapa más sensible.",
-			"🌵 Typical canícula: %s to %s; flowering falls around then: the most sensitive stage.", l.date(p.CaniculaTipica.Inicio), l.date(p.CaniculaTipica.Fin)),
+	}
+	if p.CaniculaTipica.Inicio != "" { // sin lluvia bimodal no hay canícula (ronda 6: salía «Canícula típica:  al »)
+		out = append(out, l.f("🌵 Canícula típica: %s al %s; la floración cae en esas fechas: es la etapa más sensible.",
+			"🌵 Typical canícula: %s to %s; flowering falls around then: the most sensitive stage.", l.date(p.CaniculaTipica.Inicio), l.date(p.CaniculaTipica.Fin)))
 	}
 	if rec.ID == "S0" || rec.ID == "" {
 		out = append(out, l.f("✅ Lo de hoy sigue siendo buena opción: perdés %.1f de cada 10 temporadas.", "✅ What you do today remains a good option: you lose %.1f of every 10 seasons.", s0.RiesgoDe10))

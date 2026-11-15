@@ -88,6 +88,18 @@ func textoDocLink(s bot.Salida, publicURL string) string {
 	return s.Texto + "\n👉 " + link
 }
 
+// textoDocYaEnviado: el mismo informe se pidió de nuevo enseguida (o llegó repetido): se avisa en vez de mandar otro PDF.
+func textoDocYaEnviado(s bot.Salida, publicURL string) string {
+	t := "📄 El informe ya te lo mandé arriba ↑"
+	if s.Idioma == "en" {
+		t = "📄 I already sent you the report above ↑"
+	}
+	if l := textoDocLink(bot.Salida{LinkURL: s.LinkURL, DocURL: s.DocURL}, publicURL); l != "" {
+		t += "\n" + strings.TrimSpace(l)
+	}
+	return t
+}
+
 // Vinculado: el canal.
 type Vinculado struct {
 	T         Transporte
@@ -99,7 +111,11 @@ type Vinculado struct {
 
 	dd    *dedup
 	locks sync.Map
+	docs  sync.Map // tel|DocURL → cuándo salió ese PDF (no mandar el mismo informe dos veces seguidas)
 }
+
+// DocRepetido: ventana en la que el mismo informe al mismo teléfono no se vuelve a mandar como PDF.
+var DocRepetido = 10 * time.Minute
 
 // NewVinculado arma el canal sobre un transporte.
 func NewVinculado(t Transporte, b *bot.Bot) *Vinculado {
@@ -231,6 +247,12 @@ func (v *Vinculado) EnviarVideo(tel string, s bot.Salida) error {
 
 // EnviarDocumento: el informe PDF; si todavía no está, el link a la página del informe.
 func (v *Vinculado) EnviarDocumento(tel string, s bot.Salida) error {
+	clave := tel + "|" + s.DocURL
+	if t, ok := v.docs.Load(clave); ok && time.Since(t.(time.Time)) < DocRepetido {
+		log.Printf("vinculado: informe a %s ya enviado hace %s → aviso corto", bot.Enmascarar(tel), time.Since(t.(time.Time)).Round(time.Second))
+		return v.T.EnviarTexto(tel, textoDocYaEnviado(s, v.PublicURL))
+	}
+	v.docs.Store(clave, time.Now()) // antes de generar: un segundo pedido mientras se arma el PDF tampoco duplica
 	err := func() error {
 		if v.Informes == nil {
 			return errors.New("sin fuente de informes")
@@ -245,6 +267,7 @@ func (v *Vinculado) EnviarDocumento(tel string, s bot.Salida) error {
 	}()
 	if err != nil {
 		log.Printf("vinculado: informe a %s: %v → texto con link", bot.Enmascarar(tel), err)
+		v.docs.Delete(clave) // no salió el PDF: el próximo pedido lo intenta de nuevo
 		return v.T.EnviarTexto(tel, textoDocLink(s, v.PublicURL))
 	}
 	return nil

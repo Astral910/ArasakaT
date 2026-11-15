@@ -282,6 +282,7 @@ func simulateEnv(env SimEnv, r contract.SimRequest) (contract.SimTimeline, error
 			}
 		}
 		ca.pool = pool
+		ca.idioma = req.Idioma
 		tl.Confianza = buildConfianza(env, s, def, cfg, req.Cultivo, ca)
 		if esc == "real-2026" {
 			tl.Confianza.ProbEscenario = 1
@@ -359,6 +360,10 @@ func (e *Engine) handleSimulate(w http.ResponseWriter, r *http.Request) {
 	tl, err := e.Simulate(req)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
+		return
+	}
+	if q.Get("resumen") == "1" { // granjero6: solo las decisiones (dashboard del terreno)
+		writeJSON(w, http.StatusOK, map[string]any{"siembra": tl.Siembra, "confianza": tl.Confianza})
 		return
 	}
 	writeJSON(w, http.StatusOK, tl)

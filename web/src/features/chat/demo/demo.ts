@@ -17,6 +17,7 @@ createApp({
   render: () => h('div', { style: 'min-height:100vh;background:linear-gradient(180deg,var(--sky-top),var(--bg) 70%)' }, [
     h(ChatFieldShift, {
       abierto: q.get('abierto') === '1',
+      parcelaId: q.get('parcela') ?? undefined,
       contexto: { pantalla: q.get('pantalla') ?? 'sandbox', idioma, municipio_id: q.get('municipio') ?? 'jocotan-chiquimula', cultivo: q.get('cultivo') ?? 'maiz', lugar: 'Jocotán, Chiquimula', area_m2: Number(q.get('area') ?? 437) },
       onAccion: (a: unknown) => acciones.push(a),
     }),

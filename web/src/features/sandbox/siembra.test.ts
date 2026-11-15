@@ -162,3 +162,12 @@ describe('siembra del motor (forma real de motor5)', () => {
     expect([ok.esRecomendada, ok.sirve]).toEqual([false, true])
   })
 })
+
+describe('avance de la siembra (ronda 6)', () => {
+  it('% del ciclo y días que faltan según la fecha que se ve', async () => {
+    const { avanceSiembra } = await import('./ui/siembra')
+    expect(avanceSiembra('2027-05-15', '2027-09-12', '2027-05-10')).toEqual({ fase: 'antes', pct: 0, faltan: 5 })
+    expect(avanceSiembra('2027-05-15', '2027-09-12', '2027-07-14')).toEqual({ fase: 'crece', pct: 50, faltan: 60 })
+    expect(avanceSiembra('2027-05-15', '2027-09-12', '2027-09-12')).toEqual({ fase: 'cosechado', pct: 100, faltan: 0 })
+  })
+})

@@ -242,3 +242,86 @@ func MMDD(doy float64) string {
 	}
 	return time.Date(2001, 1, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, int(math.Round(doy))-1).Format("01-02")
 }
+
+// PeriodoSeco período seco climatológico dentro de la temporada de lluvias (canícula en Centroamérica,
+// "veranillo"/dry spell en otros lugares). Días internos desde el 1-ene (0 = 1-ene) del calendario del sitio.
+type PeriodoSeco struct {
+	Ini, Fin int     // primer y último día del período (día de la temporada, 0 = 1-ene interno)
+	Dias     int     // largo del período
+	MMDia    float64 // lluvia media del período (mm/día, climatología suavizada)
+	RefMMDia float64 // lluvia de los picos de antes y después (el más bajo de los dos)
+}
+
+// Criterio (documentado): climatología diaria 2001–2025 (media de cada día del año, suavizada ±7 días).
+// Dentro de la ventana de la canícula del sitio (Cal.CanFrom–CanTo), son "período seco" los días con
+// el mínimo tiene que quedar ≤ 75 % del pico más bajo de los dos que lo rodean (máximo en los 60 días antes y
+// en los 60 después), y los dos picos ≥ 3 mm/día (temporada de lluvias de verdad). El período son los días
+// seguidos alrededor del mínimo con lluvia por debajo de mínimo + 25 % de (pico − mínimo); ≥ 10 días.
+// Si no se cumple, no hay período seco (ok=false): mejor nada que algo falso.
+func (s *Site) PeriodoSeco() (PeriodoSeco, bool) {
+	ys := s.ClimYears()
+	if len(ys) < 5 {
+		return PeriodoSeco{}, false
+	}
+	const n = 365
+	var clim [n]float64
+	for _, y := range ys {
+		i0 := s.Idx(y, 1, 1)
+		for d := 0; d < n; d++ {
+			if i := i0 + d; i >= 0 && i < s.N {
+				clim[d] += s.PR[i]
+			}
+		}
+	}
+	var sm [n]float64
+	for d := 0; d < n; d++ {
+		sum := 0.0
+		for k := -7; k <= 7; k++ {
+			sum += clim[((d+k)%n+n)%n]
+		}
+		sm[d] = sum / 15 / float64(len(ys))
+	}
+	doy := func(md MD) int { return time.Date(2001, md.M, md.D, 0, 0, 0, 0, time.UTC).YearDay() - 1 }
+	c0, c1 := doy(s.Cal.CanFrom), doy(s.Cal.CanTo)
+	if c1 < c0 {
+		c1 += n
+	}
+	at := func(d int) float64 { return sm[((d%n)+n)%n] }
+	pico := func(a, b int) float64 {
+		m := 0.0
+		for d := a; d <= b; d++ {
+			m = math.Max(m, at(d))
+		}
+		return m
+	}
+	// mínimo de la ventana y picos a cada lado de ese mínimo
+	dmin := c0
+	for d := c0; d <= c1; d++ {
+		if at(d) < at(dmin) {
+			dmin = d
+		}
+	}
+	ref := math.Min(pico(dmin-60, dmin), pico(dmin, dmin+60))
+	if ref < 3 {
+		return PeriodoSeco{Ini: dmin, MMDia: at(dmin), RefMMDia: ref}, false
+	}
+	if at(dmin) > 0.75*ref {
+		return PeriodoSeco{Ini: dmin, MMDia: at(dmin), RefMMDia: ref}, false
+	}
+	lim := at(dmin) + 0.25*(ref-at(dmin))
+	a, b := dmin, dmin
+	for a-1 >= c0-15 && at(a-1) < lim {
+		a--
+	}
+	for b+1 <= c1+15 && at(b+1) < lim {
+		b++
+	}
+	if b-a+1 < 10 {
+		return PeriodoSeco{}, false
+	}
+	mm := 0.0
+	for d := a; d <= b; d++ {
+		mm += at(d)
+	}
+	return PeriodoSeco{Ini: a, Fin: b, Dias: b - a + 1, MMDia: math.Round(mm/float64(b-a+1)*10) / 10, RefMMDia: math.Round(ref*10) / 10}, true
+}
