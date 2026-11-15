@@ -278,7 +278,7 @@ class SandboxImpl implements Sandbox {
     const avance = () => etapa(pS < 1 ? 'suelo' : 'ciudad', pS < 1 ? pS : pC)
     const superficie = mq.grupo.getObjectByName('superficie')
     const ctxS = { ...ctx, progreso: (_f: string, v: number) => { pS = v; avance() } }
-    const ctxC = { ...ctx, progreso: (_f: string, v: number) => { pC = v; avance() }, esperaOverpass: ESPERA_OVERPASS }
+    const ctxC = { ...ctx, progreso: (_f: string, v: number) => { pC = v; avance() }, esperaOverpass: ESPERA_OVERPASS, sateliteReal: datos.sateliteReal }
     let sueloListo: ModSuelo | null = null
     let ciudadP: Promise<ModCiudad | null> = Promise.resolve(null)
     const [suelo, ciudad] = await Promise.all([
@@ -376,7 +376,8 @@ class SandboxImpl implements Sandbox {
         .then((c) => {
           if (ab.signal.aborted || this.desechado || this.maqueta !== mq) return
           const hd = recortarImagen(c, B, L, Math.round(cfg.sat * 1.33), rec.phi, rec.Cx, rec.Cz)
-          try { this.ciudad?.pintar?.(hd); this.ciudad?.actualizarSatelite?.(hd) } catch (e) { console.warn(e) }
+          // la ciudad copia la foto HD para sus techos y pinta suelo donde quitó casas (antes de subirla a la maqueta)
+          try { this.ciudad?.pintar?.(hd) } catch (e) { console.warn(e) }
           this.props?.rancho.pintar(hd)
           mq.actualizarSatelite(hd)
           this.emitir('progress', { fase: 'satelite-hd', p: 1 })
