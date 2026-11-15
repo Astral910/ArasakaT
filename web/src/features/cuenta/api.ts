@@ -232,7 +232,22 @@ export async function listarParcelas(): Promise<Parcela[]> {
   return parcelasLocales()
 }
 
+// ronda 8: terreno de invitado (sin cuenta), guardado solo en este navegador; id «inv_…»
+const K_INV = 'fs-parcelas-invitado'
+export const esInvitado = (id: string) => id.startsWith('inv_')
+export function parcelasInvitado(): Parcela[] {
+  try { const l = JSON.parse(localStorage.getItem(K_INV) || '[]'); return Array.isArray(l) ? l : [] } catch { return [] }
+}
+export function guardarInvitado(c: Crudo): Parcela {
+  const p = { ...normalizarParcela(c), id: 'inv_' + Date.now().toString(36) }
+  const igual = parcelasInvitado().find((x) => Math.abs(x.lat - p.lat) < 1e-4 && Math.abs(x.lon - p.lon) < 1e-4 && x.cultivo === p.cultivo)
+  if (igual) return igual
+  try { localStorage.setItem(K_INV, JSON.stringify([...parcelasInvitado(), p].slice(-10))) } catch { /* sin storage */ }
+  return p
+}
+
 export async function obtenerParcela(id: string): Promise<Parcela | null> {
+  if (esInvitado(id)) return parcelasInvitado().find((p) => p.id === id) ?? null
   if (origen.value === 'api') {
     try { return normalizarParcela(await pedir<Crudo>(`/api/parcelas/${encodeURIComponent(id)}`)) } catch (e) { if (!noHay(e)) return null; origen.value = 'local' }
   }

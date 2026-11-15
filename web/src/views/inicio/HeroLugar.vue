@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BuscarCultivo from './BuscarCultivo.vue'
 // Hero de una sola pantalla: "¿Dónde está tu terreno?" → 3 preguntas en chips (con valores por defecto) → /sandbox?…&auto=1.
 // Camino mínimo: escribir el lugar y elegirlo (o tocar el mapa / usar mi ubicación) + 1 toque en "Ver mi temporada".
 // Ronda 4: búsqueda exacta (colonias, residenciales, aldeas…), punto exacto con un clic en el satélite y, aparte,
@@ -243,8 +244,6 @@ const riego = ref<Riego>(DEFAULTS.riego)
 const tamano = ref<'pequeno' | 'media' | 'una' | 'mas'>('una')
 const areaMas = ref<string>('2')
 const unidadMas = ref<Unidad>('manzana')
-const cultivos: Cultivo[] = ['milpa', 'maiz', 'frijol', 'otro']
-const riegos: Riego[] = [0, 10, 20]
 const errArea = computed(() => (tamano.value === 'mas' && !conForma.value ? validarArea(areaMas.value, unidadMas.value) : null))
 const tocado = ref(false)
 function elegirTamano(id: typeof tamano.value) {
@@ -430,9 +429,7 @@ defineExpose({ elegir })
 
           <div class="preg" role="group" aria-labelledby="pq-cultivo">
             <span id="pq-cultivo" class="pq">{{ t('ini.q.crop') }}</span>
-            <div class="chips">
-              <button v-for="c in cultivos" :key="c" type="button" class="chip" :class="{ on: cultivo === c }" :aria-pressed="cultivo === c" :data-testid="'cultivo-' + c" @click="cultivo = c">{{ t('ini.crop.' + c) }}</button>
-            </div>
+            <BuscarCultivo v-model="cultivo" />
           </div>
           <div v-if="conForma && areaDibujo" class="preg" role="group" aria-labelledby="pq-tam">
             <span id="pq-tam" class="pq">{{ t('ini.q.sizeDrawn') }}</span>
@@ -457,13 +454,6 @@ defineExpose({ elegir })
               <p v-if="errArea && tocado" id="ini-err-area" class="err" role="alert" data-testid="area-error">{{ t('ini.err.' + errArea, { max: TOPE[unidadMas], u: t('ini.unit.' + unidadMas) }) }}</p>
             </div>
           </div>
-          <div class="preg" role="group" aria-labelledby="pq-riego">
-            <span id="pq-riego" class="pq">{{ t('ini.q.water') }}</span>
-            <div class="chips">
-              <button v-for="r in riegos" :key="r" type="button" class="chip" :class="{ on: riego === r }" :aria-pressed="riego === r" :data-testid="'riego-' + r" @click="riego = r">{{ t('ini.water.' + r) }}</button>
-            </div>
-          </div>
-
           <div class="preg" role="group" aria-labelledby="pq-cuando" data-testid="pregunta-siembra">
             <span id="pq-cuando" class="pq">{{ t('ini.q.when') }}</span>
             <div class="chips">

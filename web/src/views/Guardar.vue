@@ -6,6 +6,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { Check, Loader2, MapPin, ArrowLeft, LayoutGrid } from 'lucide-vue-next'
 import { useSesion, parcelaDeRuta, FalloCuenta } from '@/stores/sesion'
+import { guardarInvitado } from '@/features/cuenta/api'
 import { t } from '@/i18n'
 
 const route = useRoute()
@@ -44,6 +45,12 @@ onMounted(async () => {
   if (!cuerpo) { estado.value = 'sinDatos'; return }
   if (id.value) { if (!irDashboard()) estado.value = 'ok'; return }
   if (!(await sesion.yo(true))) {
+    // ronda 8: sin cuenta igual se entra al dashboard (terreno de invitado en este navegador); ahí invita a crear cuenta
+    if (alDashboard) {
+      const inv = guardarInvitado(cuerpo as never)
+      router.replace(`/terreno/${inv.id}`)
+      return
+    }
     router.replace({ path: '/entrar', query: { modo: 'registro', motivo: 'guardar', volver: route.fullPath } })
     return
   }

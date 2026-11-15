@@ -122,7 +122,7 @@ export interface Ajustes {
   percentil: Percentil
   anios: number
   comparar: boolean
-  cultivo: 'milpa' | 'maiz' | 'frijol' | 'sorgo' | 'otro'
+  cultivo: 'milpa' | 'maiz' | 'frijol' | 'sorgo' | 'otro' | (string & {}) // ronda 8: + catálogo mundial (/api/cultivos)
   area_valor: number
   area_unidad: 'cuerda' | 'manzana' | 'ha'
 }

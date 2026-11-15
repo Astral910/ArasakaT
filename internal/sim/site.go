@@ -77,15 +77,18 @@ const (
 )
 
 // GDDDia grados-día del índice i (si i cae fuera de la serie, la media de ese día del año en la climatología).
-func (s *Site) GDDDia(i int) float64 {
+func (s *Site) GDDDia(i int) float64 { return s.GDDDiaBase(i, GDDBase) }
+
+// GDDDiaBase como GDDDia con otra temperatura base (cultivos de clima frío: trigo, papa…).
+func (s *Site) GDDDiaBase(i int, base float64) float64 {
 	var tx, tn float64
 	if i >= 0 && i < s.N {
 		tx, tn = s.Tmax[i], s.Tmin[i]
 	} else {
 		tx, tn = s.tClim(s.Date(i).YearDay())
 	}
-	t := (math.Min(tx, GDDTope) + math.Max(tn, GDDBase)) / 2
-	return math.Max(0, t-GDDBase)
+	t := (math.Min(tx, GDDTope) + math.Max(tn, base)) / 2
+	return math.Max(0, t-base)
 }
 
 // tClim Tmáx y Tmín medias de un día del año (±3 días, todos los años de la serie).
@@ -133,6 +136,17 @@ func (s *Site) DiasGDD(sow int, gdd float64) int {
 	return 400
 }
 
+func (s *Site) diasGDDBase(sow int, gdd, base float64) int {
+	acc := 0.0
+	for k := 0; k < 400; k++ {
+		acc += s.GDDDiaBase(sow+k, base)
+		if acc >= gdd {
+			return k + 1
+		}
+	}
+	return 400
+}
+
 // ScaledGDD cultivo con las etapas estiradas o encogidas según los grados-día reales desde la siembra:
 // cada etapa termina cuando junta los grados-día que tendría a 24 °C (ciclo FAO-56).
 func (s *Site) ScaledGDD(c fao56.Crop, sow int) fao56.Crop {
@@ -159,6 +173,11 @@ func CicloRango(id string) (int, int) {
 // tiene ciclos de 8–9 meses (variedades adaptadas al frío), fuera no.
 func (s *Site) CicloRangoEn(id string) (int, int) {
 	lo, hi := CicloRango(id)
+	if hi == 0 {
+		if c, ok := fao56.Crops[id]; ok && c.CicloMax > 0 {
+			lo, hi = c.CicloMin, c.CicloMax
+		}
+	}
 	if id == "maize" && math.Abs(s.Lat) < 23.5 {
 		hi = 270
 	}
@@ -168,13 +187,20 @@ func (s *Site) CicloRangoEn(id string) (int, int) {
 // CicloGDD como ScaledGDD y además si el cultivo madura: false si el calor del lugar no alcanza los grados-día
 // dentro del ciclo máximo realista (el ciclo se acota a ese máximo en vez de alargarse).
 func (s *Site) CicloGDD(c fao56.Crop, sow int) (fao56.Crop, bool) {
+	if c.Perenne { // ronda 8: perennes (café, banano…): un año de producción, sin estirar con los grados-día
+		return c, true
+	}
 	day, acc := 0, 0.0
 	o := c
+	base, porDia := GDDBase, GDDPorDia
+	if c.Tbase > 0 && c.Tref > c.Tbase {
+		base, porDia = c.Tbase, c.Tref-c.Tbase
+	}
 	for k := range c.L {
-		target := acc + float64(c.L[k])*GDDPorDia
+		target := acc + float64(c.L[k])*porDia
 		n := 0
 		for acc < target && n < 300 {
-			acc += s.GDDDia(sow + day)
+			acc += s.GDDDiaBase(sow+day, base)
 			day++
 			n++
 		}
@@ -203,7 +229,7 @@ func (s *Site) CicloGDD(c fao56.Crop, sow int) (fao56.Crop, bool) {
 		o.L[len(o.L)-1] += lo - tot
 	}
 	// en el tope de 2× por etapa también puede faltar calor aunque el total quede dentro del rango
-	if s.DiasGDD(sow, float64(c.Season())*GDDPorDia) > hi {
+	if s.diasGDDBase(sow, float64(c.Season())*porDia, base) > hi {
 		madura = false
 	}
 	return o, madura

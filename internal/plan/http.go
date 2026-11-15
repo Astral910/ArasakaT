@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"fieldshift/internal/contract"
+	"fieldshift/internal/fao56"
 	"fieldshift/internal/geo"
 	"fieldshift/internal/sim"
 )
@@ -20,6 +21,11 @@ func (e *Engine) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/riesgo", e.handleRiesgo)
 	mux.HandleFunc("/api/simulate", e.handleSimulate)
 	mux.HandleFunc("/api/sitio", e.handleSitio)
+	mux.HandleFunc("/api/cultivos", func(w http.ResponseWriter, r *http.Request) { // ronda 8: catálogo mundial
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		_ = json.NewEncoder(w).Encode(fao56.Lista())
+	})
 }
 
 // Routes para el integrador: carga dataDir (DATA_DIR) y monta las rutas. staticDir (STATIC_DIR, opcional)

@@ -70,6 +70,10 @@ func MainCrop(crop string) (fao56.Crop, bool) {
 	case "maiz", "otro":
 		return fao56.Crops["maize"], false
 	}
+	// ronda 8: cualquier cultivo del catálogo mundial (por id o por nombre: «papa», «rice»…)
+	if id := fao56.Buscar(crop); id != "" {
+		return fao56.Crops[id], false
+	}
 	return fao56.Crops["maize"], true // milpa = maíz + frijol asociado
 }
 

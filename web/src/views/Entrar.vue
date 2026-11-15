@@ -23,7 +23,7 @@ const nombre = ref('')
 const usuario = ref('')
 const contrasena = ref('')
 const ver = ref(false)
-const cnb = ref(true) // axioma 16: «Alineado al CNB de Guatemala», marcado por defecto
+const cnb = ref(false) // ronda 8: sin la opción CNB (no aplica a esta plataforma); se registra como «general»
 const enviando = ref(false)
 const error = ref<ErrorCuenta | ''>('')
 const detalle = ref('')
@@ -119,10 +119,6 @@ async function enviar() {
             </button>
           </div>
           <small v-if="modo === 'registro'">{{ t('auth.contrasenaHint') }}</small>
-        </label>
-        <label v-if="modo === 'registro'" class="check">
-          <input v-model="cnb" type="checkbox" data-testid="auth-cnb" />
-          <span><strong>{{ t('auth.cnb') }}</strong><small>{{ t('auth.cnbHint') }}</small></span>
         </label>
 
         <p v-if="error" class="err" role="alert" data-testid="auth-error">{{ t('auth.err.' + error, { e: detalle }) }}</p>

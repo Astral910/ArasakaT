@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"fieldshift/internal/contract"
+	"fieldshift/internal/fao56"
 	"fieldshift/internal/sim"
 )
 
@@ -490,12 +491,18 @@ func comparaMM(el, rec float64, distinta, en bool) string {
 }
 
 func cropKeyOf(id string) string {
-	return map[string]string{"maize": "maiz", "bean": "frijol", "sorghum": "sorgo"}[id]
+	if k := map[string]string{"maize": "maiz", "bean": "frijol", "sorghum": "sorgo"}[id]; k != "" {
+		return k
+	}
+	return id // catálogo mundial (ronda 8)
 }
 
 func nombreCultivo(id string, en bool) string {
 	es := map[string]string{"maize": "maíz", "bean": "frijol", "sorghum": "maicillo"}
 	e2 := map[string]string{"maize": "maize", "bean": "beans", "sorghum": "sorghum"}
+	if n := fao56.Nombre(id, en); n != "" && es[id] == "" {
+		return strings.ToLower(n)
+	}
 	if en {
 		return e2[id]
 	}
