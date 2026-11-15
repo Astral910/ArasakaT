@@ -7,8 +7,8 @@ import { onMounted, onBeforeUnmount, ref, shallowRef } from 'vue'
 import type { Map as MlMap } from 'maplibre-gl'
 import { t } from '@/i18n'
 import { Dibujo, revisarAgua, type EstadoDibujo, type Agua } from './dibujo'
-import type { Forma, LatLon, Parcela } from './parcela'
-import { ESRI_IMG, ESRI_LBL, ESRI_VIAS, TERRARIUM, OFM, FONDO, urlsDestino, precargar } from './teselas'
+import { M2, type Forma, type LatLon, type Parcela } from './parcela'
+import { ESRI_IMG, ESRI_LBL, ESRI_VIAS, ESRI_CALLES, TERRARIUM, OFM, FONDO, urlsDestino, precargar, zoomNativo } from './teselas'
 
 const props = withDefaults(defineProps<{ inicio?: [number, number] }>(), { inicio: () => [-84, 12] })
 const emit = defineEmits<{
@@ -20,6 +20,9 @@ const emit = defineEmits<{
 const el = ref<HTMLDivElement | null>(null)
 const map = shallowRef<MlMap | null>(null)
 const listo = ref(false)
+/** cerca del terreno: se ofrece alternar satélite / calles */
+const cerca = ref(false)
+const calles = ref(false)
 const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 let ml: typeof import('maplibre-gl') | null = null
 let dibujo: Dibujo | null = null
@@ -60,6 +63,11 @@ async function volarA(d: Destino, pad: Pad) {
     if (cam?.zoom) zoom = Math.max(15, Math.min(17.5, cam.zoom))
   }
   dibujo?.activar([d.lat, d.lon])
+  // nunca más cerca que la foto real del lugar (si no, se ve borroso)
+  zoomNativo(d.lat, d.lon).then((z) => {
+    m.setMaxZoom(z)
+    if (m.getLayer('img19')) m.setLayoutProperty('img19', 'visibility', z === 19 ? 'visible' : 'none')
+  })
   // precarga: satélite del destino + la cruz del vuelo, nombres y relieve; tope 900 ms
   await precargar([
     ...urlsDestino(d.lat, d.lon, zoom, { ancho: innerWidth > 900 ? 9 : 5, alto: 5 }),
@@ -78,6 +86,21 @@ async function volarA(d: Destino, pad: Pad) {
     if (m.areTilesLoaded()) fin()
     else { m.once('idle', fin); setTimeout(fin, 2500) }
   })
+}
+
+const fmt = (x: number) => (x >= 100 ? Math.round(x).toLocaleString('en-US') : x >= 10 ? x.toFixed(1) : x.toFixed(2))
+/** "2,184 m² · 5.00 cuerdas · 0.31 mz" junto al dibujo. */
+function areaTexto(m2: number) {
+  return `${Math.round(m2).toLocaleString('en-US')} m² · ${fmt(m2 / M2.cuerda)} cuerdas · ${fmt(m2 / M2.manzana)} mz`
+}
+
+/** Satélite ⇄ calles (Esri World Street Map) para ubicar el terreno por las calles. */
+function verCalles(v: boolean) {
+  calles.value = v
+  const m = map.value
+  if (!m?.getLayer('calles')) return
+  m.setLayoutProperty('calles', 'visibility', v ? 'visible' : 'none')
+  for (const id of ['vias', 'lbl']) m.setLayoutProperty(id, 'visibility', v ? 'none' : 'visible')
 }
 
 /** Vista cenital para dibujar sin perspectiva. */
@@ -103,7 +126,7 @@ onMounted(() => {
       zoom: movil ? 1.05 : innerHeight > 820 ? 2.15 : 1.95,
       attributionControl: false,
       maxPitch: 70,
-      maxZoom: 19.5,
+      maxZoom: 18,
       // fluidez: más teselas en caché (y de más niveles), sin cancelar las que ya se pidieron al acercar
       maxTileCacheSize: 2400,
       maxTileCacheZoomLevels: 10,
@@ -119,6 +142,9 @@ onMounted(() => {
           medio: { type: 'raster', tiles: [ESRI_IMG], tileSize: 256, maxzoom: 9 },
           img: { type: 'raster', tiles: [ESRI_IMG], tileSize: 256, maxzoom: 18,
             attribution: 'Imagery © Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, GIS User Community' },
+          // nivel 19 solo donde Esri tiene foto real (lo decide zoomNativo al llegar)
+          img19: { type: 'raster', tiles: [ESRI_IMG], tileSize: 256, minzoom: 19, maxzoom: 19 },
+          calles: { type: 'raster', tiles: [ESRI_CALLES], tileSize: 256, maxzoom: 19, attribution: 'Streets: Esri, HERE, Garmin, © OpenStreetMap' },
           lbl: { type: 'raster', tiles: [ESRI_LBL], tileSize: 256, maxzoom: 18, attribution: 'Places: Esri, HERE, Garmin, © OpenStreetMap' },
           vias: { type: 'raster', tiles: [ESRI_VIAS], tileSize: 256, minzoom: 12, maxzoom: 18 },
           dem: { type: 'raster-dem', tiles: [TERRARIUM], tileSize: 256, encoding: 'terrarium', maxzoom: 12, attribution: 'SRTM (NASA/USGS) via AWS Terrain Tiles' },
@@ -129,6 +155,8 @@ onMounted(() => {
           { id: 'base', type: 'raster', source: 'base', paint: { 'raster-fade-duration': 0, 'raster-saturation': 0.04, 'raster-contrast': 0.06 } },
           { id: 'medio', type: 'raster', source: 'medio', minzoom: 5, paint: { 'raster-fade-duration': 0, 'raster-saturation': 0.04, 'raster-contrast': 0.06 } },
           { id: 'img', type: 'raster', source: 'img', paint: { 'raster-fade-duration': 0, 'raster-saturation': 0.04, 'raster-contrast': 0.06 } },
+          { id: 'img19', type: 'raster', source: 'img19', minzoom: 18.5, layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0, 'raster-saturation': 0.04, 'raster-contrast': 0.06 } },
+          { id: 'calles', type: 'raster', source: 'calles', layout: { visibility: 'none' }, paint: { 'raster-fade-duration': 0 } },
           { id: 'vias', type: 'raster', source: 'vias', minzoom: 13, paint: { 'raster-fade-duration': 0, 'raster-opacity': 0.55 } },
           { id: 'lbl', type: 'raster', source: 'lbl', paint: { 'raster-fade-duration': 0, 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 1, 0.5, 5, 0.85, 10, 0.75, 16, 0.6] } },
           // agua de OSM, casi invisible (con opacidad 0 MapLibre la da por oculta y no baja teselas): solo para avisar si la parcela cae en un río, un lago o el mar
@@ -150,11 +178,13 @@ onMounted(() => {
       el.value?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show')
       dibujo = new Dibujo(m, ml!, (s) => emit('cambio', s), {
         punto: t('ini.draw.aria.point'), centro: t('ini.draw.aria.center'), radio: t('ini.draw.aria.radius'), vertice: (n) => t('ini.draw.aria.vertex', { n }),
+        area: (m2) => areaTexto(m2),
       })
       listo.value = true
       emit('ready')
       // El relieve se enciende al acercarse (de lejos no aporta y cuesta teselas).
       m.on('zoomend', () => {
+        cerca.value = m.getZoom() > 12
         const quiere = m.getZoom() > 7
         if (quiere && !m.getTerrain()) m.setTerrain({ source: 'dem', exaggeration: 1.3 })
         else if (!quiere && m.getTerrain()) m.setTerrain(null)
@@ -197,6 +227,11 @@ defineExpose({
   <div class="globo" :class="{ listo }" data-testid="globo" :data-listo="listo ? 1 : 0">
     <div class="planeta" aria-hidden="true"><span /></div>
     <div ref="el" class="lienzo" role="application" :aria-label="t('ini.mapAria')" />
+    <div v-if="calles" class="velo" aria-hidden="true" />
+    <div v-if="listo && cerca" class="capas" role="radiogroup" :aria-label="t('ini.layer.aria')">
+      <button type="button" role="radio" :aria-checked="!calles" :class="{ on: !calles }" data-testid="btn-satelite" @click="verCalles(false)">{{ t('ini.layer.sat') }}</button>
+      <button type="button" role="radio" :aria-checked="calles" :class="{ on: calles }" data-testid="btn-calles" @click="verCalles(true)">{{ t('ini.layer.streets') }}</button>
+    </div>
   </div>
 </template>
 
@@ -210,12 +245,19 @@ defineExpose({
 .lienzo :deep(.maplibregl-ctrl-top-right) { top: 72px; }
 /* parcela: punto, centro y manija del círculo, vértices del polígono (blancos con borde, grandes para el dedo) */
 :global(.pin-parcela) { width: 28px; height: 28px; border-radius: 50%; background: radial-gradient(circle, #fff 0 3px, var(--granada, #c2410c) 4px); border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25), 0 6px 18px rgba(0, 0, 0, 0.45); cursor: grab; }
-:global(.pin-centro) { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 4px solid #e0a526; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); cursor: move; }
-:global(.pin-radio) { width: 28px; height: 28px; border-radius: 50%; background: #f6d06a; border: 3px solid #fff; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5); cursor: ew-resize; display: grid; place-items: center; }
-:global(.pin-radio::after) { content: '↔'; font: 700 14px/1 system-ui; color: #2a2118; }
-:global(.pin-vertice) { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 3px solid #e0a526; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); cursor: grab; }
-:global(.pin-vertice.primero) { width: 24px; height: 24px; background: #f6d06a; border-color: #fff; animation: pin-ping-v 1.6s ease-in-out infinite; cursor: pointer; }
-@keyframes pin-ping-v { 50% { box-shadow: 0 0 0 8px rgba(246, 208, 106, 0.35), 0 2px 8px rgba(0, 0, 0, 0.5); } }
-@media (pointer: coarse) { :global(.pin-vertice) { width: 24px; height: 24px; } :global(.pin-radio) { width: 34px; height: 34px; } }
+:global(.pin-centro) { width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 5px solid #f2b705; box-shadow: 0 0 0 2px #10151c, 0 2px 10px rgba(0, 0, 0, 0.5); cursor: move; }
+:global(.pin-radio) { width: 34px; height: 34px; border-radius: 50%; background: #ffd23f; border: 3px solid #fff; box-shadow: 0 0 0 2px #10151c, 0 3px 12px rgba(0, 0, 0, 0.5); cursor: ew-resize; display: grid; place-items: center; }
+:global(.pin-radio::after) { content: '↔'; font: 800 16px/1 system-ui; color: #10151c; }
+:global(.pin-vertice) { width: 24px; height: 24px; border-radius: 50%; background: #fff; border: 4px solid #f2b705; box-shadow: 0 0 0 2px #10151c, 0 2px 8px rgba(0, 0, 0, 0.5); cursor: grab; }
+:global(.pin-vertice.primero) { width: 30px; height: 30px; background: #ffd23f; border-color: #fff; animation: pin-ping-v 1.6s ease-in-out infinite; cursor: pointer; }
+/* área junto al dibujo: no ataja clics (el clic sigue marcando esquinas) */
+:global(.etiqueta-area) { pointer-events: none; padding: 5px 11px; border-radius: 999px; background: rgba(16, 21, 28, 0.86); color: #fff; font: 700 13px/1.2 var(--font-ui, system-ui, sans-serif); white-space: nowrap; box-shadow: 0 0 0 2px #ffd23f, 0 4px 14px rgba(0, 0, 0, 0.45); font-variant-numeric: tabular-nums; }
+.velo { position: absolute; inset: 0 0 auto; height: 120px; pointer-events: none; background: linear-gradient(rgba(11, 20, 34, 0.8), transparent); }
+.capas { position: absolute; right: 12px; bottom: 44px; z-index: 2; display: flex; padding: 3px; border-radius: 999px; background: rgba(16, 21, 28, 0.78); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+.capas button { font: 650 0.85rem/1 var(--font-ui, system-ui, sans-serif); color: #fff; background: transparent; border: 0; border-radius: 999px; padding: 0.55rem 0.9rem; min-height: 36px; cursor: pointer; }
+.capas button.on { background: #fff; color: #10151c; }
+@media (max-width: 759px) { .capas { top: 112px; bottom: auto; } }
+@keyframes pin-ping-v { 50% { box-shadow: 0 0 0 2px #10151c, 0 0 0 10px rgba(255, 210, 63, 0.4), 0 2px 8px rgba(0, 0, 0, 0.5); } }
+@media (pointer: coarse) { :global(.pin-vertice) { width: 30px; height: 30px; } :global(.pin-radio) { width: 40px; height: 40px; } }
 @media (prefers-reduced-motion: reduce) { :global(.pin-vertice.primero) { animation: none; } }
 </style>
