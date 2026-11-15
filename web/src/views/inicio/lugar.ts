@@ -45,7 +45,7 @@ export function validarArea(valor: number | string | null | undefined, unidad: U
 const r2 = (x: number) => Math.round(x * 100) / 100
 const r5 = (x: number) => Math.round(x * 1e5) / 1e5
 
-export function rutaSandbox(l: Lugar, r: Respuestas, extra?: { parcela?: Record<string, string>; centro?: [number, number]; idioma?: string }) {
+export function rutaSandbox(l: Lugar, r: Respuestas, extra?: { parcela?: Record<string, string>; centro?: [number, number]; idioma?: string; siembra?: string }) {
   const exacto = !!extra?.parcela
   const [lat, lon] = extra?.centro ?? [l.lat, l.lon]
   return {
@@ -55,6 +55,8 @@ export function rutaSandbox(l: Lugar, r: Respuestas, extra?: { parcela?: Record<
       cultivo: r.cultivo, area: String(r.area), unidad: r.unidad, riego: String(r.riego), auto: '1',
       ...(extra?.parcela ?? {}),
       ...(extra?.idioma ? { idioma: extra.idioma } : {}),
+      // ronda 5: solo si el usuario eligió fecha (sin el parámetro = la recomendada por el motor)
+      ...(extra?.siembra ? { siembra: extra.siembra } : {}),
     },
   }
 }

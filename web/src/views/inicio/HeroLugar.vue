@@ -5,7 +5,7 @@
 // "Dibujar mi terreno exacto" (círculo o polígono) con el área calculada y aviso si cae en agua.
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { Search, LocateFixed, MapPin, Play, X, Loader2, SlidersHorizontal, ShieldCheck, PenLine, Undo2, Check, Trash2, Crosshair, Circle, Hexagon, Droplets } from 'lucide-vue-next'
+import { Search, LocateFixed, MapPin, Play, X, Loader2, SlidersHorizontal, ShieldCheck, PenLine, Undo2, Check, Trash2, Crosshair, Circle, Hexagon, Droplets, CalendarDays, Sparkles, CircleCheck, TriangleAlert, OctagonAlert } from 'lucide-vue-next'
 import GloboFondo from './GloboFondo.vue'
 import { usePlanStore } from '@/stores/plan'
 import { t, lang } from '@/i18n'
@@ -15,6 +15,7 @@ import {
 } from './lugar'
 import { areaLegible, areaRuta, consultaParcela, type Forma } from './parcela'
 import type { EstadoDibujo, Agua } from './dibujo'
+import { consultarSiembra, peor, fechaLarga, hoyISO, sumarDias, difDias, type Siembra } from './siembra'
 
 const store = usePlanStore()
 const router = useRouter()
@@ -251,6 +252,62 @@ function elegirTamano(id: typeof tamano.value) {
   if (id === 'mas') nextTick(() => { areaInput.value?.focus(); areaInput.value?.select() })
 }
 
+// ---------- ¿cuándo pensás sembrar? (ronda 5) ----------
+// Por defecto "la mejor fecha" (sin `siembra` en la ruta: el motor usa la recomendada). "Elegir fecha" abre el calendario
+// y debajo sale la recomendación del motor; el usuario puede seguir con su fecha igual.
+const modoSiembra = ref<'mejor' | 'elegir'>('mejor')
+const fecha = ref('')
+const fechaInput = ref<HTMLInputElement | null>(null)
+const hoy = hoyISO()
+const fechaMax = sumarDias(hoy, 730)
+const rec = ref<Siembra | null>(null)
+const revisando = ref(false)
+const sinMotor = ref(false)
+let ctrlS: AbortController | null = null
+let timerS = 0
+const fechaValida = computed(() => /^\d{4}-\d{2}-\d{2}$/.test(fecha.value) && fecha.value >= hoy && fecha.value <= fechaMax)
+function elegirModo(m: 'mejor' | 'elegir') {
+  modoSiembra.value = m
+  if (m === 'elegir') nextTick(() => { const el = fechaInput.value; el?.focus(); try { el?.showPicker?.() } catch { /* sin gesto del usuario */ } })
+}
+watch([modoSiembra, fecha, cultivo, riego, lang, () => lugar.value?.lat, () => lugar.value?.lon], () => {
+  clearTimeout(timerS)
+  ctrlS?.abort()
+  if (modoSiembra.value !== 'elegir' || !fechaValida.value || !lugar.value) { rec.value = null; revisando.value = false; sinMotor.value = false; return }
+  revisando.value = true
+  timerS = window.setTimeout(revisarFecha, 250)
+})
+async function revisarFecha() {
+  const l = lugar.value
+  if (!l) return
+  const c = new AbortController()
+  ctrlS = c
+  try {
+    const r = await consultarSiembra({ lat: l.lat, lon: l.lon, cultivo: cultivo.value, riego: riego.value, fecha: fecha.value, idioma: lang.value, municipios: store.municipios, hoy }, c.signal)
+    if (c.signal.aborted) return
+    rec.value = r
+    sinMotor.value = !r
+    // la tarjeta puede quedar con scroll: que la recomendación y "Ver mi temporada" queden a la vista
+    nextTick(() => boton.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+  } catch {
+    if (c.signal.aborted) return
+    rec.value = null
+    sinMotor.value = true
+  }
+  revisando.value = false
+}
+const RANGO_SEV = { ok: 0, ojo: 1, mala: 2 } as const
+const sev = computed(() => (rec.value ? peor(rec.value.razones) : 'ok'))
+const razon = computed(() => {
+  const r = rec.value
+  if (!r) return ''
+  const z = [...r.razones].sort((a, b) => RANGO_SEV[b.severidad] - RANGO_SEV[a.severidad])[0]
+  return lang.value === 'en' ? z.texto_en || z.texto : z.texto
+})
+const otraFecha = computed(() => !!rec.value && Math.abs(difDias(rec.value.recomendada, rec.value.elegida)) > 3)
+const fl = (iso: string) => (iso ? fechaLarga(iso, lang.value) : '')
+function usarRecomendada() { if (rec.value) fecha.value = rec.value.recomendada }
+
 async function ver() {
   if (!lugar.value) { aviso.value = 'vacio'; input.value?.focus(); return }
   if (dibujando.value) { listoDibujo(); if (dibujando.value) return }
@@ -269,7 +326,8 @@ async function ver() {
     unidad = tam ? tam.unidad : unidadMas.value
   }
   const p = globo.value?.parcela()
-  const extra = marcado.value && p ? { parcela: consultaParcela(p), centro: p.centro, idioma: lang.value } : { idioma: lang.value }
+  const siembra = modoSiembra.value === 'elegir' && fechaValida.value ? fecha.value : undefined
+  const extra = marcado.value && p ? { parcela: consultaParcela(p), centro: p.centro, idioma: lang.value, siembra } : { idioma: lang.value, siembra }
   router.push(rutaSandbox(l, { cultivo: cultivo.value, area, unidad, riego: riego.value }, extra))
 }
 defineExpose({ elegir })
@@ -402,6 +460,36 @@ defineExpose({ elegir })
             <span id="pq-riego" class="pq">{{ t('ini.q.water') }}</span>
             <div class="chips">
               <button v-for="r in riegos" :key="r" type="button" class="chip" :class="{ on: riego === r }" :aria-pressed="riego === r" :data-testid="'riego-' + r" @click="riego = r">{{ t('ini.water.' + r) }}</button>
+            </div>
+          </div>
+
+          <div class="preg" role="group" aria-labelledby="pq-cuando" data-testid="pregunta-siembra">
+            <span id="pq-cuando" class="pq">{{ t('ini.q.when') }}</span>
+            <div class="chips">
+              <button type="button" class="chip" :class="{ on: modoSiembra === 'mejor' }" :aria-pressed="modoSiembra === 'mejor'" data-testid="siembra-mejor" @click="elegirModo('mejor')"><Sparkles class="c-ic" aria-hidden="true" /><span class="lg">{{ t('ini.when.best') }}</span><span class="sh">{{ t('ini.when.bestShort') }}</span></button>
+              <button type="button" class="chip" :class="{ on: modoSiembra === 'elegir' }" :aria-pressed="modoSiembra === 'elegir'" data-testid="siembra-elegir" @click="elegirModo('elegir')"><CalendarDays class="c-ic" aria-hidden="true" />{{ modoSiembra === 'elegir' && fechaValida ? fl(fecha) : t('ini.when.pick') }}</button>
+            </div>
+            <div v-if="modoSiembra === 'elegir'" class="cuando">
+              <label for="ini-fecha" class="sr">{{ t('ini.when.date') }}</label>
+              <input id="ini-fecha" ref="fechaInput" v-model="fecha" type="date" :min="hoy" :max="fechaMax" class="fecha" data-testid="siembra-fecha" />
+              <div class="rec" :class="rec && !revisando ? 'sev-' + sev : ''" role="status" aria-live="polite" data-testid="siembra-rec" :data-sev="rec && !revisando ? sev : ''">
+                <template v-if="!fechaValida"><span class="r-pista">{{ t('ini.when.pickHint') }}</span></template>
+                <template v-else-if="revisando"><span class="r-pista"><Loader2 class="r-sp" aria-hidden="true" />{{ t('ini.when.checking') }}</span></template>
+                <template v-else-if="rec">
+                  <p class="r-cab" :data-sev="sev">
+                    <CircleCheck v-if="sev === 'ok'" aria-hidden="true" /><TriangleAlert v-else-if="sev === 'ojo'" aria-hidden="true" /><OctagonAlert v-else aria-hidden="true" />
+                    <strong>{{ t('ini.when.sev.' + sev) }}</strong>
+                  </p>
+                  <p class="r-txt" data-testid="siembra-razon">{{ razon }}</p>
+                  <p v-if="otraFecha" class="r-mejor">
+                    <span>{{ t('ini.when.better', { f: fl(rec.recomendada) }) }}</span>
+                    <button type="button" class="r-usar" data-testid="siembra-usar" @click="usarRecomendada">{{ t('ini.when.use') }}</button>
+                  </p>
+                  <p class="r-cos" data-testid="siembra-cosecha">{{ t('ini.when.harvest', { s: fl(rec.elegida), c: fl(rec.cosecha_elegida) }) }}</p>
+                  <p class="r-pie"><span v-if="sev !== 'ok'">{{ t('ini.when.free') }} · </span>{{ rec.estimado ? t('ini.when.est') : t('ini.when.motor') }}</p>
+                </template>
+                <template v-else-if="sinMotor"><span class="r-pista">{{ t('ini.when.none') }}</span></template>
+              </div>
             </div>
           </div>
 
@@ -565,5 +653,38 @@ h1 { font-size: clamp(2.1rem, 4.6vw, 3.3rem); line-height: 1.02; letter-spacing:
   .priv { display: none; }
   .sub { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
+
+/* ronda 5: ¿cuándo pensás sembrar? */
+.c-ic { display: inline-block; width: 16px; height: 16px; vertical-align: -3px; margin-right: 0.3rem; flex: none; }
+[data-testid='pregunta-siembra'] .chip { display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; }
+.chip .sh { display: none; }
+.cuando { display: flex; flex-direction: column; gap: 0.45rem; }
+.fecha { font: inherit; font-weight: 700; min-height: 46px; border-radius: 12px; border: 2px solid transparent; background: #fffaf2; color: #2a2118; padding: 0 0.8rem; color-scheme: light; align-self: flex-start; }
+.fecha:focus-visible { outline: 3px solid #f2c75c; outline-offset: 2px; }
+.rec { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.65rem 0.85rem; border-radius: 14px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.16); border-left-width: 4px; font-size: 0.92rem; }
+.rec p { margin: 0; }
+.rec.sev-ok { border-left-color: #7fd1a6; }
+.rec.sev-ojo { border-left-color: #f2c75c; }
+.rec.sev-mala { border-left-color: #f08a6a; background: rgba(229, 72, 77, 0.14); }
+.r-cab { display: flex; align-items: center; gap: 0.4rem; font-size: 0.98rem; }
+.r-cab svg { width: 18px; height: 18px; flex: none; }
+.r-cab[data-sev='ok'] svg { color: #7fd1a6; }
+.r-cab[data-sev='ojo'] svg { color: #f2c75c; }
+.r-cab[data-sev='mala'] svg { color: #f08a6a; }
+.r-txt { color: rgba(255, 255, 255, 0.9); line-height: 1.35; }
+.r-mejor { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; font-weight: 700; }
+.r-usar { font: inherit; font-size: 0.86rem; font-weight: 700; color: #2a2118; background: #f6d06a; border: 0; border-radius: 999px; padding: 0.35rem 0.8rem; min-height: 36px; cursor: pointer; }
+.r-usar:focus-visible { outline: 3px solid #fffaf2; outline-offset: 2px; }
+.r-cos { color: #fff; font-weight: 650; }
+.r-pie { font-size: 0.78rem; color: rgba(255, 255, 255, 0.62); }
+.r-pista { color: rgba(255, 255, 255, 0.78); display: inline-flex; align-items: center; gap: 0.4rem; }
+.r-sp { width: 16px; height: 16px; flex: none; animation: girar 900ms linear infinite; }
+.ini-card.elegido { max-height: calc(100svh - 84px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+@media (max-width: 760px) {
+  .chip .lg { display: none; }
+  .chip .sh { display: inline; }
+  .rec { font-size: 0.86rem; padding: 0.55rem 0.7rem; }
+  .ini-card.elegido { max-height: calc(100svh - 76px); }
+}
+@media (prefers-reduced-motion: reduce) { .spin, .r-sp { animation: none; } }
 </style>

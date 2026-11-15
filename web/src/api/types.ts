@@ -51,6 +51,13 @@ export interface Plan {
   fuentes: Fuente[]
   generado: string
   _aviso?: string
+  // agregados del motor (opcionales en la web)
+  siembra_aqui?: string
+  periodos?: Periodo[]
+  falso_inicio_de_10?: number
+  helada_de_10?: number
+  /** ronda 5 (motor5): recomendación de la fecha de siembra */
+  siembra?: unknown
 }
 export interface Boton { id: string; title: string }
 export interface MensajeChat {
