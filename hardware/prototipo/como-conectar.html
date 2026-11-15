@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cómo conectar · Field Shift</title>
+<style>
+:root{--bg:#0b1f17;--panel:#12382a;--texto:#eef6f0;--suave:#a9c7b6}
+body{margin:0;background:var(--bg);color:var(--texto);font:17px/1.5 system-ui,Segoe UI,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.5rem;margin:.2em 0}
+.card{background:var(--panel);border-radius:18px;padding:16px;margin-top:16px}
+svg{width:100%;height:auto;display:block}
+ol li{margin:8px 0}
+b.r{color:#ff6b5b}b.a{color:#f2c14e}
+</style></head><body><main>
+<h1>Sonda HW-080 (sin plaquita) → ESP32 clásico: solo 2 cables</h1>
+<p style="color:var(--suave)">Cables Dupont <b>hembra-hembra</b>. La sonda no tiene polaridad: cualquiera de sus 2 pines puede ir a cualquier lado.</p>
+<div class="card">
+<svg viewBox="0 0 900 470" font-family="system-ui,Segoe UI,sans-serif">
+  <rect x="40" y="40" width="260" height="400" rx="16" fill="#1d2b44" stroke="#4a6080" stroke-width="3"/>
+  <rect x="120" y="15" width="100" height="45" rx="6" fill="#9aa4ad"/><text x="170" y="44" text-anchor="middle" font-size="15" fill="#1d2b44" font-weight="700">USB</text>
+  <rect x="105" y="150" width="130" height="110" rx="8" fill="#2c3e5c" stroke="#5c7090"/>
+  <text x="170" y="200" text-anchor="middle" font-size="20" fill="#eef6f0" font-weight="700">ESP32</text>
+  <text x="170" y="226" text-anchor="middle" font-size="14" fill="#a9c7b6">DevKit</text>
+  <g font-size="15" fill="#eef6f0">
+    <circle cx="285" cy="200" r="9" fill="#d9a441"/><text x="250" y="205" text-anchor="end">D25</text>
+    <circle cx="285" cy="300" r="9" fill="#d9a441"/><text x="250" y="305" text-anchor="end">D32</text>
+    <circle cx="285" cy="380" r="9" fill="#666"/><text x="250" y="385" text-anchor="end" fill="#aaa">GND (opcional)</text>
+  </g>
+  <text x="170" y="420" text-anchor="middle" font-size="13" fill="#a9c7b6">Guiate por el nombre impreso junto a cada pin</text>
+  <!-- sonda -->
+  <rect x="600" y="70" width="150" height="70" rx="10" fill="#111" stroke="#444" stroke-width="2"/>
+  <text x="675" y="112" text-anchor="middle" font-size="14" fill="#ddd">HW-080</text>
+  <rect x="655" y="40" width="8" height="34" fill="#c9c9c9"/><rect x="683" y="40" width="8" height="34" fill="#c9c9c9"/>
+  <rect x="612" y="140" width="40" height="290" rx="6" fill="#d8c25a"/><rect x="698" y="140" width="40" height="290" rx="6" fill="#d8c25a"/>
+  <text x="675" y="455" text-anchor="middle" font-size="14" fill="#a9c7b6">las patitas van enterradas en la tierra</text>
+  <!-- cables -->
+  <path d="M294 200 C450 200 560 30 659 40" fill="none" stroke="#ff4d3d" stroke-width="6" stroke-linecap="round"/>
+  <path d="M294 300 C470 300 600 20 687 40" fill="none" stroke="#f2c14e" stroke-width="6" stroke-linecap="round"/>
+  <!-- resistencia opcional -->
+  <path d="M294 300 L330 300 L330 340" stroke="#888" stroke-width="3" fill="none" stroke-dasharray="6 5"/>
+  <rect x="318" y="340" width="24" height="18" fill="#c9a26a" stroke="#666"/>
+  <path d="M330 358 L330 380 L294 380" stroke="#888" stroke-width="3" fill="none" stroke-dasharray="6 5"/>
+  <text x="352" y="356" font-size="13" fill="#a9c7b6">10 kΩ (opcional)</text>
+  <g font-size="14" font-weight="700">
+    <text x="470" y="150" fill="#ff6b5b">cable 1</text>
+    <text x="470" y="250" fill="#f2c14e">cable 2</text>
+  </g>
+</svg>
+</div>
+<div class="card">
+<ol>
+  <li><b class="r">Cable 1</b>: un pin de la sonda → pin <b>D25</b> (o "25") del ESP32.</li>
+  <li><b class="a">Cable 2</b>: el otro pin de la sonda → pin <b>D32</b> (o "32") del ESP32.</li>
+  <li>Listo. El ESP32 usa una resistencia interna, así que no hace falta nada más.</li>
+  <li><b>Opcional, más estable</b>: si tenés una resistencia de 10 kΩ (marrón-negro-naranja), ponela entre <b>D32</b> y <b>GND</b>.</li>
+  <li>Conectá el ESP32 a la laptop con un cable USB <b>de datos</b>.</li>
+  <li>En la página "Sensor en vivo", calibrá: sonda al aire → «seco»; sonda en un vaso con agua → «mojado».</li>
+</ol>
+</div>
+</main></body></html>

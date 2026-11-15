@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FieldShift · estación de campo · diagrama de armado</title>
+<style>
+  :root { --bg:#f5efe4; --surface:#fffaf2; --ink:#2a2118; --ink2:#57473a; --ink3:#7d6a58; --line:rgba(42,33,24,.14); --tierra:#8a5a3b; --granada:#b5343c; --jade:#2a8a66; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 Figtree, system-ui, sans-serif; }
+  main { width: min(1440px, 100% - 2rem); margin: 1.5rem auto 3rem; display: grid; gap: 1.4rem; }
+  h1, h2 { font-family: Fraunces, Georgia, serif; font-weight: 600; margin: 0; }
+  h1 { font-size: clamp(1.7rem, 3vw, 2.4rem); }
+  h2 { font-size: 1.35rem; margin-bottom: .6rem; }
+  .eyebrow { font-size: .78rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--tierra); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 1.1rem 1.3rem; box-shadow: 0 4px 14px rgba(60,40,20,.06); }
+  img { width: 100%; height: auto; display: block; border-radius: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  th, td { text-align: left; padding: .42rem .5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .76rem; letter-spacing: .04em; text-transform: uppercase; color: var(--ink3); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 1.4rem; }
+  .ok { color: var(--jade); font-weight: 700; } .no { color: var(--granada); font-weight: 700; }
+  code { font-size: .88em; background: #f0e6d4; padding: .05rem .3rem; border-radius: 5px; }
+  ul { margin: .3rem 0; padding-left: 1.2rem; }
+  .muted { color: var(--ink3); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">FieldShift · hardware</p>
+    <h1>Estación de campo: humedad del suelo y lluvia</h1>
+    <p class="muted">ESP32-C3 · 2 sensores capacitivos (10 y 30 cm) · DS18B20 · SHT31 en abrigo de platos · pluviómetro de balancín impreso · 18650 + panel solar 6 V</p>
+  </header>
+
+  <section class="card"><img src="diagrama.svg" alt="Diagrama de cableado del nodo ESP32-C3 con colores de cable, resistencias y módulos" /></section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Pines por placa</h2>
+      <table>
+        <tr><th>Función</th><th>ESP32-C3</th><th>ESP32-S3</th><th>ESP32 (D)</th></tr>
+        <tr><td>Humedad 10 cm (ADC1)</td><td>GPIO0</td><td>GPIO1</td><td>GPIO32</td></tr>
+        <tr><td>Humedad 30 cm (ADC1)</td><td>GPIO1</td><td>GPIO2</td><td>GPIO33</td></tr>
+        <tr><td>Batería (ADC1, divisor ×2)</td><td>GPIO3</td><td>GPIO4</td><td>GPIO35</td></tr>
+        <tr><td>Reed pluviómetro (despierta)</td><td>GPIO4</td><td>GPIO5</td><td>GPIO34</td></tr>
+        <tr><td>Compuerta P-MOSFET</td><td>GPIO5</td><td>GPIO6</td><td>GPIO25</td></tr>
+        <tr><td>I²C SDA / SCL</td><td>GPIO6 / 7</td><td>GPIO8 / 9</td><td>GPIO21 / 22</td></tr>
+        <tr><td>1-Wire DS18B20</td><td>GPIO10</td><td>GPIO7</td><td>GPIO4</td></tr>
+      </table>
+      <ul class="muted">
+        <li>ADC2 no sirve con WiFi encendido: todo lo analógico va en ADC1.</li>
+        <li>C3: solo GPIO0–5 despiertan del deep sleep; GPIO2, 8 y 9 son de arranque (no se usan para sensores).</li>
+        <li>S3: GPIO0, 3, 45, 46 son de arranque. ESP32: GPIO34–39 son solo entrada (el reed lleva pull-up externo).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Resistencias y capacitores</h2>
+      <table>
+        <tr><th>Dónde</th><th>Valor</th><th>Para qué</th></tr>
+        <tr><td>Divisor de batería</td><td>220 kΩ + 220 kΩ, 100 nF</td><td>Vbat/2 al ADC; ≈ 9,5 µA siempre</td></tr>
+        <tr><td>Reed → 3V3 fijo</td><td>100 kΩ, 100 nF a GND</td><td>pull-up en deep sleep y antirrebote (10 ms)</td></tr>
+        <tr><td>Compuerta P-MOSFET</td><td>100 kΩ de G a S</td><td>sensores apagados mientras el chip duerme</td></tr>
+        <tr><td>DS18B20 DATA → 3V3 sens.</td><td>4,7 kΩ</td><td>pull-up del bus 1-Wire</td></tr>
+        <tr><td>I²C</td><td>(en el módulo SHT31)</td><td>pull-ups de 10 kΩ ya incluidos</td></tr>
+        <tr><td>Salida del LDO</td><td>10 µF + 470 µF</td><td>picos de 350 mA del WiFi</td></tr>
+      </table>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Lista de materiales (1 estación)</h2>
+    <table>
+      <tr><th>Cant.</th><th>Pieza</th><th>Nota</th><th>¿Lo tiene el dueño?</th></tr>
+      <tr><td>1</td><td>ESP32-C3 (SuperMini o DevKitM-1)</td><td>nodo; S3 o ESP32 sirven con la tabla de pines</td><td class="ok">sí</td></tr>
+      <tr><td>2</td><td>Sensor capacitivo de humedad v1.2/v2.0</td><td>10 y 30 cm; si son resistivos, ver docs</td><td class="ok">sí (verificar tipo)</td></tr>
+      <tr><td>1</td><td>DS18B20 sumergible (cable 1 m)</td><td>temperatura del suelo a 10 cm</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>SHT31 en módulo I²C (o BME280)</td><td>aire, dentro del abrigo</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>Reed switch NA (ampolla 2×14 mm o módulo)</td><td>pluviómetro</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>Imán de neodimio 6×3 mm</td><td>en el brazo del balancín</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>Celda 18650 con protección + portapilas o soldada con lengüetas</td><td>2 500–3 500 mAh</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>Cargador solar CN3065 (o TP4056 con DW01)</td><td>entrada 4,4–6 V</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>Panel solar 6 V 1–2 W</td><td>136 × 110 mm para el soporte impreso (parametrizable)</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>LDO RT9080-33 (o HT7333) + 10 µF + 470 µF</td><td>3,3 V de bajo consumo</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>P-MOSFET AO3401 (SOT-23) o módulo</td><td>enciende los sensores</td><td class="no">comprar</td></tr>
+      <tr><td>—</td><td>Resistencias 220 k×2, 100 k×2, 4,7 k×1; capacitores 100 nF×2</td><td>ver tabla</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>Placa perforada 5 × 7 cm, cable 0,25 mm² de colores, termocontraíble</td><td></td><td class="no">comprar</td></tr>
+      <tr><td>5</td><td>Prensaestopas PG7 (cable 3–6,5 mm) — 4 cables + respiradero</td><td></td><td class="no">comprar</td></tr>
+      <tr><td>~16</td><td>Insertos roscados M3 × 5,7 + tornillos M3 × 8/12/16 + 4 tuercas</td><td>caja, pluviómetro, abrazaderas</td><td class="no">comprar</td></tr>
+      <tr><td>3</td><td>Varilla roscada M3 × 120 mm + 6 tuercas</td><td>abrigo de platos</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>Clavo o varilla de acero inoxidable de 2 mm × 40 mm</td><td>eje del balancín</td><td class="no">comprar</td></tr>
+      <tr><td>1</td><td>Tubo PVC ½" o ¾" × 1,5 m</td><td>mástil</td><td class="no">comprar</td></tr>
+      <tr><td>~600 g</td><td>Filamento PETG o ASA (blanco para el abrigo) + 20 g TPU 95A (junta)</td><td>no PLA: se ablanda al sol</td><td class="ok">impresora sí; filamento verificar</td></tr>
+      <tr><td>1</td><td>Silicona neutra o epoxi, barniz de uñas, sílica gel</td><td>sellar la electrónica de los sensores</td><td class="no">comprar</td></tr>
+    </table>
+    <p class="muted">Precios: no se ponen sin una cotización con fuente. Cotizar en la tienda local o en línea con esta lista.</p>
+  </section>
+</main>
+</body>
+</html>

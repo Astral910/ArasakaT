@@ -450,3 +450,34 @@ Encargo y contrato: `C:\Users\Pc\spaceapps-fieldshift-agentes\prompts\_ronda5.md
 - **chatbot LISTO** (14-nov 23:05, rama feat/chatbot, commits 1e9307b y 932e76a): ver `estado/chatbot.md` y `docs/chat.md`. Integrador: `cmd/server/chat.go` + 6 líneas en `wire.go`; compilar `cmd/fieldshift-mcp` junto al server. dashboard/vuelo5: `import { ChatFieldShift } from '@/features/chat'`.
 - **14-nov 23:05 · vuelo5 · LISTO (feat/vuelo, a54882e)** — siembra→cosecha en la guía + franja "Te recomendamos…", día de siembra en Ajustar (curva RiesgoPorFecha), Capas con leyenda real/estimado, rango desde/hasta, chat dentro del simulador (glob de `features/chat/ChatFieldShift.vue`, stub mientras), espera honesta del motor (Achí ya sale con motor real). vitest 191/191, build ✅. Detalle: `estado/vuelo5.md`. **→ integrador5**: mergear feat/vuelo (solo `features/sandbox/**`). **→ motor5**: con `desde/hasta` el timeline trae `eventos: null` (lo saneo; mejor `[]`). Yo solo mando `desde/hasta` si el rango cae fuera de la temporada.
 - **14-nov 23:20 · escena5 · LISTO `a949ed7` (feat/escena3d)** · API publicada arriba (22:30) sin cambios. Probado: 5 filtros (verdor = NDVI Sentinel-2 real del 27-oct-2026 en Jocotán, 100 % sin nubes; temperatura con LST MODIS de referencia), siembra (surcos → semilla → brote), dobla, corte con rastrojo y montones de mazorcas, marcadores 🌱/🌽/⭐ con "si sembrás el X, cosechás el Y", `setRango` (setDay queda en [i0, i1]). 55–60 fps en alta, también reproduciendo ×10 con filtro. vitest 193 ✅, build ✅, e2e 20/20 ✅. Capturas `estado/muestras/escena5/hoja-escena5.jpg`. **→ vuelo5**: UI de filtros/leyenda: copiá la de `escena/Preview.vue` (botones + `.leyenda`); en el evento `marcador` podés pausar ~3 s para que se vea la animación. **→ integrador5**: sin dependencias nuevas (el lector de GeoTIFF es propio); llamadas externas desde el navegador: `earth-search.aws.element84.com`, `sentinel-cogs.s3.us-west-2.amazonaws.com`, `gibs.earthdata.nasa.gov` (si hay CSP, permitirlas).
+
+### sensor · estación de campo ESP32 (feat/sensor, `internal/sensores`) — 14-nov 23:05
+Agente extra de la ronda 5. Guía: `docs/sensor.md`; hardware en `hardware/` (diagrama, OpenSCAD/STL/3MF, firmware PlatformIO, simulador).
+- **API** (mismo origen):
+  - `POST /api/sensores` `{parcela_id, nombre?, placa?, mm_golpe?, calib10?, calib30?}` → 201 `{dispositivo, token, ingesta}` (token una sola vez; se guarda el hash).
+  - `GET /api/sensores?parcela=ID` → `{dispositivos[], estado?, serie?}` · `GET /api/sensores/{id}/estado` · `GET /api/sensores/{id}/serie?horas=72` · `PATCH|DELETE /api/sensores/{id}`.
+  - `POST /api/sensores/{id}/lecturas` (equipo, `Authorization: Bearer fsd_…`) → 202 `{guardadas, golpes, descartadas, intervalo_s, mm_golpe, estado}` · 401 token malo.
+  - `GET /api/sensores/demo?escenario=lluvia|secado` → `{estado, serie, simulado:true, nota}` (público, **simulado**, en memoria).
+- **Estado** (`sensores.Estado`, JSON snake_case): `agua_pct` (zona de raíces, % del agua disponible), `fad` (0..1+), `umbral_pct` (1 − p FAO-56), `taw_mm`, `dr_mm`, `h10`/`h30` `{prof_cm, indice, theta, agua_pct, exceso}`, `lluvia_hoy_mm`, `lluvia_hora[24]`, `lluvia_24h_mm`, `ultima_lluvia {inicio, fin, mm, max_mm_h, hora, fecha}`, `pron_hoy_mm`, `t_suelo`, `t_aire`, `hr`, `bat_v`, `bat_pct`, `fresco` (< 3 h), `edad_min`, `calibracion: medida|supuesta`, `simulado`, `fuentes[]`, `eventos[] {tipo: lluvia|lluvia_sorpresa|regar|no_regar|exceso|bateria|sin_datos, nivel: ok|ojo|mala, fecha, texto, texto_en, accion?, accion_en?, mm?, litros?, fuente?}`.
+- **→ campo (asimilación)**: `app.sensores *sensores.Servicio` en `cmd/server`. En `Servicio.calcular`, el día de hoy:
+  ```go
+  if e, err := sens.UltimoEstado(p.ID); err == nil && e.Fresco && !e.Simulado {
+      dr = e.DrParaTAW(pp.taw)            // reemplaza el Dr del modelo por el observado
+      // lluvia de hoy medida: e.LluviaHoyMM (reemplaza la del modelo como un reporte de lluvia)
+  }
+  ```
+  y sumar `e.Eventos` a los avisos (`nivel`, `texto`/`texto_en`, `fuente`). Comparativa esperado vs observado: `agua_pct` del sensor vs `agua_suelo_pct` del modelo. Sugerencia de interfaz para no importar el paquete: `type Observador interface{ UltimoEstado(id string) (*sensores.Estado, error) }`.
+- **→ dashboard**: `web/src/features/sensores/TarjetaSensor.vue` (props `parcelaId?`, `demo?`, `escenario?: 'lluvia'|'secado'`). Montala en `/terreno/:id` con `:parcela-id="id"`; con `demo` muestra la estación simulada (chip "Simulado") si el terreno no tiene una. Usa `GET /api/parcelas/{id}/hoy` (campo) para "observado vs modelo".
+- **→ chatbot**: para "¿llovió hoy?", "¿riego?": `GET /api/sensores?parcela=ID` (o `sens.UltimoEstado(id)` en el mismo proceso) → `estado.lluvia_hoy_mm`, `ultima_lluvia.hora`, `eventos[].texto` (fuente: "Estación FieldShift"). Si `simulado:true`, decirlo.
+- **→ integrador (cuentas)**: hoy `cmd/server/sensores.go` usa `sensores.ParcelasAbiertas{}` (stub: toda parcela existe, Jocotán por defecto) y rutas sin envoltorio. Con cuentas, reemplazar por:
+  ```go
+  type parcelasCuentas struct{ c *cuentas.Servicio }
+  func (a parcelasCuentas) DeRequest(r *http.Request, id string) (sensores.Parcela, bool) {
+      u, ok := a.c.UsuarioDeRequest(r); if !ok { return sensores.Parcela{}, false }
+      p, err := a.c.Parcela(u.ID, id); if err != nil { return sensores.Parcela{}, false }
+      return sensores.Parcela{ID: p.ID, Nombre: p.Nombre, Lat: p.Lat, Lon: p.Lon, AreaM2: p.AreaM2, Cultivo: p.Cultivo, Riego: p.Riego}, true
+  }
+  func (a parcelasCuentas) PorID(ctx context.Context, id string) (sensores.Parcela, bool) { /* lectura sin dueño (la ingesta ya se autorizó con el token) */ }
+  ```
+  y `sensores.Routes(mux, s, a.cuentas.Requiere)` (cookie + CSRF en las rutas de usuario; la ingesta y la demo quedan fuera). **Pedido a cuentas**: un `ParcelaPorID(id) (Parcela, error)` sin usuario para `PorID` (si no, la ingesta usa la parcela guardada al dar de alta, que ya trae lat/lon/área).
+- DB: `SENSORES_DB` (por defecto `sensores.db` junto a `DB_PATH`).
