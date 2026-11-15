@@ -56,6 +56,8 @@ type Usuario struct {
 	Nombre   string `json:"nombre"`
 	Idioma   string `json:"idioma"`
 	Creado   string `json:"creado"`
+	// Curriculo cnb | general (axioma 16: «Alineado al CNB de Guatemala», marcado por defecto)
+	Curriculo string `json:"curriculo"`
 }
 
 // Errores que la API traduce a códigos HTTP.

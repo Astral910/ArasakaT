@@ -16,6 +16,8 @@ export const origen = ref<OrigenCuenta>('api')
 let revisada = false
 /** X-CSRF-Token de la sesión (cuentas lo pide en toda escritura; viene en login/registro/yo) */
 let csrf = ''
+/** para otras llamadas del dashboard (campo: POST …/reportes) */
+export const csrfActual = () => csrf
 
 class ErrorApi extends Error {
   constructor(public estado: number, msg: string) { super(msg) }

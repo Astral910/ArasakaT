@@ -3,7 +3,7 @@
 // (lluvia, temperatura y ET0 FAO; 14 días atrás + 7 adelante) y los reportes del agricultor guardados en el navegador.
 // Todo lo del stub sale marcado como estimado (origen = 'estimado'); sin red ni Open-Meteo, 'ejemplo'.
 import type { Parcela } from '../cuenta/tipos'
-import { areaM2 } from '../cuenta/api'
+import { areaM2, csrfActual } from '../cuenta/api'
 
 export type Nivel = 'ok' | 'ojo' | 'mala'
 export type Riesgo = 'bajo' | 'medio' | 'alto'
@@ -85,15 +85,25 @@ async function pedir(ruta: string, init?: RequestInit): Promise<C> {
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), 6000)
   try {
-    const r = await fetch(BASE + ruta, { ...init, credentials: 'include', signal: ctl.signal, headers: { 'Content-Type': 'application/json' } })
+    const h: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (init?.method && init.method !== 'GET' && csrfActual()) h['X-CSRF-Token'] = csrfActual()
+    const r = await fetch(BASE + ruta, { ...init, credentials: 'include', signal: ctl.signal, headers: h })
     if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) throw new Error(`${r.status}`)
     return (await r.json()) as C
   } finally { clearTimeout(t) }
 }
 
+/** integrador5: la parcela también por parámetros; campo los usa si el terreno no es de la cuenta del servidor
+ * (cuenta local del navegador), así el "hoy" sale del motor real y no del estimado */
+function paramsCampo(p: Parcela, idioma: 'es' | 'en'): string {
+  const q = new URLSearchParams({ lat: String(p.lat), lon: String(p.lon), cultivo: p.cultivo, area: String(p.area), unidad: p.unidad, riego: String(p.riego ?? 0), idioma })
+  if (p.siembra) q.set('siembra', p.siembra)
+  return q.toString()
+}
+
 export async function cargarHoy(p: Parcela, idioma: 'es' | 'en' = 'es'): Promise<Hoy> {
   try {
-    const c = await pedir(`/api/parcelas/${encodeURIComponent(p.id)}/hoy`)
+    const c = await pedir(`/api/parcelas/${encodeURIComponent(p.id)}/hoy?${paramsCampo(p, idioma)}`)
     return normalizarHoy((c.hoy as C) ?? c, p)
   } catch { /* stub */ }
   return hoyEstimado(p, leerReportes(p.id), await climaOpenMeteo(p.lat, p.lon), idioma)
@@ -101,7 +111,7 @@ export async function cargarHoy(p: Parcela, idioma: 'es' | 'en' = 'es'): Promise
 
 export async function enviarReporte(p: Parcela, r: Reporte, idioma: 'es' | 'en' = 'es'): Promise<Hoy> {
   try {
-    const c = await pedir(`/api/parcelas/${encodeURIComponent(p.id)}/reportes`, { method: 'POST', body: JSON.stringify(r) })
+    const c = await pedir(`/api/parcelas/${encodeURIComponent(p.id)}/reportes?${paramsCampo(p, idioma)}`, { method: 'POST', body: JSON.stringify(r) })
     const h = (c.hoy as C) ?? c
     if (h && (h.riego !== undefined || h.fecha)) return normalizarHoy(h, p)
     return cargarHoy(p, idioma)

@@ -75,6 +75,7 @@ type Alta struct {
 	Contrasena string `json:"contrasena"`
 	Nombre     string `json:"nombre"`
 	Idioma     string `json:"idioma"`
+	Curriculo  string `json:"curriculo"` // cnb (por defecto) | general
 }
 
 func validarContrasena(p string) error {
@@ -123,7 +124,11 @@ func (s *Servicio) Registrar(a Alta) (Usuario, error) {
 	if a.Idioma == "en" {
 		idioma = "en"
 	}
-	u := Usuario{ID: nuevoID("u_"), Correo: correo, Telefono: tel, Nombre: limpiarTexto(a.Nombre, 80), Idioma: idioma, Creado: s.ts()}
+	curriculo := "cnb"
+	if a.Curriculo == "general" {
+		curriculo = "general"
+	}
+	u := Usuario{ID: nuevoID("u_"), Correo: correo, Telefono: tel, Nombre: limpiarTexto(a.Nombre, 80), Idioma: idioma, Curriculo: curriculo, Creado: s.ts()}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var n int
@@ -132,8 +137,8 @@ func (s *Servicio) Registrar(a Alta) (Usuario, error) {
 	if n > 0 {
 		return Usuario{}, ErrDuplicado
 	}
-	_, err = s.db.Exec(`INSERT INTO usuarios(id, correo, telefono, nombre, idioma, hash, creado, actualizado) VALUES(?,?,?,?,?,?,?,?)`,
-		u.ID, nulo(correo), nulo(tel), u.Nombre, idioma, string(h), u.Creado, u.Creado)
+	_, err = s.db.Exec(`INSERT INTO usuarios(id, correo, telefono, nombre, idioma, curriculo, hash, creado, actualizado) VALUES(?,?,?,?,?,?,?,?,?)`,
+		u.ID, nulo(correo), nulo(tel), u.Nombre, idioma, curriculo, string(h), u.Creado, u.Creado)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return Usuario{}, ErrDuplicado
@@ -143,11 +148,11 @@ func (s *Servicio) Registrar(a Alta) (Usuario, error) {
 	return u, nil
 }
 
-const colsUsuario = `id, COALESCE(correo,''), COALESCE(telefono,''), COALESCE(whatsapp,''), nombre, idioma, creado`
+const colsUsuario = `id, COALESCE(correo,''), COALESCE(telefono,''), COALESCE(whatsapp,''), nombre, idioma, creado, curriculo`
 
 func scanUsuario(r interface{ Scan(...any) error }) (Usuario, error) {
 	var u Usuario
-	err := r.Scan(&u.ID, &u.Correo, &u.Telefono, &u.WhatsApp, &u.Nombre, &u.Idioma, &u.Creado)
+	err := r.Scan(&u.ID, &u.Correo, &u.Telefono, &u.WhatsApp, &u.Nombre, &u.Idioma, &u.Creado, &u.Curriculo)
 	if errors.Is(err, sql.ErrNoRows) {
 		return u, ErrNoEncontrado
 	}
@@ -167,7 +172,7 @@ func (s *Servicio) buscar(ident string) (Usuario, string, error) {
 	var u Usuario
 	var h string
 	err := s.db.QueryRow(`SELECT `+colsUsuario+`, hash FROM usuarios WHERE `+q+` LIMIT 1`, arg).
-		Scan(&u.ID, &u.Correo, &u.Telefono, &u.WhatsApp, &u.Nombre, &u.Idioma, &u.Creado, &h)
+		Scan(&u.ID, &u.Correo, &u.Telefono, &u.WhatsApp, &u.Nombre, &u.Idioma, &u.Creado, &u.Curriculo, &h)
 	if errors.Is(err, sql.ErrNoRows) {
 		return u, "", ErrNoEncontrado
 	}

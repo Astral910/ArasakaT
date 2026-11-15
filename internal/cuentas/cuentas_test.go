@@ -411,3 +411,23 @@ func TestPolilinea(t *testing.T) {
 		t.Fatal(Enmascarar("+50255551234"))
 	}
 }
+
+// integrador5: la web manda curriculo (cnb por defecto); general se guarda tal cual.
+func TestRegistroCurriculo(t *testing.T) {
+	s, err := Abrir(Config{DBPath: ":memory:"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	a, err := s.Registrar(Alta{Correo: "a@x.org", Contrasena: "contrasena-larga"})
+	if err != nil || a.Curriculo != "cnb" {
+		t.Fatalf("por defecto %q %v", a.Curriculo, err)
+	}
+	b, err := s.Registrar(Alta{Correo: "b@x.org", Contrasena: "contrasena-larga", Curriculo: "general"})
+	if err != nil || b.Curriculo != "general" {
+		t.Fatalf("general %q %v", b.Curriculo, err)
+	}
+	if u, _ := s.UsuarioPorID(b.ID); u.Curriculo != "general" {
+		t.Fatalf("leído %q", u.Curriculo)
+	}
+}

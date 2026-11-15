@@ -13,6 +13,7 @@ import CicloCosecha from './CicloCosecha.vue'
 import EsperadoVivido from './EsperadoVivido.vue'
 import ReporteDia from './ReporteDia.vue'
 import ChatStub from './ChatStub.vue'
+import TarjetaSensor from '../sensores/TarjetaSensor.vue'
 import { diaSemana, fecha, fmt, tx } from './textos'
 
 // chat del agente chatbot si ya está en el repo; si no, el stub con la misma interfaz
@@ -211,7 +212,12 @@ const agendaPorDia = computed(() => {
           <article class="card o7">
             <h2>{{ tx('chat') }}</h2>
             <p class="muted sub">{{ tx('chatSub') }}</p>
-            <component :is="Chat" :parcela-id="p.id" :contexto="contexto" @accion="accion" />
+            <component :is="Chat" :parcela-id="p.id" :contexto="contexto" :flotante="false" @accion="accion" />
+          </article>
+
+          <!-- ESTACIÓN DE CAMPO (sensor; integrador5). Sin estación propia muestra la simulada y lo dice. -->
+          <article class="card o8" data-test="sensor">
+            <TarjetaSensor :parcela-id="p.id" demo />
           </article>
 
           <article class="card mapa o8">

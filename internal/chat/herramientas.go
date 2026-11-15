@@ -585,6 +585,7 @@ func (h *Herramientas) registrar(ctx context.Context, t *Turno, args map[string]
 	if parcela != "" && h.Campo != nil {
 		hoyNuevo, err := h.Campo.Reportar(ctx, t.Usuario, parcela, r)
 		if err == nil {
+			params["registrado"] = true // integrador5: el dashboard solo refresca (no lo vuelve a mandar)
 			out["guardado_en"] = "terreno " + parcela
 			out["hoy"] = hoyNuevo
 			t.Fuente(fuentesDe(hoyNuevo)...)

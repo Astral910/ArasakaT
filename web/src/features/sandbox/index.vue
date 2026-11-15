@@ -738,7 +738,7 @@ onBeforeUnmount(() => roPie?.disconnect())
     <Transition name="sube-chat">
       <aside v-if="chatAbierto && fase === 'sandbox'" id="panel-chat" class="panel-chat" role="dialog" :aria-label="t('chat')">
         <header><MessageCircle :size="15" /><b>{{ t('chat') }}</b><button type="button" class="x" :aria-label="t('cerrar')" @click="chatAbierto = false"><X :size="16" /></button></header>
-        <component :is="ChatFS" :parcela-id="ruta.parcelaId" :contexto="contextoChat" class="chat-cuerpo" @accion="alAccion" />
+        <component :is="ChatFS" :parcela-id="ruta.parcelaId" :contexto="contextoChat" :flotante="false" class="chat-cuerpo" @accion="alAccion" />
       </aside>
     </Transition>
     <!-- franjas discretas bajo la barra superior: rango del chat/ruta, fecha no recomendada, ejemplo sin red -->
