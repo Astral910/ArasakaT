@@ -1,6 +1,7 @@
 // Carga del informe: todo sale del motor (POST /api/plan, POST /api/simulate escenario "pronostico") y de las
 // alertas (GET /api/alerts/timeline). Si la API no responde, el plan cae al estático del motor y se dice.
 import { fetchPlan, pub } from '@/api/client'
+import { lang } from '@/i18n'
 import type { PlanRequest } from '@/api/types'
 import { decodificarPolilinea } from './geometria'
 import type { Confianza, ConsultaInf, DatosInforme, PlanInf, SimInf, TimelineAlertas, OrigenInf } from './tipos'
@@ -43,7 +44,8 @@ export function consultaDesdeQuery(q: Record<string, unknown>): ConsultaInf {
     unidad: (UNIDADES.includes(unidad) ? unidad : 'manzana') as ConsultaInf['unidad'],
     riego: nivelRiego(riego),
     prioridad: (PRIORIDADES.includes(prioridad) ? prioridad : 'comida') as ConsultaInf['prioridad'],
-    idioma: idioma === 'en' ? 'en' : 'es',
+    // sin idioma en la URL: el de la web (inglés por defecto), no español fijo
+    idioma: idioma === 'en' || idioma === 'es' ? idioma : lang.value,
     print: q.print === '1',
     ...geometriaDesdeQuery(q),
   }

@@ -24,7 +24,7 @@ import { cargarInforme, consultaDesdeQuery, queryDe, NIVELES_RIEGO } from './dat
 import { decodificarPolilinea } from './geometria'
 import { recomendarProductos } from './productos'
 import { DATOS, COLOR, RAYA } from './fuente'
-import { tx, fecha, fechaISO, mesCorto, elegir, NOMBRE_CULTIVO, NOMBRE_UNIDAD, NOMBRE_PRIORIDAD, ENSO_ESTADO, NIVEL } from './textos'
+import { tx, fecha, fechaISO, mesCorto, elegir, NOMBRE_CULTIVO, NOMBRE_UNIDAD, HA_POR_UNIDAD, NOMBRE_PRIORIDAD, ENSO_ESTADO, NIVEL } from './textos'
 import type { Tabla } from './exportar'
 import type { DatosInforme, Confianza, AlertaTL } from './tipos'
 
@@ -113,7 +113,10 @@ const areaTxt = computed(() => {
   const c = consulta.value
   const u = NOMBRE_UNIDAD[c.unidad]
   const plural = c.area !== 1
-  return `${c.area} ${u[(lang.value === 'en' ? 2 : 0) + (plural ? 1 : 0)]}`
+  const base = `${c.area} ${u[(lang.value === 'en' ? 2 : 0) + (plural ? 1 : 0)]}`
+  // en inglés las unidades locales se explican en hectáreas
+  const ha = HA_POR_UNIDAD[c.unidad]
+  return lang.value === 'en' && ha && c.unidad !== 'ha' ? `${base} (≈ ${+(c.area * ha).toFixed(2)} ha)` : base
 })
 const riegoTxt = computed(() => (consulta.value.riego === 0 ? tx('riegoNada') : `${consulta.value.riego} ${tx('mmSem')}`))
 const generado = computed(() => {

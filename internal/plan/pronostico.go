@@ -3,6 +3,7 @@ package plan
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -469,6 +470,7 @@ type confArgs struct {
 	nf      int
 	fecha   string
 	horizon string
+	idioma  string
 }
 
 // buildConfianza números de confianza: clase de lo mostrado, cuántos años base fueron parecidos,
@@ -624,7 +626,58 @@ func buildConfianza(env SimEnv, s *sim.Site, def sim.StratDef, cfg sim.Config, c
 		c.Fuentes = append(c.Fuentes, env.CMIPFuente)
 	}
 	c.Texto, c.TextoEN = confTexto(c, ca)
+	if ca.idioma == "en" {
+		c.Habilidad = HabilidadEN(c.Habilidad)
+		c.Regla = reglaEN
+		c.ONIFuente = FuenteEN(c.ONIFuente)
+		for i, f := range c.Fuentes {
+			c.Fuentes[i] = FuenteEN(f)
+		}
+	}
 	return c
+}
+
+const reglaEN = "Points: scenario probability ≥ 60% → 2 (≥ 40% → 1); local validation detecting ≥ 60% of documented droughts → 1; " +
+	"season built from the forecast (or observed weather) → 1; narrow harvest range ((P90−P10)/P50 ≤ 0.5) → 1. " +
+	"high ≥ 4, medium 2–3, low ≤ 1. Observed weather = high; CMIP6 2040 scenarios at most medium; never above the level measured in the place's 2001–2025 hindcast (static/validacion/habilidad.json)."
+
+// trHab pares ES→EN de las frases fijas con que se arma la habilidad (validacion.Resumen.Corto, habilidad(), hindcastDe).
+var trHab = []struct {
+	re *regexp.Regexp
+	en string
+}{
+	{regexp.MustCompile(`acertó la temporada en el (\d+) % de (\d+) casos \(33 % al azar\)`), "got the season right in $1% of $2 cases (33% by chance)"},
+	{regexp.MustCompile(`acertó la temporada en (\d+) de (\d+) años \((\d+) % vs 33 % al azar\)`), "got the season right in $1 of $2 years ($3% vs 33% by chance)"},
+	{regexp.MustCompile(`pérdida: Brier`), "loss: Brier"},
+	{regexp.MustCompile(`detectó (\d+) de (\d+) sequías documentadas`), "detected $1 of $2 documented droughts"},
+	{regexp.MustCompile(`Brier IA ([\d.]+) vs estadística ([\d.]+)`), "Brier AI $1 vs statistics $2"},
+	{regexp.MustCompile(`sin validación local, solo series NASA \(fuera de Guatemala no hay registro de sequías documentadas para comparar\)`), "no local validation, NASA series only (outside Guatemala there is no record of documented droughts to compare)"},
+	{regexp.MustCompile(`sin validación local, solo series NASA`), "no local validation, NASA series only"},
+	{regexp.MustCompile(`sin validación local · método en 10 puntos del mundo:`), "no local validation · method tested at 10 points worldwide:"},
+}
+
+// HabilidadEN traduce el texto de validación (se guarda en español en caché y en habilidad.json).
+func HabilidadEN(s string) string {
+	for _, r := range trHab {
+		s = r.re.ReplaceAllString(s, r.en)
+	}
+	return s
+}
+
+var trFuente = map[string]string{
+	global.SrcForecast: "Open-Meteo Forecast API (best available model: ECMWF IFS / NOAA GFS), 16-day daily forecast",
+	global.SrcSeasonal: "Open-Meteo Seasonal API (ECMWF SEAS5, 51 members): monthly rain and temperature anomaly, 6 months",
+	global.SrcNino34:   "ECMWF SEAS5 via Open-Meteo: sea-surface temperature anomaly in Niño 3.4 (12 points 5°S–5°N, 170°–120°W), anchored to the latest NOAA CPC ONI",
+	"NASA POWER diario 2001–2025 (community AG)":            "NASA POWER daily 2001–2025 (AG community)",
+	"Motor FAO-56 (balance de agua) + FAO-33 (rendimiento)": "FAO-56 engine (water balance) + FAO-33 (yield)",
+}
+
+// FuenteEN traduce una cita de fuente fija; las que no conoce quedan igual (nombres propios).
+func FuenteEN(s string) string {
+	if en, ok := trFuente[s]; ok {
+		return en
+	}
+	return strings.NewReplacer(" y ", " and ", " vía ", " via ", "cambios mensuales", "monthly changes", "modelos", "models").Replace(s)
 }
 
 func pct0(x float64) int { return int(math.Round(x * 100)) }
@@ -767,6 +820,7 @@ func simulatePron(env SimEnv, r contract.SimRequest, req contract.PlanRequest, s
 	if an.Metodo == "remuestreo-enso" {
 		ca.nf = 0
 	}
+	ca.idioma = req.Idioma
 	tl.Confianza = buildConfianza(env, s, def, cfg, req.Cultivo, ca)
 	L := lang(req.Idioma)
 	tl.Notas = []string{

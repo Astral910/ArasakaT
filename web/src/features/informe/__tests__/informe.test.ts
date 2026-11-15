@@ -10,6 +10,7 @@ import { consultaDesdeQuery, queryDe, nivelRiego, normalizarConfianza, planReque
 import { codificarPolilinea, decodificarPolilinea, areaPoligonoM2 } from '../geometria'
 import { aCSV } from '../exportar'
 import type { DatosInforme } from '../tipos'
+import { lang } from '@/i18n'
 import { setLang } from '@/i18n'
 
 const ref = JSON.parse(JSON.stringify(motor)) // copia independiente para comparar
@@ -47,7 +48,8 @@ async function montar(query: string) {
 describe('informe: consulta', () => {
   it('lee los parámetros de /sandbox con sus valores por defecto', () => {
     const c = consultaDesdeQuery({})
-    expect(c).toMatchObject({ municipio_id: 'jocotan-chiquimula', cultivo: 'milpa', area: 1, unidad: 'manzana', riego: 0, idioma: 'es' })
+    // sin idioma: el de la web (inglés por defecto)
+    expect(c).toMatchObject({ municipio_id: 'jocotan-chiquimula', cultivo: 'milpa', area: 1, unidad: 'manzana', riego: 0, idioma: lang.value })
     const d = consultaDesdeQuery({ lat: '14.79', lon: '-89.39', cultivo: 'maiz', area: '2', unidad: 'cuerda', riego: '18', idioma: 'en', print: '1' })
     expect(d).toMatchObject({ lat: 14.79, lon: -89.39, municipio_id: undefined, cultivo: 'maiz', area: 2, unidad: 'cuerda', riego: 20, idioma: 'en', print: true })
     expect(queryDe(d)).toMatchObject({ lat: '14.7900', lon: '-89.3900', riego: '20', idioma: 'en' })
