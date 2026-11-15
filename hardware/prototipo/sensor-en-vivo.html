@@ -220,6 +220,8 @@ $('btnGuardarWifi').onclick = async () => {
 $('btnSeco').onclick = () => { enviar('seco'); evento(`<b>${hora(Date.now())}</b> · Calibrado: seco`) }
 $('btnMojado').onclick = () => { enviar('mojado'); evento(`<b>${hora(Date.now())}</b> · Calibrado: mojado`) }
 addEventListener('resize', dibujar)
+// ?ip=192.168.4.1 → conecta por WiFi solo
+{ const ip = new URLSearchParams(location.search).get('ip'); if (ip) { $('dir').value = ip; $('btnWifi').click() } }
 </script>
 </body>
 </html>
