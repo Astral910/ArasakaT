@@ -18,6 +18,7 @@ async function elegir(page: Page, texto: string, quiere: RegExp) {
 async function cuentasFalsas(page: Page) {
   const st = { usuario: null as null | Record<string, unknown>, parcelas: [] as Record<string, unknown>[], csrfVisto: '' }
   const json = (r: Route, status: number, body: unknown) => r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  await page.route('**/api/auth/sesion', (r) => json(r, 200, st.usuario ? { usuario: st.usuario, csrf: 'tok-1' } : { usuario: null }))
   await page.route('**/api/auth/yo', (r) => (st.usuario ? json(r, 200, { usuario: st.usuario, csrf: 'tok-1' }) : json(r, 401, { error: 'sin sesión' })))
   await page.route('**/api/auth/registro', (r) => {
     const b = r.request().postDataJSON()
