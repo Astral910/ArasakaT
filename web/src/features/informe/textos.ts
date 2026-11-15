@@ -126,7 +126,7 @@ const ES = {
   bioma: 'Bioma', lluviaAnual: 'de lluvia al año', tmedia: 'temperatura media', mesesSecos: 'meses secos', temporadas: 'Temporadas de lluvia',
   bioma_tropical_humedo: 'tropical húmedo', 'bioma_tropical-humedo': 'tropical húmedo', 'bioma_corredor-seco': 'corredor seco', bioma_altiplano: 'altiplano', bioma_templado: 'templado', bioma_arido: 'árido', bioma_sabana: 'sabana',
   m_analogos: 'Análogos', m_analogosTxt: 'Escenario "pronóstico" (temporada que viene): los primeros días salen del pronóstico de 16 días (Open-Meteo: ECMWF/GFS) y el resto de la temporada se arma con años reales 2001–2025 elegidos por parecido al pronóstico estacional (Open-Meteo Seasonal / ECMWF SEAS5) y al ONI pronosticado. "Años parecidos" = de los años base, cuántos tuvieron un resultado de la misma clase que el mostrado.',
-  m_clima: 'Clima', m_agua: 'Agua · FAO-56', m_rendimiento: 'Rendimiento · FAO-33', m_calendario: 'Calendario', m_montecarlo: 'Monte Carlo', m_suelo: 'Suelo · RUSLE', m_2040: '2040 · CMIP6', m_ia: 'IA vs estadística', m_validacion: 'Validación', m_riego: 'Riego', m_sandbox: 'Sandbox 3D', m_limites: 'Límites',
+  m_clima: 'Clima', m_agua: 'Agua · FAO-56', m_rendimiento: 'Rendimiento · FAO-33', m_calendario: 'Calendario', m_montecarlo: 'Monte Carlo', m_suelo: 'Suelo · RUSLE', m_2040: '2040 · CMIP6', m_ia: 'IA vs estadística', m_validacion: 'Validación', m_riego: 'Riego', m_sandbox: 'Sandbox 3D', m_limites: 'Límites', m_pronostico: 'Pronóstico', m_confianza: 'Confianza', m_global: 'Fuera de Guatemala',
   fueraGT: 'Lugar fuera de Guatemala: el motor bajó NASA POWER para este punto; la validación con sequías documentadas es de Guatemala y aquí no aplica.',
   // ---- ronda 4: informe breve ----
   exportar: "Exportar gráfica",
@@ -341,7 +341,7 @@ const EN: Record<Clave, string> = {
   bioma: 'Biome', lluviaAnual: 'rain per year', tmedia: 'mean temperature', mesesSecos: 'dry months', temporadas: 'Rainy seasons',
   bioma_tropical_humedo: 'humid tropical', 'bioma_tropical-humedo': 'humid tropical', 'bioma_corredor-seco': 'dry corridor', bioma_altiplano: 'highlands', bioma_templado: 'temperate', bioma_arido: 'arid', bioma_sabana: 'savanna',
   m_analogos: 'Analogs', m_analogosTxt: '"Forecast" scenario (coming season): the first days come from the 16-day forecast (Open-Meteo: ECMWF/GFS) and the rest of the season is built from real 2001–2025 years chosen by similarity to the seasonal forecast (Open-Meteo Seasonal / ECMWF SEAS5) and the forecast ONI. "Similar years" = out of the base years, how many had an outcome of the same class as the one shown.',
-  m_clima: 'Climate', m_agua: 'Water · FAO-56', m_rendimiento: 'Yield · FAO-33', m_calendario: 'Calendar', m_montecarlo: 'Monte Carlo', m_suelo: 'Soil · RUSLE', m_2040: '2040 · CMIP6', m_ia: 'AI vs statistics', m_validacion: 'Validation', m_riego: 'Irrigation', m_sandbox: '3D sandbox', m_limites: 'Limits',
+  m_clima: 'Climate', m_agua: 'Water · FAO-56', m_rendimiento: 'Yield · FAO-33', m_calendario: 'Calendar', m_montecarlo: 'Monte Carlo', m_suelo: 'Soil · RUSLE', m_2040: '2040 · CMIP6', m_ia: 'AI vs statistics', m_validacion: 'Validation', m_riego: 'Irrigation', m_sandbox: '3D sandbox', m_limites: 'Limits', m_pronostico: 'Forecast', m_confianza: 'Confidence', m_global: 'Outside Guatemala',
   fueraGT: 'Place outside Guatemala: the engine downloaded NASA POWER for this point; validation against documented droughts is for Guatemala and does not apply here.',
   exportar: "Export chart",
   bajarPng: "Download PNG image",
@@ -423,7 +423,7 @@ const EN: Record<Clave, string> = {
   fuentesProductos: "Sources for the product recommendations",
   fp1: "ICTA (Agricultural Science and Technology Institute, Guatemala): public varieties ICTA B-7, ICTA HB-83 and ICTA Ligero beans.",
   fp2: "FAO, Irrigation Water Management: Irrigation Water Needs (Brouwer & Heibloem, 1986): application efficiency ~60 % surface, ~90 % drip.",
-  fp3: "1 manzana ≈ 6,987 m² (10,000 square varas). Prices: none with a verified source, so none are shown.",
+  fp3: "Local units: 1 manzana (mz) ≈ 0.7 ha (6,987 m²); 1 cuerda ≈ 0.04 ha (437 m²); qq = quintal (46 kg). Prices: none with a verified source, so none are shown.",
   litros: "{n} liters",
   m3: "{n} m³",
   cierre: "This report supports, and does not replace, the extension agent.",
@@ -459,6 +459,8 @@ export const NOMBRE_CULTIVO: Record<string, [string, string]> = {
 export const NOMBRE_UNIDAD: Record<string, [string, string, string, string]> = {
   cuerda: ['cuerda', 'cuerdas', 'cuerda', 'cuerdas'], manzana: ['manzana', 'manzanas', 'manzana', 'manzanas'], ha: ['ha', 'ha', 'ha', 'ha'],
 }
+/** hectáreas por unidad local (manzana 10 000 varas², cuerda 25 × 25 varas) */
+export const HA_POR_UNIDAD: Record<string, number> = { manzana: 0.6987, cuerda: 0.0437, ha: 1 }
 export const NOMBRE_PRIORIDAD: Record<string, [string, string]> = {
   comida: ['comida', 'food'], agua: ['agua', 'water'], suelo: ['suelo', 'soil'], ingreso: ['ingreso', 'income'],
 }
