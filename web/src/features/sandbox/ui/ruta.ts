@@ -2,6 +2,7 @@
 //   /sandbox?lat=14.79&lon=-89.39&lugar=Jocotán&pais=GT&cultivo=milpa&area=2&unidad=manzana&riego=0&auto=1
 import { api } from '@/api/client'
 import type { Municipio } from '@/api/types'
+import { leerParcela, areaM2, type Parcela } from './parcela'
 import { RIEGO, type Ajustes, type Escenario, type Estrategia, type NivelRiego, type Percentil } from './tipos'
 
 export interface Ruta {
@@ -17,6 +18,8 @@ export interface Ruta {
   intro: boolean
   rec: boolean
   idioma?: 'es' | 'en'
+  /** terreno exacto (forma/radio/poly); lat/lon pasan a ser su centro */
+  parcela: Parcela | null
 }
 
 const num = (s?: string) => (s != null && s !== '' && isFinite(Number(s)) ? Number(s) : undefined)
@@ -38,8 +41,13 @@ export function leerRuta(query: Record<string, unknown>): Ruta {
   const esc = q.esc ?? q.escenario
   const p = q.p ?? q.percentil
   const unidad = q.unidad ?? q.area_unidad
+  const parcela = leerParcela(q, num(q.lat), num(q.lon))
+  // sin `area` en la URL, el área sale de la geometría (contrato ronda 4)
+  const aGeo = parcela ? areaM2(parcela) : null
+  const uni = (['cuerda', 'manzana', 'ha'].includes(unidad ?? '') ? unidad : 'manzana') as Ajustes['area_unidad']
+  const areaGeo = aGeo != null && aGeo > 0 ? Math.round((aGeo / { cuerda: 436.7, manzana: 6987, ha: 10000 }[uni]) * 100) / 100 : undefined
   return {
-    lat: num(q.lat), lon: num(q.lon),
+    lat: parcela?.centro[0] ?? num(q.lat), lon: parcela?.centro[1] ?? num(q.lon), parcela,
     lugar: q.lugar || undefined, pais: q.pais?.toUpperCase() || undefined,
     municipio_id: q.m ?? q.municipio_id,
     ajustes: {
@@ -50,8 +58,8 @@ export function leerRuta(query: Record<string, unknown>): Ruta {
       anios: Math.max(2, Math.min(10, num(q.anios) ?? 5)),
       comparar: q.comparar === '1',
       cultivo: (CULT.includes(q.cultivo ?? '') ? q.cultivo : 'milpa') as Ajustes['cultivo'],
-      area_valor: Math.max(0.05, num(q.area ?? q.area_valor) ?? 1),
-      area_unidad: (['cuerda', 'manzana', 'ha'].includes(unidad ?? '') ? unidad : 'manzana') as Ajustes['area_unidad'],
+      area_valor: Math.max(0.05, num(q.area ?? q.area_valor) ?? areaGeo ?? 1),
+      area_unidad: uni,
     },
     estrategiaFija: ['S0', 'S1', 'S2'].includes(s ?? ''),
     auto: q.auto === '1',
