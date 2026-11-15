@@ -1153,7 +1153,7 @@
       "uso": "cambios mensuales de lluvia y temperatura a 2040"
     }
   ],
-  "generado": "2026-11-14T22:19:35Z",
+  "generado": "2026-11-15T04:41:56Z",
   "siembra_aqui": "05-14",
   "periodos": [
     {
@@ -1348,15 +1348,15 @@
     ],
     "anios_base": 24,
     "anios_parecidos": 8,
-    "prob_escenario": 0.47,
+    "prob_escenario": 0.4,
     "prob_perdida": 0.08,
-    "cosecha_p10": 29.7,
-    "cosecha_p50": 33.2,
-    "cosecha_p90": 44.7,
-    "habilidad": "detectó 5 de 8 sequías documentadas · Brier IA 0.154 vs estadística 0.161",
-    "nivel": "alta",
-    "texto": "Los primeros 16 días son el pronóstico; el resto repite 2024, el año más representativo de los parecidos al pronóstico estacional (ECMWF SEAS5) y a El Niño pronosticado. Para la milpa de siempre se espera una temporada de pérdida (47 % de probabilidad; en 8 de 24 años pasó algo así). Con esta estrategia: cosecha probable 30–45 qq/mz, riesgo de perderla 8 %. Confianza alta.",
-    "texto_en": "The first 16 days are the forecast; the rest replays 2024, the most representative year among those resembling the seasonal forecast (ECMWF SEAS5) and the forecast El Niño. For the usual milpa, expect a lost season (47% probability; it happened in 8 of 24 years). With this strategy: likely harvest 30–45 qq/mz, 8% risk of losing it. Confidence high.",
+    "cosecha_p10": 24.5,
+    "cosecha_p50": 36.3,
+    "cosecha_p90": 46.2,
+    "habilidad": "acertó la temporada en 14 de 25 años (56 % vs 33 % al azar) · pérdida: Brier 0.272 vs 0.250 · detectó 5 de 8 sequías documentadas · Brier IA 0.154 vs estadística 0.161",
+    "nivel": "media",
+    "texto": "Los primeros 16 días son el pronóstico; el resto repite 2024, el año más representativo de los parecidos al pronóstico estacional (ECMWF SEAS5) y a El Niño pronosticado. Para la milpa de siempre se espera una temporada de pérdida (40 % de probabilidad; en 8 de 24 años pasó algo así). Con esta estrategia: cosecha probable 25–46 qq/mz, riesgo de perderla 8 %. Confianza media.",
+    "texto_en": "The first 16 days are the forecast; the rest replays 2024, the most representative year among those resembling the seasonal forecast (ECMWF SEAS5) and the forecast El Niño. For the usual milpa, expect a lost season (40% probability; it happened in 8 of 24 years). With this strategy: likely harvest 25–46 qq/mz, 8% risk of losing it. Confidence medium.",
     "fuentes": [
       "NASA POWER diario 2001–2025 (community AG)",
       "NOAA CPC Oceanic Niño Index (ONI)",
@@ -1367,15 +1367,15 @@
     ],
     "clase": "perdida",
     "prob_clases": [
-      0.47,
-      0.35,
-      0.17
+      0.4,
+      0.34,
+      0.25
     ],
     "oni_pronostico": 1.94,
     "oni_fuente": "ECMWF SEAS5 vía Open-Meteo: anomalía de temperatura del mar en Niño 3.4 (12 puntos 5°S–5°N, 170°–120°O), anclada al último ONI de NOAA CPC",
     "dias_pronostico": 16,
     "fecha_pronostico": "2026-11-14",
-    "regla": "Puntos: probabilidad del escenario ≥ 60 % → 2 (≥ 40 % → 1); validación local con ≥ 60 % de sequías documentadas detectadas → 1; temporada armada con pronóstico (o clima observado) → 1; rango de cosecha estrecho ((P90−P10)/P50 ≤ 0.5) → 1. alta ≥ 4, media 2–3, baja ≤ 1. Clima observado = alta; escenarios CMIP6 a 2040 como máximo media."
+    "regla": "Puntos: probabilidad del escenario ≥ 60 % → 2 (≥ 40 % → 1); validación local con ≥ 60 % de sequías documentadas detectadas → 1; temporada armada con pronóstico (o clima observado) → 1; rango de cosecha estrecho ((P90−P10)/P50 ≤ 0.5) → 1. alta ≥ 4, media 2–3, baja ≤ 1. Clima observado = alta; escenarios CMIP6 a 2040 como máximo media; nunca por encima del nivel medido en el hindcast 2001–2025 del lugar (static/validacion/habilidad.json)."
   },
   "sitio": {
     "id": "jocotan-chiquimula",
@@ -1431,5 +1431,165 @@
       "Suelo: ISRIC SoilGrids 2.0 (0–30 cm, media)"
     ],
     "motor": "fieldshift-motor 1.0 (FAO-56 + FAO-33 + Monte Carlo 2001–2025)"
+  },
+  "siembra": {
+    "elegida": "2027-06-03",
+    "recomendada": "2027-06-03",
+    "ventana_ini": "2027-04-15",
+    "ventana_fin": "2027-07-15",
+    "cosecha_elegida": "2027-10-10",
+    "cosecha_recomendada": "2027-10-10",
+    "dias_ciclo_elegida": 129,
+    "dias_ciclo_recomendada": 129,
+    "recomendable": true,
+    "veredicto": "ok",
+    "texto": "Sembrá el 3 jun y cosechás cerca del 10 oct (129 días). Es la fecha con menos riesgo de la ventana: pérdida 1 de cada 10 temporadas parecidas, cosecha típica 36 qq/mz.",
+    "texto_en": "Sow on Jun 3 and harvest around Oct 10 (129 days). It is the lowest-risk date in the window: loss in 1 of 10 similar seasons, typical harvest 36 qq/mz.",
+    "razones": [
+      {
+        "codigo": "exceso_cosecha",
+        "severidad": "ojo",
+        "texto": "Lluvia en la cosecha (cerca del 10 oct): 115 mm en promedio; en 3 de cada 10 años más de 150 mm (mazorca que se pudre, secado difícil).",
+        "texto_en": "Rain at harvest (around Oct 10): 115 mm on average; in 3 of 10 years over 150 mm (ear rot, hard drying).",
+        "fuente": "NASA POWER (PRECTOTCORR, T2M_MAX, T2M_MIN) 2001–2025"
+      },
+      {
+        "codigo": "falso_inicio",
+        "severidad": "ok",
+        "texto": "Falso inicio: en 0 de cada 10 años parecidos vino una racha de 7+ días secos en el primer mes después de sembrar el 3 jun (la semilla nace y se seca).",
+        "texto_en": "False start: in 0 of 10 similar years a 7+ day dry spell came in the first month after sowing on Jun 3 (seedlings emerge and dry out).",
+        "fuente": "Inicio de lluvias y falso inicio: regla de Sivakumar (1988) · NASA POWER (PRECTOTCORR, T2M_MAX, T2M_MIN) 2001–2025"
+      },
+      {
+        "codigo": "canicula_floracion",
+        "severidad": "ok",
+        "texto": "Floración cerca del 29 jul: en 2 de cada 10 años una canícula de 8+ días le cae encima (la floración es la etapa que más pierde grano sin agua).",
+        "texto_en": "Flowering around Jul 29: in 2 of 10 years an 8+ day midsummer drought (canícula) hits it (flowering loses the most grain without water).",
+        "fuente": "FAO-56 (Kc etapa media) · NASA POWER (PRECTOTCORR, T2M_MAX, T2M_MIN) 2001–2025"
+      },
+      {
+        "codigo": "frio_helada",
+        "severidad": "ok",
+        "texto": "Sin heladas ni noches frías (Tmín ≤ 8 °C) en el ciclo en los años parecidos.",
+        "texto_en": "No frost or cold nights (Tmin ≤ 8 °C) during the cycle in similar years.",
+        "fuente": "NASA POWER T2M_MIN (corregida por altitud)"
+      },
+      {
+        "codigo": "sequia",
+        "severidad": "ok",
+        "texto": "Sequía: al cultivo le faltan en promedio 43 mm de agua en el ciclo; pérdida en 1 de cada 10 temporadas parecidas.",
+        "texto_en": "Drought: the crop lacks 43 mm of water on average over the cycle; loss in 1 of 10 similar seasons.",
+        "fuente": "FAO-56 (Allen et al. 1998): balance hídrico diario del motor · NASA POWER (PRECTOTCORR, T2M_MAX, T2M_MIN) 2001–2025"
+      },
+      {
+        "codigo": "pronostico_16d",
+        "severidad": "ok",
+        "texto": "El 3 jun está fuera de los 16 días de pronóstico (hasta el 29 nov): el riesgo sale del pronóstico estacional y de años parecidos.",
+        "texto_en": "Jun 3 is beyond the 16-day forecast (to Nov 29): risk comes from the seasonal forecast and similar years.",
+        "fuente": "ECMWF SEAS5 (pronóstico estacional) + ONI NOAA CPC"
+      },
+      {
+        "codigo": "ciclo",
+        "severidad": "ok",
+        "texto": "Ciclo de 129 días hasta la cosecha: el maíz necesita ~1750 grados-día y en Jocotán junta ese calor en ese tiempo desde el 3 jun.",
+        "texto_en": "A 129-day cycle to harvest: maize needs ~1750 degree-days and Jocotán accumulates that heat in that time from Jun 3.",
+        "fuente": "Grados-día base 10 °C, tope 30 °C (McMaster & Wilhelm 1997) · NASA POWER (PRECTOTCORR, T2M_MAX, T2M_MIN) 2001–2025"
+      }
+    ],
+    "riesgo_por_fecha": [
+      {
+        "fecha": "2027-04-15",
+        "prob_perdida": 0.16,
+        "cosecha_p50": 35.5,
+        "cosecha": "2027-08-15"
+      },
+      {
+        "fecha": "2027-04-22",
+        "prob_perdida": 0.06,
+        "cosecha_p50": 35.9,
+        "cosecha": "2027-08-23"
+      },
+      {
+        "fecha": "2027-04-29",
+        "prob_perdida": 0.06,
+        "cosecha_p50": 33.9,
+        "cosecha": "2027-08-30"
+      },
+      {
+        "fecha": "2027-05-06",
+        "prob_perdida": 0.1,
+        "cosecha_p50": 34.9,
+        "cosecha": "2027-09-07"
+      },
+      {
+        "fecha": "2027-05-13",
+        "prob_perdida": 0.1,
+        "cosecha_p50": 34.1,
+        "cosecha": "2027-09-16"
+      },
+      {
+        "fecha": "2027-05-20",
+        "prob_perdida": 0.1,
+        "cosecha_p50": 34.8,
+        "cosecha": "2027-09-22"
+      },
+      {
+        "fecha": "2027-05-27",
+        "prob_perdida": 0.08,
+        "cosecha_p50": 36,
+        "cosecha": "2027-10-01"
+      },
+      {
+        "fecha": "2027-06-03",
+        "prob_perdida": 0.08,
+        "cosecha_p50": 36.3,
+        "cosecha": "2027-10-10"
+      },
+      {
+        "fecha": "2027-06-10",
+        "prob_perdida": 0.16,
+        "cosecha_p50": 35.6,
+        "cosecha": "2027-10-19"
+      },
+      {
+        "fecha": "2027-06-17",
+        "prob_perdida": 0.16,
+        "cosecha_p50": 34,
+        "cosecha": "2027-10-28"
+      },
+      {
+        "fecha": "2027-06-24",
+        "prob_perdida": 0.16,
+        "cosecha_p50": 31.9,
+        "cosecha": "2027-11-04"
+      },
+      {
+        "fecha": "2027-07-01",
+        "prob_perdida": 0.16,
+        "cosecha_p50": 31.3,
+        "cosecha": "2027-11-12"
+      },
+      {
+        "fecha": "2027-07-08",
+        "prob_perdida": 0.16,
+        "cosecha_p50": 30.2,
+        "cosecha": "2027-11-20"
+      },
+      {
+        "fecha": "2027-07-15",
+        "prob_perdida": 0.16,
+        "cosecha_p50": 28.3,
+        "cosecha": "2027-11-28"
+      }
+    ],
+    "cultivo": "maiz",
+    "gdd_ciclo": 1750,
+    "escenarios": false,
+    "fuentes": [
+      "NASA POWER (PRECTOTCORR, T2M_MAX, T2M_MIN) 2001–2025",
+      "FAO-56 (Allen et al. 1998): balance hídrico diario del motor",
+      "Grados-día base 10 °C, tope 30 °C (McMaster & Wilhelm 1997)",
+      "Inicio de lluvias y falso inicio: regla de Sivakumar (1988)"
+    ]
   }
 }

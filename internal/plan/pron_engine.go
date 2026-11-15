@@ -139,7 +139,7 @@ func (e *Engine) cmipFuente(m *geo.Municipio) string {
 
 // planConfianza confianza del plan para la estrategia recomendada: la temporada que viene (pronostico)
 // o, con horizonte 2040, el escenario CMIP6.
-func (e *Engine) planConfianza(m *geo.Municipio, s *sim.Site, req contract.PlanRequest, p *contract.Plan) *contract.SimConfianza {
+func (e *Engine) planConfianza(m *geo.Municipio, s *sim.Site, req contract.PlanRequest, p *contract.Plan) (*contract.SimConfianza, *contract.SimSiembra) {
 	id := "S2"
 	for _, est := range p.Estrategias {
 		if est.Recomendada {
@@ -156,9 +156,9 @@ func (e *Engine) planConfianza(m *geo.Municipio, s *sim.Site, req contract.PlanR
 	}
 	tl, err := SimulateEnv(env, sr)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
-	return tl.Confianza
+	return tl.Confianza, tl.Siembra
 }
 
 // NetClient cliente de datos globales del motor (con la caché de DATA_DIR).

@@ -17,6 +17,10 @@ type Config struct {
 	IrrigMMWeek float64
 	// Trace opcional: guarda el día a día del año (sandbox 3D). nil en el Monte Carlo.
 	Trace *YearTrace
+	// SowFixed (ronda 5): siembra en fecha fija = 1-ene del año + SowDay días (calendario interno; puede ser
+	// negativo = diciembre del año anterior). El ciclo de cada cultivo sale de los grados-día desde esa fecha.
+	SowFixed bool
+	SowDay   int
 }
 
 // LayerTrace día a día de un cultivo del año.
@@ -121,21 +125,26 @@ type YearOut struct {
 
 // RunYear simula un año: siembra de Primera = inicio de lluvias + offset días.
 func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) YearOut {
-	d.Main = s.Scaled(d.Main)
-	if d.Post != nil {
-		p := s.Scaled(*d.Post)
-		d.Post = &p
-	}
-	if d.Cover != nil {
-		c := s.Scaled(*d.Cover)
-		d.Cover = &c
-	}
 	yc := s.YearCal(y)
 	sow := yc.PrimeraOnset
 	if sow < 0 {
 		sow = s.at(y, s.Cal.PrimFallback)
 	}
 	sow += offset
+	scale := s.Scaled
+	if cfg.SowFixed {
+		sow = s.Idx(y, 1, 1) + cfg.SowDay + offset
+		scale = func(c fao56.Crop) fao56.Crop { return s.ScaledGDD(c, sow) }
+	}
+	d.Main = scale(d.Main)
+	if d.Post != nil {
+		p := scale(*d.Post)
+		d.Post = &p
+	}
+	if d.Cover != nil {
+		c := scale(*d.Cover)
+		d.Cover = &c
+	}
 	out := YearOut{Year: y, PrimeraSow: sow, PostSow: -1}
 	mulch := d.Residue
 	if d.Burn {
@@ -166,8 +175,9 @@ func (s *Site) RunYear(d StratDef, y int, offset int, tawf float64, cfg Config) 
 	stover := out.MainQQ * 45.36 / 1000 / 0.7 * 1.2 // t/ha de rastrojo (índice de cosecha ≈ 0.45)
 	if d.Intercrop {
 		bo := opts
-		bo.Trace = tr.layer(s.Scaled(fao56.Crops["bean"]), sow)
-		b := RunCrop(s, s.Scaled(fao56.Crops["bean"]), sow, bo)
+		bean := scale(fao56.Crops["bean"])
+		bo.Trace = tr.layer(bean, sow)
+		b := RunCrop(s, bean, sow, bo)
 		bq := 0.35 * fao56.Crops["bean"].YmQQMz * b.YieldRatio
 		if tr != nil {
 			tr.Layers[len(tr.Layers)-1].QQ = bq

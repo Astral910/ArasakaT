@@ -1,13 +1,14 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
-	"log"
 	"time"
 
 	"fieldshift/internal/contract"
@@ -53,7 +54,6 @@ func parseGlobalID(id string) (float64, float64, bool) {
 }
 
 // GlobalPoint arma (o devuelve de la caché) el lugar para un punto cualquiera.
-var globalLocks sync.Map // id → *sync.Mutex
 
 func (e *Engine) GlobalPoint(lat, lon float64) (*geo.Municipio, error) {
 	lat, lon = math.Round(lat*100)/100, math.Round(lon*100)/100
@@ -67,16 +67,67 @@ func (e *Engine) GlobalPoint(lat, lon float64) (*geo.Municipio, error) {
 	if ok {
 		return gp.m, nil
 	}
-	// una sola descarga por punto: sitio, plan y simulaciones llegan juntos al elegir el lugar
-	lk, _ := globalLocks.LoadOrStore(id, &sync.Mutex{})
-	lk.(*sync.Mutex).Lock()
-	defer lk.(*sync.Mutex).Unlock()
-	e.mu.Lock()
-	gp, ok = e.globals[id]
-	e.mu.Unlock()
-	if ok {
-		return gp.m, nil
+	// una sola descarga por punto (sitio, plan y simulaciones llegan juntos al elegir el lugar). La descarga sigue
+	// aunque el pedido se canse de esperar: el que espera más de EsperaGlobal recibe ErrBajando (503, reintentar).
+	ch, _ := globalCalls.LoadOrStore(id, &globalCall{done: make(chan struct{})})
+	call := ch.(*globalCall)
+	call.once.Do(func() {
+		call.inicio()
+		go func() {
+			defer close(call.done)
+			call.m, call.err = e.globalPoint(lat, lon, id)
+			if call.err != nil {
+				globalCalls.Delete(id) // el próximo pedido vuelve a intentar
+			}
+		}()
+	})
+	espera := EsperaGlobal
+	if espera <= 0 {
+		espera = 40 * time.Second
 	}
+	select {
+	case <-call.done:
+		return call.m, call.err
+	case <-time.After(espera):
+		return nil, &ErrBajando{Lat: lat, Lon: lon, Desde: call.inicio()}
+	}
+}
+
+// EsperaGlobal cuánto espera un pedido la primera descarga de un punto antes de contestar 503 (la descarga sigue).
+var EsperaGlobal = 40 * time.Second
+
+var globalCalls sync.Map // id → *globalCall
+
+type globalCall struct {
+	once sync.Once
+	done chan struct{}
+	m    *geo.Municipio
+	err  error
+	t0   time.Time
+	mu   sync.Mutex
+}
+
+func (c *globalCall) inicio() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.t0.IsZero() {
+		c.t0 = time.Now()
+	}
+	return c.t0
+}
+
+// ErrBajando la primera descarga de datos de un punto sigue en curso: reintentar en unos segundos.
+type ErrBajando struct {
+	Lat, Lon float64
+	Desde    time.Time
+}
+
+func (e *ErrBajando) Error() string {
+	return fmt.Sprintf("Bajando los datos de NASA POWER, SoilGrids y relieve para %.2f, %.2f (primera vez en este punto, hace %.0f s). Reintentá en unos segundos.",
+		e.Lat, e.Lon, time.Since(e.Desde).Seconds())
+}
+
+func (e *Engine) globalPoint(lat, lon float64, id string) (*geo.Municipio, error) {
 	c := e.net()
 	var (
 		cl          *data.Climate
@@ -118,9 +169,9 @@ func (e *Engine) GlobalPoint(lat, lon float64) (*geo.Municipio, error) {
 	wg.Wait()
 	log.Printf("motor global %s: NASA POWER %v · nombre %v · suelo %v · relieve %v", id, tPow.Round(time.Millisecond), tRev.Round(time.Millisecond), tSoil.Round(time.Millisecond), tRel.Round(time.Millisecond))
 	if clErr != nil {
-		return nil, fmt.Errorf("no hay datos de NASA POWER para %.2f, %.2f (¿sin conexión?): %v", lat, lon, clErr)
+		return nil, &ErrSinDatos{fmt.Sprintf("NASA POWER no respondió para %.2f, %.2f (¿sin conexión o servicio caído?): %v", lat, lon, clErr)}
 	}
-	gp = &globalPoint{}
+	gp := &globalPoint{}
 	m := &geo.Municipio{ID: id, Lat: lat, Lon: lon, Global: true, Cell: "global:" + cl.Cell}
 	m.Name = fmt.Sprintf("%.2f°, %.2f°", lat, lon)
 	if lugErr == nil && lugar.Nombre != "" {
@@ -338,8 +389,33 @@ func (e *Engine) handleSitio(w http.ResponseWriter, r *http.Request) {
 	}
 	si, err := e.Sitio(lat, lon, q.Get("idioma"))
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+		writeErr(w, http.StatusBadGateway, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, si)
+}
+
+// ErrSinDatos un servicio de datos externo (NASA POWER) falló: 502 con el motivo.
+type ErrSinDatos struct{ msg string }
+
+func (e *ErrSinDatos) Error() string { return e.msg }
+
+// writeErr contesta el error con el código que corresponde: 503 + Retry-After si el punto se está bajando,
+// 502 si un servicio de datos falló; si no, el código pedido. Siempre {error, codigo, reintentar}.
+func writeErr(w http.ResponseWriter, code int, err error) {
+	var b *ErrBajando
+	var sd *ErrSinDatos
+	body := map[string]any{"error": err.Error()}
+	switch {
+	case errors.As(err, &b):
+		w.Header().Set("Retry-After", "5")
+		body["codigo"], body["reintentar"], body["espera_s"] = "bajando", true, 5
+		code = http.StatusServiceUnavailable
+	case errors.As(err, &sd):
+		body["codigo"], body["reintentar"] = "sin_datos", true
+		code = http.StatusBadGateway
+	default:
+		body["codigo"], body["reintentar"] = "pedido", false
+	}
+	writeJSON(w, code, body)
 }
