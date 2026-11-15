@@ -4,7 +4,7 @@
 // productos prácticos y un anexo técnico plegable. Imprimible A4 (Chromium → /api/informe.pdf).
 // Todo número del motor lleva data-src (ver fuente.ts); lo que falta se muestra "—".
 import { computed, onMounted, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { lang, setLang } from '@/i18n'
 import { pub } from '@/api/client'
 import N from './N.vue'
@@ -12,9 +12,7 @@ import Frase from './Frase.vue'
 import Grafica from './Grafica.vue'
 import GClima from './graficos/GClima.vue'
 import GCalendario, { type Fila } from './graficos/GCalendario.vue'
-import GRangos from './graficos/GRangos.vue'
 import GAnios from './graficos/GAnios.vue'
-import GSuelo from './graficos/GSuelo.vue'
 import GGrupos from './graficos/GGrupos.vue'
 import GTemporada from './graficos/GTemporada.vue'
 import GMeses from './graficos/GMeses.vue'
@@ -24,11 +22,12 @@ import { cargarInforme, consultaDesdeQuery, queryDe, NIVELES_RIEGO } from './dat
 import { decodificarPolilinea } from './geometria'
 import { recomendarProductos } from './productos'
 import { DATOS, COLOR, RAYA } from './fuente'
-import { tx, fecha, fechaISO, mesCorto, elegir, NOMBRE_CULTIVO, NOMBRE_UNIDAD, HA_POR_UNIDAD, NOMBRE_PRIORIDAD, ENSO_ESTADO, NIVEL } from './textos'
+import { tx, fecha, fechaISO, mesCorto, elegir, NOMBRE_CULTIVO, NOMBRE_UNIDAD, HA_POR_UNIDAD, ENSO_ESTADO, NIVEL } from './textos'
 import type { Tabla } from './exportar'
 import type { DatosInforme, Confianza, AlertaTL } from './tipos'
 
 const route = useRoute()
+const router = useRouter()
 const consulta = computed(() => consultaDesdeQuery(route.query as Record<string, unknown>))
 const datos = shallowRef<DatosInforme | null>(null)
 provide(DATOS, datos)
@@ -196,10 +195,6 @@ const csvMeses = (): Tabla => [
 
 // ---------- 4. suelo ----------
 const ultimo = (k: number) => (est.value[k]?.suelo_mo.length ?? 1) - 1
-const csvSuelo = (): Tabla => [
-  ['anio', ...est.value.flatMap((e) => [`mo_${e.id}`, `mo_p10_${e.id}`, `mo_p90_${e.id}`])],
-  ...(est.value[0]?.suelo_mo ?? []).map((_, i) => [i, ...est.value.flatMap((e) => [e.suelo_mo[i], e.suelo_mo_p10?.[i], e.suelo_mo_p90?.[i]])]),
-]
 
 // ---------- 5. riego y 6. 2040 ----------
 const hayRiego = computed(() => !!datos.value && NIVELES_RIEGO.every((mm) => datos.value!.riego[String(mm) as '0']))
@@ -253,12 +248,47 @@ const perdidaS0 = (anio: number) => !!est.value[i0.value]?.anios?.find((a) => a.
 const fuentesExtra = computed(() => [...new Set(confianza.value?.fuentes ?? [])])
 
 const pdfHref = computed(() => `/api/informe.pdf?${new URLSearchParams(queryDe(consulta.value))}`)
-const guiaHref = computed(() => `/sandbox?${new URLSearchParams({ ...queryDe(consulta.value), auto: '1' })}`)
+// «Volver» nunca regenera: sin vuelo ni animación (auto=0, intro=0) y fin=1 pide al simulador su estado final
+const SIN_REGENERAR = { auto: '0', intro: '0', fin: '1' }
+const guiaHref = computed(() => `/sandbox?${new URLSearchParams({ ...queryDe(consulta.value), ...SIN_REGENERAR })}`)
+function volver() {
+  const atras = (window.history.state as { back?: string | null } | null)?.back
+  if (atras && !atras.startsWith('/informe')) {
+    if (!atras.startsWith('/sandbox')) return router.back() // dashboard, mis terrenos…: se restaura tal cual
+    const u = new URL(atras, location.origin)
+    for (const [k, v] of Object.entries(SIN_REGENERAR)) u.searchParams.set(k, v)
+    return router.replace(u.pathname + u.search)
+  }
+  // sin historial interno (link directo, PDF): al terreno guardado si lo hay; si no, al simulador sin regenerar
+  const id = route.query.parcela
+  return router.replace(typeof id === 'string' && id ? `/terreno/${encodeURIComponent(id)}` : guiaHref.value)
+}
 const otroIdioma = computed(() => ({ path: '/informe', query: { ...route.query, idioma: lang.value === 'es' ? 'en' : 'es' } }))
 const imprimir = () => { anexoAbierto.value = true; requestAnimationFrame(() => window.print()) }
 const nLista = (xs?: string[]) => (xs ?? []).filter(Boolean)
 const fichaClaves = [['por_que', 'porQue'], ['evidencia', 'evidencia'], ['beneficios', 'beneficios'], ['info_faltante', 'infoFaltante'], ['riesgos', 'riesgos']] as const
 const base = computed(() => `fieldshift-${(lugar.value || 'informe').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase()}`)
+
+// ---------- ronda 7: resumen ejecutivo en la unidad del lugar ----------
+const CA = ['GT', 'HN', 'SV', 'NI', 'CR', 'PA', 'BZ']
+const ca = computed(() => (consulta.value.pais ? CA.includes(consulta.value.pais.toUpperCase()) : !fueraGT.value))
+/** qq/mz del motor → qq/cuerda (Centroamérica) o t/ha (resto) */
+const xU = computed(() => (ca.value ? HA_POR_UNIDAD.cuerda / HA_POR_UNIDAD.manzana : 45.36 / 1000 / HA_POR_UNIDAD.manzana))
+const uRinde = computed(() => tx(ca.value ? 'uQqCuerda' : 'uTHa'))
+const sDec = computed(() => (plan.value?.siembra ?? null) as { rango_ini?: string; rango_fin?: string; ultimo_seguro?: string } | null)
+const siembraA = computed(() => (sDec.value?.rango_ini ? fechaISO(sDec.value.rango_ini) : fecha(plan.value?.ventana_primera.inicio)))
+const siembraB = computed(() => (sDec.value?.rango_fin ? fechaISO(sDec.value.rango_fin) : fecha(plan.value?.ventana_primera.fin)))
+const ultimoSeguro = computed(() => (sDec.value?.ultimo_seguro ? fechaISO(sDec.value.ultimo_seguro) : siembraB.value))
+const riesgoPrincipal = computed(() => {
+  const p = plan.value
+  if (!p) return ''
+  if (p.canicula_tipica?.inicio && !fueraGT.value) return tx('rk_canicula', { c: fecha(p.canicula_tipica.inicio), d: fecha(p.canicula_tipica.fin) })
+  const secos = (p.clima_mensual ?? []).filter((m) => claseMes(m) === 'alto').map((m) => mesCorto(m.mes))
+  if (secos.length) return tx('rk_sequia', { m: secos.join(', ') })
+  const humedos = (p.clima_mensual ?? []).filter((m) => m.lluvia_mm.p50 > 2 * m.et0_mm && m.lluvia_mm.p50 > 250).map((m) => mesCorto(m.mes))
+  return humedos.length ? tx('rk_exceso', { m: humedos.join(', ') }) : tx('rk_irregular')
+})
+const conseguir = computed(() => productos.value.slice(0, 2).map((p) => p.titulo.charAt(0).toLowerCase() + p.titulo.slice(1)).join(lang.value === 'en' ? ' and ' : ' y '))
 </script>
 
 <template>
@@ -267,7 +297,7 @@ const base = computed(() => `fieldshift-${(lugar.value || 'informe').normalize('
       <span class="marca">Field Shift</span>
       <div class="acc">
         <RouterLink :to="otroIdioma" class="btn ghost">{{ lang === 'es' ? 'English' : 'Español' }}</RouterLink>
-        <a :href="guiaHref" class="btn ghost">{{ tx('volver') }}</a>
+        <a :href="guiaHref" class="btn ghost volver" @click.prevent="volver">{{ tx('volver') }}</a>
         <button class="btn ghost imp" type="button" @click="imprimir">{{ tx('imprimir') }}</button>
         <a :href="pdfHref" class="btn" target="_blank" rel="noopener">{{ tx('descargar') }}</a>
       </div>
@@ -285,116 +315,72 @@ const base = computed(() => `fieldshift-${(lugar.value || 'informe').normalize('
     </div>
 
     <article v-else-if="plan && rec" class="doc">
-      <!-- ============ PORTADA: veredicto + 4 cifras + parcela ============ -->
+      <!-- ============ ENCABEZADO + RESUMEN EJECUTIVO + SIEMBRA ============ -->
       <section class="hoja portada" id="portada">
         <header class="cab">
           <p class="eyebrow">{{ tx('marca') }}</p>
-          <p class="fecha">{{ tx('generado', { fecha: generado }) }}</p>
+          <h1>{{ tx('titulo7') }} · {{ lugar }}</h1>
+          <p class="meta">
+            <span>{{ geoTxt }}</span><span>{{ lugar }}</span><span>{{ elegir(NOMBRE_CULTIVO[consulta.cultivo]) }}</span><span>{{ areaTxt }}</span>
+            <span>{{ tx('mEmitido') }} {{ generado }}</span><span>{{ tx('mFuente') }}: {{ tx('fuenteDatos') }}</span>
+          </p>
+          <p class="origen" :class="datos.origen">{{ tx('origen_' + datos.origen) }}<template v-if="plan.motor"> · {{ plan.motor }}</template> · {{ coords }}</p>
         </header>
-        <div class="huipil" aria-hidden="true" />
-        <h1>{{ lugar }}</h1>
-        <p class="ficha-linea">{{ elegir(NOMBRE_CULTIVO[consulta.cultivo]) }} · {{ areaTxt }} · {{ riegoTxt }}<template v-if="consulta.prioridad !== 'comida'"> · {{ elegir(NOMBRE_PRIORIDAD[consulta.prioridad]) }}</template></p>
 
-        <p class="veredicto">
-          <Frase v-if="(rec.riesgo_de_10 ?? 0) >= 8" :t="tx(hayRiego ? 'veredictoMalo' : 'veredictoMaloSin')" :vars="{ r: { src: P(iRec, 'riesgo_de_10'), dec: 1 } }" />
-          <Frase v-else-if="rec.id !== 'S0'" :t="tx('veredicto', { id: rec.id, nombre: rec.nombre })" :vars="{ r: { src: P(iRec, 'riesgo_de_10'), dec: 1 }, r0: { src: P(i0, 'riesgo_de_10'), dec: 1 } }" />
-          <Frase v-else :t="tx('veredictoS0')" :vars="{ r: { src: P(iRec, 'riesgo_de_10'), dec: 1 } }" />
-        </p>
-
-        <div class="cifras4">
-          <div class="c4 riesgo">
-            <p class="c4-et">{{ tx('c_riesgo') }}</p>
-            <p class="c4-n"><N :src="P(iRec, 'riesgo_de_10')" :dec="1" /></p>
-            <p class="c4-u">{{ tx('c_riesgoU') }}</p>
-            <p class="c4-s"><Frase v-if="confianza && isFinite(confianza.prob_perdida)" :t="tx('c_riesgoSub')" :vars="{ r0: { src: P(i0, 'riesgo_de_10'), dec: 1 }, pp: { src: `${C}.prob_perdida`, x: 100, u: '%' } }" />
-              <Frase v-else :t="tx('c_riesgoSub0')" :vars="{ r0: { src: P(i0, 'riesgo_de_10'), dec: 1 } }" /></p>
+        <div class="ejecutivo">
+          <div class="ej-txt">
+            <h2 class="h-sec">{{ tx('resumenT') }}</h2>
+            <ol class="resumen veredicto">
+              <li><Frase :t="tx('e_siembra', { a: siembraA, b: siembraB, u: ultimoSeguro })" /></li>
+              <li v-if="confianza && isFinite(confianza.cosecha_p50)"><Frase :t="tx('e_cosecha')" :vars="{ p50: { src: `${C}.cosecha_p50`, dec: 1, x: xU, u: uRinde }, p10: { src: `${C}.cosecha_p10`, dec: 1, x: xU, b: false }, p90: { src: `${C}.cosecha_p90`, dec: 1, x: xU, u: uRinde, b: false }, n: { src: P(iRec, 'rendimiento_qq_mz.p50'), dec: 1, x: xU, u: uRinde } }" /></li>
+              <li v-else><Frase :t="tx('e_cosechaHist')" :vars="{ n: { src: P(iRec, 'rendimiento_qq_mz.p50'), dec: 1, x: xU, u: uRinde }, p10: { src: P(iRec, 'rendimiento_qq_mz.p10'), dec: 1, x: xU, b: false }, p90: { src: P(iRec, 'rendimiento_qq_mz.p90'), dec: 1, x: xU, u: uRinde, b: false } }" /></li>
+              <li><Frase :t="tx('e_riesgo', { riesgo: riesgoPrincipal })" :vars="{ r: { src: P(iRec, 'riesgo_de_10'), dec: 1 }, r0: { src: P(i0, 'riesgo_de_10'), dec: 1 } }" /></li>
+              <li>{{ tx('e_hacer', { nombre: `${rec.nombre} (${rec.id})` }) + (conseguir ? ' ' + tx('e_conseguir', { lista: conseguir }) : '') }}</li>
+            </ol>
+            <p v-if="fueraGT" class="nota chico">{{ tx('fueraGT') }}</p>
           </div>
-          <div class="c4 cosecha">
-            <p class="c4-et">{{ tx('c_cosecha') }}</p>
-            <template v-if="confianza && isFinite(confianza.cosecha_p50)">
-              <p class="c4-n"><N :src="`${C}.cosecha_p10`" :dec="0" />–<N :src="`${C}.cosecha_p90`" :dec="0" /></p>
-              <p class="c4-u">{{ tx('c_cosechaU') }}</p>
-              <p class="c4-s"><Frase :t="tx('c_cosechaSub')" :vars="{ p50: { src: `${C}.cosecha_p50`, dec: 1 } }" /></p>
-            </template>
-            <template v-else>
-              <p class="c4-n"><N :src="P(iRec, 'rendimiento_qq_mz.p10')" :dec="0" />–<N :src="P(iRec, 'rendimiento_qq_mz.p90')" :dec="0" /></p>
-              <p class="c4-u">{{ tx('c_cosechaUHist') }}</p>
-              <p class="c4-s"><Frase :t="tx('c_cosechaSub')" :vars="{ p50: { src: P(iRec, 'rendimiento_qq_mz.p50'), dec: 1 } }" /></p>
-            </template>
-          </div>
-          <div class="c4 c4c" :class="confianza?.nivel || 'nd'">
-            <p class="c4-et">{{ tx('c_conf') }}</p>
-            <p class="c4-n nivel">{{ nivelTxt }}</p>
-            <p class="c4-s" v-if="confianza"><Frase :t="tx('c_confSub')" :vars="{ pe: { src: `${C}.prob_escenario`, x: 100, u: '%' }, n: { src: `${C}.anios_parecidos` }, b: { src: `${C}.anios_base` } }" /></p>
-            <p class="c4-s" v-else>{{ tx('c_confNo') }}</p>
-          </div>
-          <div class="c4 suelo">
-            <p class="c4-et">{{ tx('c_suelo') }}</p>
-            <p class="c4-n"><N :src="P(iRec, `suelo_mo.${ultimo(iRec)}`)" :dec="2" /></p>
-            <p class="c4-u">{{ tx('c_sueloU') }}</p>
-            <p class="c4-s"><Frase :t="tx('c_sueloSub')" :vars="{ mo0: { src: P(iRec, 'suelo_mo.0'), dec: 2 }, e: { src: P(iRec, 'erosion_t_ha.0') } }" /></p>
-          </div>
+          <GMapa v-if="latlon" class="ej-mapa" :lat="latlon[0]" :lon="latlon[1]" :forma="consulta.forma" :radio="consulta.radio" :poligono="poligono" @listo="avisarMapa" />
         </div>
 
-        <div class="lugar">
-          <GMapa v-if="latlon" class="lugar-mapa" :lat="latlon[0]" :lon="latlon[1]" :forma="consulta.forma" :radio="consulta.radio" :poligono="poligono" @listo="avisarMapa" />
-          <div class="lugar-txt">
-            <dl class="ficha-lugar">
-              <div><dt>{{ tx('parcela') }}</dt><dd>{{ geoTxt }} · {{ areaTxt }}</dd></div>
-              <div><dt>{{ tx('coords') }}</dt><dd>{{ coords }}</dd></div>
-            </dl>
-            <p class="origen" :class="datos.origen">{{ tx('origen_' + datos.origen) }}<template v-if="plan.motor"> · {{ plan.motor }}</template></p>
-            <p v-if="fueraGT" class="nota warn chico">{{ tx('fueraGT') }}</p>
-            <p class="sub">{{ tx('portadaSub') }}</p>
-          </div>
-        </div>
+        <!-- 1 · Siembra -->
+        <section class="sec" id="s-siembra">
+          <h2 class="h-sec">1. {{ tx('sSiembra') }}</h2>
+          <p class="parr"><Frase :t="tx('e_siembra', { a: siembraA, b: siembraB, u: ultimoSeguro })" /> {{ tx('siembraVentanas', { a: fecha(plan.ventana_primera.inicio), b: fecha(plan.ventana_primera.fin), c: fecha(plan.ventana_postrera.inicio), d: fecha(plan.ventana_postrera.fin) }) }}</p>
+          <table class="tabla sobria" id="g-estrategias">
+            <thead><tr><th>{{ tx('tEstr') }}</th><th>{{ tx('tProbable') }} ({{ uRinde }})</th><th>{{ tx('tRango') }}</th><th>{{ tx('tPerdidas') }}</th></tr></thead>
+            <tbody>
+              <tr v-for="(e, k) in est" :key="e.id" :class="{ rec: e.recomendada }">
+                <th scope="row">{{ e.id }} · {{ e.nombre }}<em v-if="e.recomendada"> — {{ tx('tRecomendada') }}</em></th>
+                <td><N :src="P(k, 'rendimiento_qq_mz.p50')" :dec="1" :x="xU" /></td>
+                <td><N :src="P(k, 'rendimiento_qq_mz.p10')" :dec="1" :x="xU" /> – <N :src="P(k, 'rendimiento_qq_mz.p90')" :dec="1" :x="xU" /></td>
+                <td><N :src="P(k, 'riesgo_de_10')" :dec="1" /></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="b-fuente">{{ tx('fuenteEst') }}</p>
+        </section>
       </section>
 
-      <!-- ============ CUERPO: una gráfica útil por sección ============ -->
       <section class="hoja cuerpo">
+        <!-- 2 · Clima de la temporada -->
+        <h2 class="h-sec">2. {{ tx('sClima') }}</h2>
         <Grafica v-if="simRec?.lluvia_mm?.length" id="g-temporada" :titulo="tx('b1')" :nombre="`${base}-temporada`" :csv="csvTemporada" :fuente="tx('fuenteSim')">
           <template #texto>
             <p v-if="confianza?.dias_pronostico && analogos.length"><Frase :t="tx('b1a', { fin: finTemporada })" :vars="{ mm: { src: `sum(sim.${rec.id}:lluvia_mm)` }, n: { src: `sim.${rec.id}:confianza.dias_pronostico` }, anio: { src: `sim.${rec.id}:anual.0.anio_real` } }" /></p>
             <p v-else><Frase :t="tx('b1sinPron', { fin: finTemporada })" :vars="{ mm: { src: `sum(sim.${rec.id}:lluvia_mm)` } }" /></p>
-            <p><Frase :t="tx('b1b', { a: fecha(plan.ventana_primera.inicio), b: fecha(plan.ventana_primera.fin), c: fecha(plan.canicula_tipica.inicio), d: fecha(plan.canicula_tipica.fin) })" /></p>
           </template>
           <GTemporada :inicio="simRec.inicio" :lluvia="simRec.lluvia_mm" :riego="simRec.riego_mm" :series="series" :dias-pron="simRec.dias_pron" :umbral="0.45" />
         </Grafica>
-
-        <Grafica id="g-estrategias" :titulo="tx('b2')" :nombre="`${base}-estrategias`" :csv="csvEstrategias" :fuente="tx('fuenteEst')">
-          <template #texto>
-            <p><Frase :t="tx('b2a', { id: rec.id })" :vars="{ p50: { src: P(iRec, 'rendimiento_qq_mz.p50'), dec: 1 }, p10: { src: P(iRec, 'rendimiento_qq_mz.p10'), dec: 1 }, p90: { src: P(iRec, 'rendimiento_qq_mz.p90'), dec: 1 }, r: { src: P(iRec, 'riesgo_de_10'), dec: 1 } }" /></p>
-            <p v-if="rec.id !== 'S0'"><Frase :t="tx('b2b')" :vars="{ p50: { src: P(i0, 'rendimiento_qq_mz.p50'), dec: 1 }, r: { src: P(i0, 'riesgo_de_10'), dec: 1 } }" /></p>
-          </template>
-          <div class="dos-g">
-            <div>
-              <p class="g-et">{{ tx('rangosCosecha') }}</p>
-              <GRangos :filas="est.map((e, k) => ({ etiqueta: e.id, color: COLOR[e.id], src: P(k, 'rendimiento_qq_mz'), recomendada: e.recomendada }))" :unidad="tx('qqmz')" :dec="1" />
-            </div>
-            <div>
-              <p class="g-et">{{ tx('rangosPerdidas') }}</p>
-              <GRangos :filas="est.map((e, k) => ({ etiqueta: e.id, color: COLOR[e.id], src: P(k, 'perdidas_de_10'), recomendada: e.recomendada }))" :unidad="tx('de10')" :max="10" />
-            </div>
-          </div>
-          <p class="leyenda-est"><span v-for="e in est" :key="e.id" :style="{ '--c': COLOR[e.id] }"><b>{{ e.id }}</b> {{ e.nombre }}<em v-if="e.recomendada"> · {{ tx('recomendada') }}</em></span></p>
-        </Grafica>
-
         <Grafica v-if="plan.clima_mensual?.length" id="g-meses" :titulo="tx('b3')" :nombre="`${base}-riesgo-mes`" :csv="csvMeses" :fuente="tx('fuenteMeses')">
           <template #texto>
             <p>{{ tx('b3a', { alto: mesesDe('alto'), medio: mesesDe('medio') }) }}</p>
-            <p v-if="flor">{{ tx('b3b', { a: fecha(flor.inicio), b: fecha(flor.fin) }) }}</p>
           </template>
           <GMeses :meses="plan.clima_mensual" :ciclo="cicloRec" :color="COLOR[rec.id]" :etiqueta="rec.id" />
         </Grafica>
 
-        <Grafica id="g-suelo" :titulo="tx('b4')" :nombre="`${base}-suelo`" :csv="csvSuelo" :fuente="tx('fuenteSuelo')">
-          <template #texto>
-            <p v-if="rec.id !== 'S0'"><Frase :t="tx('b4a', { id: rec.id })" :vars="{ mo0: { src: P(iRec, 'suelo_mo.0'), dec: 2 }, mo5: { src: P(iRec, `suelo_mo.${ultimo(iRec)}`), dec: 2 }, mos0: { src: P(i0, `suelo_mo.${ultimo(i0)}`), dec: 2 } }" /></p>
-            <p><Frase :t="tx('b4b', { id: rec.id })" :vars="{ e: { src: P(iRec, 'erosion_t_ha.0') }, e0: { src: P(i0, 'erosion_t_ha.0') } }" /></p>
-          </template>
-          <div class="angosta"><GSuelo :estrategias="est" /></div>
-        </Grafica>
-
+        <!-- 3 · Agua y riego -->
+        <h2 class="h-sec">3. {{ tx('sAgua') }}</h2>
+        <p class="parr">{{ tx('aguaRiegoActual', { r: riegoTxt }) }}</p>
         <Grafica v-if="hayRiego" id="g-riego" :titulo="tx('b5')" :nombre="`${base}-riego`" :csv="csvRiego" :fuente="tx('fuenteRiego')">
           <template #texto>
             <p><Frase :t="tx('b5a', { id: rec.id })" :vars="{ r0: { src: `riego.0:estrategias.${iRec}.riesgo_de_10`, dec: 1 }, r10: { src: `riego.10:estrategias.${iRec}.riesgo_de_10`, dec: 1 }, r35: { src: `riego.35:estrategias.${iRec}.riesgo_de_10`, dec: 1 } }" /></p>
@@ -403,11 +389,18 @@ const base = computed(() => `fieldshift-${(lugar.value || 'informe').normalize('
           <GGrupos :grupos="NIVELES_RIEGO.map((mm) => ({ etiqueta: mm === 0 ? '0 · ' + tx('riegoNada').split(' (')[0] : `${mm} ${tx('mmSem')}`, base: `riego.${mm}`, marcado: mm === consulta.riego }))"
             :ids="ids" campo="rendimiento_qq_mz" rango :dec="1" :unidad="tx('qqmz')" />
         </Grafica>
+        <p v-else class="parr muted">{{ tx('aguaSinDatos') }}</p>
 
+        <!-- 4 · Riesgos -->
+        <h2 class="h-sec">4. {{ tx('sRiesgos') }}</h2>
+        <ul class="riesgos">
+          <li v-if="plan.canicula_tipica">{{ tx('riesgoCanicula', { c: fecha(plan.canicula_tipica.inicio), d: fecha(plan.canicula_tipica.fin) }) }}</li>
+          <li v-if="flor">{{ tx('b3b', { a: fecha(flor.inicio), b: fecha(flor.fin) }) }}</li>
+          <li><Frase :t="tx('b4b', { id: rec.id })" :vars="{ e: { src: P(iRec, 'erosion_t_ha.0') }, e0: { src: P(i0, 'erosion_t_ha.0') } }" /></li>
+        </ul>
         <Grafica v-if="hay2040" id="g-2040" :titulo="tx('b6')" :nombre="`${base}-2040`" :csv="csv2040" :fuente="tx('fuente2040')">
           <template #texto>
             <p><Frase :t="tx('b6a', { id: rec.id === 'S0' ? idOtra : rec.id })" :vars="{ a: { src: `f2040.ssp245:estrategias.${i0}.riesgo_de_10`, dec: 1 }, b: { src: `f2040.ssp245:estrategias.${rec.id === 'S0' ? ids.indexOf(idOtra) : iRec}.riesgo_de_10`, dec: 1 }, c: { src: `f2040.ssp585:estrategias.${i0}.riesgo_de_10`, dec: 1 }, d: { src: `f2040.ssp585:estrategias.${rec.id === 'S0' ? ids.indexOf(idOtra) : iRec}.riesgo_de_10`, dec: 1 } }" /></p>
-            <p class="chico muted">{{ tx('b6b') }}</p>
           </template>
           <GGrupos :grupos="[{ etiqueta: tx('hoy2026'), base: 'plan' }, { etiqueta: tx('ssp245'), base: 'f2040.ssp245' }, { etiqueta: tx('ssp585'), base: 'f2040.ssp585' }]"
             :ids="ids" campo="riesgo_de_10" :dec="1" :unidad="tx('de10')" :max="10" />
@@ -415,10 +408,10 @@ const base = computed(() => `fieldshift-${(lugar.value || 'informe').normalize('
         <p v-if="!enVivo" class="nota warn">{{ tx('sinVivo') }}</p>
       </section>
 
-      <!-- ============ PRODUCTOS ============ -->
+      <!-- ============ 5 · RECOMENDACIONES ============ -->
       <section class="hoja productos" id="productos">
-        <h2 class="h-blq">{{ tx('b7') }}</h2>
-        <p class="sub">{{ tx('b7sub') }}</p>
+        <h2 class="h-sec">5. {{ tx('sRecom') }}</h2>
+        <p class="parr muted">{{ tx('b7sub') }}</p>
         <div class="prods">
           <article v-for="p in productos" :key="p.id" class="prod" :class="p.id">
             <h3>{{ p.titulo }}</h3>
@@ -434,10 +427,10 @@ const base = computed(() => `fieldshift-${(lugar.value || 'informe').normalize('
         <p class="ext">{{ tx('cierre') }}</p>
       </section>
 
-      <!-- ============ ANEXO TÉCNICO (plegable; abierto al imprimir) ============ -->
+      <!-- ============ 6 · MÉTODO Y FUENTES (plegable; abierto al imprimir) ============ -->
       <details class="hoja anexo" id="anexo" :open="consulta.print || anexoAbierto" @toggle="alPlegar">
         <summary class="no-print-marca">
-          <span class="ax-tit">{{ tx('anexo') }}</span>
+          <span class="ax-tit">6. {{ tx('anexo') }}</span>
           <span class="ax-sub">{{ tx('anexoSub') }}</span>
           <span class="ax-btn no-print">{{ anexoAbierto ? tx('anexoCerrar') : tx('anexoAbrir') }}</span>
         </summary>
@@ -916,55 +909,52 @@ h3 { font-family: var(--font-display); }
   .barra .marca, .barra .imp { display: none; }
 }
 
-/* ---------- ronda 4: portada de una pantalla ---------- */
-.portada { display: flex; flex-direction: column; padding-top: 11mm; padding-bottom: 11mm; }
-.portada h1 { font-size: clamp(2.1rem, 5.4vw, 3.1rem); margin: .2rem 0 .25rem; }
-.ficha-linea { font-size: .92rem; color: var(--c-ink2); font-weight: 600; }
-.veredicto { font-family: var(--font-display); font-size: clamp(1.3rem, 2.8vw, 1.7rem); line-height: 1.22; letter-spacing: -.01em; margin: .9rem 0 1.1rem; max-width: 30em; }
-.veredicto :deep(strong) { color: #8a5a3b; }
-.cifras4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; margin-bottom: 1.3rem; }
-.c4 { border-top: 4px solid #8a5a3b; padding: .6rem .1rem 0; display: grid; align-content: start; gap: .1rem; break-inside: avoid; }
-.c4.riesgo { border-top-color: #b5343c; }
-.c4.cosecha { border-top-color: #e0a526; }
-.c4.c4c.alta { border-top-color: #2a8a66; } .c4.c4c.media { border-top-color: #e0a526; } .c4.c4c.baja { border-top-color: #b5343c; } .c4.c4c.nd { border-top-color: #7d6a58; }
-.c4.suelo { border-top-color: #5d8a3a; }
-.c4-et { white-space: nowrap; font-size: .64rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--c-ink3); }
-.c4-n { white-space: nowrap; font-family: var(--font-display); font-size: clamp(1.9rem, 4.4vw, 2.55rem); line-height: 1; font-weight: 600; letter-spacing: -.02em; margin: .15rem 0 .1rem; font-variant-numeric: tabular-nums; }
-.c4-n.nivel { text-transform: capitalize; }
-.c4-u { font-size: .8rem; font-weight: 700; color: var(--c-ink2); line-height: 1.25; }
-.c4-s { font-size: .76rem; color: var(--c-ink3); line-height: 1.3; margin-top: .2rem; }
-.c4-s :deep(strong) { color: var(--c-ink2); }
-.lugar { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 1.2rem; align-items: start; }
-.lugar-txt { display: grid; gap: .45rem; }
-.conf-frase { font-size: .95rem; line-height: 1.4; border-left: 3px solid #e0a526; padding-left: .7rem; }
-.lugar .ficha-lugar { grid-template-columns: 1fr; gap: .25rem; margin: 0; }
-.lugar .origen { margin: 0; }
-.lugar .sub { font-size: .8rem; color: var(--c-ink3); }
+/* ---------- ronda 7: informe de consultora (blanco, sobrio, jerarquía clara) ---------- */
+.inf { --c-papel: #fff; --c-fondo: #f2f1ee; --c-ink: #1d2125; --c-ink2: #3f464d; --c-ink3: #6b737b; --c-linea: #e3e3df; --c-acento: #2f5d50; }
+.btn { background: var(--c-ink); }
+.btn.ghost { color: var(--c-ink); }
+.hoja { border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 28px rgba(0,0,0,.05); }
+.eyebrow { color: var(--c-acento); font-size: .68rem; letter-spacing: .14em; }
+.cab { display: block; border-bottom: 1px solid var(--c-ink); padding-bottom: .7rem; margin-bottom: 1.2rem; }
+.portada h1 { font-size: clamp(1.6rem, 3.6vw, 2.2rem); line-height: 1.12; letter-spacing: -.01em; margin: .25rem 0 .7rem; }
+.meta { margin: 0 0 .3rem; font-size: .82rem; overflow-wrap: anywhere; font-weight: 600; color: var(--c-ink2); }
+.meta span + span::before { content: "·"; margin: 0 .45em; color: var(--c-ink3); font-weight: 400; }
+.origen { margin: 0; font-size: .74rem; color: var(--c-ink3); }
+.origen.approx, .origen.fixture { color: #9b2c2c; }
+.h-sec { font-family: var(--font-display); font-size: 1.2rem; font-weight: 600; display: block; margin: 1.6rem 0 .6rem; padding: 0 0 .3rem; border-bottom: 1px solid var(--c-linea); color: var(--c-ink); }
+.ejecutivo { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 1.4rem; align-items: start; }
+.ejecutivo .h-sec { margin-top: 0; }
+.resumen { margin: 0; padding: 0; list-style: none; counter-reset: r; display: grid; gap: .55rem; }
+.resumen li { counter-increment: r; position: relative; padding-left: 1.6rem; font-size: .98rem; line-height: 1.5; }
+.resumen li::before { content: counter(r) '.'; position: absolute; left: 0; top: 0; width: auto; height: auto; border: 0; border-radius: 0; color: var(--c-acento); font-weight: 700; font-size: .95rem; }
+.resumen :deep(strong) { color: var(--c-ink); font-weight: 700; }
+.ej-mapa { border-radius: 2px; overflow: hidden; aspect-ratio: 1; }
+.parr { margin: 0 0 .7rem; max-width: 46em; }
+.tabla.sobria { font-size: .86rem; margin: .4rem 0 .2rem; }
+.tabla.sobria th, .tabla.sobria td { padding: .45rem .5rem; }
+.tabla.sobria thead th { color: var(--c-ink3); border-bottom: 1px solid var(--c-ink); font-weight: 700; }
+.tabla.sobria tbody th { font-weight: 600; }
+.tabla.sobria tr.rec { background: #f3f6f4; }
+.tabla.sobria tr.rec th, .tabla.sobria tr.rec td { font-weight: 700; }
+.tabla.sobria em { font-style: normal; font-weight: 600; color: var(--c-acento); font-size: .8rem; }
+.b-fuente { font-size: .72rem; color: var(--c-ink3); margin: .25rem 0 0; }
+.riesgos { margin: 0 0 .6rem; padding-left: 1.1rem; display: grid; gap: .35rem; max-width: 46em; }
+.cuerpo { padding-top: 12mm; }
+.cuerpo > .h-sec:first-child { margin-top: 0; }
+.cuerpo :deep(.bloque) { border-top: 0; padding-top: .3rem; }
+.nota { background: #f6f6f4; border-left-color: var(--c-ink3); }
+.nota.warn { background: #fbf3f3; border-left-color: #9b2c2c; }
 
-/* ---------- cuerpo: una gráfica por bloque ---------- */
-.cuerpo { padding-top: 6mm; }
-.cuerpo > :first-child { border-top: 0; padding-top: 0; }
-.dos-g { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
-.g-et { font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--c-ink3); margin-bottom: .1rem; }
-.leyenda-est { display: flex; flex-wrap: wrap; gap: .2rem 1.1rem; font-size: .76rem; color: var(--c-ink2); margin-top: .3rem; }
-.leyenda-est b { color: var(--c); }
-.leyenda-est em { font-style: normal; font-weight: 800; color: #8a5d00; }
-.angosta { max-width: 440px; }
-
-/* ---------- productos ---------- */
-.h-blq { font-family: var(--font-display); font-size: 1.6rem; margin: 0 0 .2rem; }
-.productos .sub { font-size: .9rem; margin-bottom: .9rem; }
-.prods { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
-.prod { border: 1px solid var(--c-linea); border-left: 4px solid #8a5a3b; border-radius: 8px; padding: .7rem .85rem; break-inside: avoid; }
-.prod.semilla { border-left-color: #e0a526; } .prod.cobertura, .prod.mulch { border-left-color: #5d8a3a; }
-.prod.agua, .prod.goteo, .prod.pluviometro { border-left-color: #2e4a8f; } .prod.silo { border-left-color: #8a5a3b; }
-.prod h3 { font-size: 1.05rem; margin: 0 0 .4rem; line-height: 1.2; }
-.prod dl { margin: 0; display: grid; gap: .25rem; }
-.prod dl > div { display: grid; grid-template-columns: 4.6rem 1fr; gap: .5rem; align-items: baseline; }
+/* ---------- recomendaciones ---------- */
+.prods { display: grid; grid-template-columns: 1fr; gap: 0; border-top: 1px solid var(--c-linea); }
+.prod { border-bottom: 1px solid var(--c-linea); padding: .8rem 0; break-inside: avoid; }
+.prod h3 { font-family: var(--font-display); font-size: 1rem; font-weight: 600; margin: 0 0 .35rem; }
+.prod dl { margin: 0; display: grid; gap: .2rem; }
+.prod dl > div { display: grid; grid-template-columns: 8rem 1fr; gap: .8rem; align-items: baseline; }
+.prod dt { font-size: .66rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--c-ink3); }
+.prod dd { margin: 0; font-size: .86rem; line-height: 1.45; }
 .prod .que dd { font-weight: 600; }
-.prod dt { font-size: .62rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--c-ink3); }
-.prod dd { margin: 0; font-size: .84rem; line-height: 1.4; }
-.productos .ext { font-family: var(--font-display); font-size: 1.1rem; margin: 1rem 0 0; padding: .7rem 1rem; background: #ecf6f1; border-radius: 10px; border-left: 5px solid #2a8a66; }
+.productos .ext { font-size: .92rem; margin: 1rem 0 0; color: var(--c-ink2); }
 
 /* ---------- anexo plegable ---------- */
 .anexo summary { list-style: none; cursor: pointer; display: grid; gap: .2rem; }
@@ -972,15 +962,18 @@ h3 { font-family: var(--font-display); }
 .ax-tit { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; }
 .ax-sub { font-size: .85rem; color: var(--c-ink3); max-width: 44em; }
 .ax-btn { justify-self: start; margin-top: .4rem; font-weight: 800; font-size: .8rem; padding: .4rem .9rem; border-radius: 999px; border: 1px solid #2a2118; }
-.anexo[open] .ax-btn { background: #2a2118; color: #fffdf8; }
+.anexo[open] .ax-btn { background: var(--c-ink); color: #fff; }
+.ax-tit { font-size: 1.2rem; }
 .ax { padding: 1rem 0 .4rem; border-top: 1px solid var(--c-linea); margin-top: 1rem; font-size: .92rem; }
 .ax-h { font-family: var(--font-display); font-size: 1.15rem; margin: 0 0 .6rem; }
 .ax.estr { border-top: 4px solid var(--c); padding-top: .8rem; }
 .ax.estr.rec { box-shadow: none; }
 
 @media screen and (max-width: 720px) {
-  .cifras4 { grid-template-columns: 1fr 1fr; }
-  .lugar, .dos-g, .prods { grid-template-columns: 1fr; }
+  .ejecutivo { grid-template-columns: 1fr; }
+  .ej-mapa { aspect-ratio: 16 / 10; }
+  .meta { gap: .2rem 1rem; }
+  .tabla.sobria { display: block; overflow-x: auto; }
   .prod dl > div { grid-template-columns: 1fr; gap: 0; }
   .angosta { max-width: none; }
 }
@@ -1014,20 +1007,23 @@ h3 { font-family: var(--font-display); }
   .metodo div { grid-template-columns: 95px 1fr; }
 }
 @media print {
-  .portada { min-height: 0; display: block; }
-  .portada h1 { font-size: 28pt; }
-  .veredicto { font-size: 17pt; margin: 6mm 0 7mm; }
-  .cifras4 { gap: 5mm; margin-bottom: 8mm; }
-  .c4-n { font-size: 26pt; }
-  .c4-u { font-size: 9pt; } .c4-s { font-size: 8pt; }
-  .lugar { margin-top: 4mm; grid-template-columns: 82mm 1fr; gap: 6mm; }
-  .conf-frase { font-size: 9.5pt; }
-  .lugar .sub { font-size: 8pt; }
+  .portada { min-height: 0; display: block; padding: 0; }
+  .portada h1 { font-size: 18pt; }
+  .cab { margin-bottom: 5mm; }
+  .meta { font-size: 8.6pt; }
+  .h-sec { font-size: 12.5pt; margin: 6mm 0 2.5mm; break-after: avoid; }
+  .ejecutivo { grid-template-columns: 1fr 52mm; gap: 6mm; }
+  .resumen li { font-size: 10pt; }
+  .tabla.sobria { font-size: 9pt; }
+  .tabla.sobria tr.rec { background: #f3f6f4; }
+  .riesgos { font-size: 9.5pt; }
+  .parr { font-size: 9.5pt; }
   .cuerpo { padding-top: 0; }
-  .leyenda-est { font-size: 8pt; }
-  .angosta { max-width: 100mm; }
-  .angosta :deep(svg) { max-height: 52mm; }
-  .dos-g :deep(svg) { max-height: 40mm; }
+  .prod { padding: 2mm 0; }
+  .prod h3 { font-size: 10pt; }
+  .prod dl > div { grid-template-columns: 24mm 1fr; gap: 2mm; }
+  .prod dd { font-size: 8.4pt; }
+  .prod dt { font-size: 6.2pt; }
   .productos .sub { font-size: 9pt; margin-bottom: 4mm; }
   .prods { gap: 2.4mm; }
   .prod { padding: 1.8mm 2.6mm; }

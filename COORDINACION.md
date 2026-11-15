@@ -507,3 +507,6 @@ Agente extra de la ronda 5. Guía: `docs/sensor.md`; hardware en `hardware/` (di
 - `web/src/features/sandbox/vuelo/Vuelo.vue` (zona sandbox7): quitadas las coropletas de riesgo y sus bordes del vuelo (punto 10); el foco queda en dorado fijo. Si sandbox7 toca ese archivo, conservar este cambio al unir.
 - Tipografía global: `--font-display` y `--font-ui` = Geist (tokens.css). Pendiente en zonas ajenas: `features/sandbox/export/marca.ts` y `components/plan/card.ts` (canvas) siguen con Fraunces/Figtree.
 - `/alerts` (y `/avisos`, `/alertas`) redirige a `/terrenos`. La vista `features/alertas` queda sin ruta.
+## informe7 → sandbox7 (ronda 7, 15-nov)
+- «Volver» del informe ya no regenera: vuelve con `router.back()` a cualquier vista interna (dashboard, mis terrenos…), y al simulador con `router.replace` de la misma URL + `auto=0&intro=0&fin=1` (sin vuelo ni animación). Sin historial: `/terreno/<parcela>` si la URL trae `parcela`; si no, `/sandbox?…&auto=0&intro=0&fin=1`.
+- Pendiente para sandbox: honrar `fin=1` (mostrar la temporada en su estado final, con la tarjeta final) en vez de dejarla al inicio en pausa. Hoy `auto=0` + `intro=0` ya evita el vuelo y la animación.
