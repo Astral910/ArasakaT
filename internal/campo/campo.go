@@ -242,6 +242,7 @@ type Servicio struct {
 type Observacion struct {
 	DrParaTAW   func(taw float64) float64 // agotamiento de la zona de raíces medido, escalado a la TAW del modelo
 	LluviaHoyMM float64
+	NoRegarHoy  string // llovió hoy o anoche y el agua sigue bajando: reemplaza el "regá X mm" de hoy
 	Avisos      []Aviso
 	Fuente      string
 }
@@ -516,6 +517,9 @@ func (s *Servicio) calcular(p Parcela, idioma string, reps []Reporte) (*Hoy, err
 		}
 		pp.drSin = drSin
 		pp.recNeto, pp.porque = decidir(drSin, pp, peM, season-k, en)
+		if obsSensor != nil && k == hoyK && !d.Pron && obsSensor.NoRegarHoy != "" {
+			pp.recNeto, pp.porque = 0, obsSensor.NoRegarHoy
+		}
 		pp.irr = hecho
 		if d.Pron { // a futuro se supone que se sigue la recomendación
 			pp.irr += pp.recNeto

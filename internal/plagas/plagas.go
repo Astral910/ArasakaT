@@ -338,11 +338,11 @@ func aplicarReportes(out []Riesgo, in Entrada, en bool) []Riesgo {
 		hecho := false
 		for i := range out {
 			if out[i].ID == id && id != "" {
-				if !out[i].Reportado {
+				if !out[i].Reportado { // una vez aunque haya varios reportes de la misma plaga
 					out[i].Porque = fmt.Sprintf(pick(en, "Lo reportaste el %s («%s»). ", "You reported it on %s (“%s”). "), rp.Fecha, corto(rp.Texto)) + out[i].Porque
+					out[i].QueHacer = pick(en, "Ya está en tu campo: actuá esta semana. ", "It is already in your field: act this week. ") + out[i].QueHacer
 				}
 				out[i].Riesgo, out[i].Reportado, hecho = "alto", true, true
-				out[i].QueHacer = pick(en, "Ya está en tu campo: actuá esta semana. ", "It is already in your field: act this week. ") + out[i].QueHacer
 			}
 		}
 		if !hecho {

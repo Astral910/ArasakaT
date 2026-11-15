@@ -58,7 +58,8 @@ export function leyenda(f: Filtro, idioma: 'es' | 'en', deEscena?: any): Leyenda
     max: deEscena.max != null ? `${deEscena.max}${u}` : base.max,
     colores: Array.isArray(deEscena.colores) && deEscena.colores.length >= 2 ? deEscena.colores : base.colores,
     fuente: typeof deEscena.fuente === 'string' && deEscena.fuente ? deEscena.fuente : base.fuente,
-    real: typeof deEscena.real === 'boolean' ? deEscena.real : base.real,
+    // la escena manda dato: 'real' | 'estimado' | 'modelo' (sin Sentinel-2 todavía, el verdor es estimado)
+    real: typeof deEscena.dato === 'string' ? deEscena.dato === 'real' : typeof deEscena.real === 'boolean' ? deEscena.real : base.real,
   }
 }
 

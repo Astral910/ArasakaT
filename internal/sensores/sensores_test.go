@@ -274,3 +274,31 @@ func TestHTTP(t *testing.T) {
 		t.Fatalf("demo: %v", dm)
 	}
 }
+
+// Llovió anoche (22:00) y son las 02:00: la lluvia ya es "de ayer". Antes salía "regá 58 mm" junto a
+// "no regués hoy"; ahora manda no regar y lo expone para el riego de hoy del terreno (campo).
+func TestLluviaAnocheNoRegar(t *testing.T) {
+	s := nuevo(t, 0.4)
+	madrugada := time.Date(2026, 7, 11, 8, 0, 0, 0, time.UTC) // 02:00 en Guatemala
+	s.Ahora = func() time.Time { return madrugada }
+	d, _ := alta(t, s)
+	sim := Simular(madrugada, 7, EscLluvia, -6*3600, TexturaFranca, 1)
+	if _, err := s.Ingerir(d, sim.Paquete); err != nil {
+		t.Fatal(err)
+	}
+	e, err := s.UltimoEstado("p1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.LluviaRecienteMM < 17 {
+		t.Fatalf("lluvia reciente %v (hoy %v)", e.LluviaRecienteMM, e.LluviaHoyMM)
+	}
+	for _, ev := range e.Eventos {
+		if ev.Tipo == "regar" {
+			t.Fatalf("manda a regar tras 18 mm anoche: %+v", e.Eventos)
+		}
+	}
+	if txt, ok := e.NoRegarHoy("es"); !ok || !strings.Contains(txt, "No regués hoy") {
+		t.Fatalf("NoRegarHoy = %q, %v", txt, ok)
+	}
+}

@@ -33,6 +33,15 @@ type Config struct {
 	DemoPass  string // DEMO_PASS: contraseña de demo@fieldshift.app (vacío = sin cuenta demo)
 }
 
+// urlLocal base de los links cuando no hay PUBLIC_URL: el mismo ADDR (antes fijo a :8200, y con otro puerto
+// el bot mandaba links e imágenes a un servidor que no existía).
+func urlLocal(addr string) string {
+	if strings.HasPrefix(addr, ":") || strings.HasPrefix(addr, "0.0.0.0:") {
+		addr = "127.0.0.1:" + addr[strings.LastIndex(addr, ":")+1:]
+	}
+	return "http://" + addr
+}
+
 func loadConfig() Config {
 	loadDotEnv(".env")
 	addr := env("ADDR", "127.0.0.1:8200")
@@ -48,7 +57,7 @@ func loadConfig() Config {
 		FixturePath:   env("FIXTURE_PATH", "contracts/fixtures/plan_jocotan.json"),
 		DBPath:        env("DB_PATH", "fieldshift.db"),
 		AdminToken:    os.Getenv("ADMIN_TOKEN"),
-		PublicURL:     env("PUBLIC_URL", "http://127.0.0.1:8200"),
+		PublicURL:     env("PUBLIC_URL", urlLocal(addr)),
 		SchedulerOn:   !strings.EqualFold(os.Getenv("SCHEDULER"), "off"),
 		SchedulerHora: env("SCHEDULER_HORA", "06:00"),
 		SchedulerCada: duracion(os.Getenv("SCHEDULER_CADA"), 3*time.Hour),

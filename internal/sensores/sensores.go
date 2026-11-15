@@ -146,38 +146,39 @@ type Evento struct {
 
 // Estado lo último que midió la estación de una parcela (UltimoEstado).
 type Estado struct {
-	ParcelaID    string     `json:"parcela_id"`
-	Dispositivo  string     `json:"dispositivo"`
-	Nombre       string     `json:"nombre,omitempty"`
-	Simulado     bool       `json:"simulado"`
-	Fecha        time.Time  `json:"fecha"`    // de la última lectura
-	EdadMin      float64    `json:"edad_min"` // minutos desde la última lectura
-	Fresco       bool       `json:"fresco"`   // última lectura de hace menos de 3 h
-	H10          Capa       `json:"h10"`
-	H30          Capa       `json:"h30"`
-	ZrM          float64    `json:"raiz_m"`
-	AguaPct      float64    `json:"agua_pct"`   // zona de raíces, % del agua disponible
-	FAD          float64    `json:"fad"`        // fracción de agua disponible 0..1+ (zona de raíces)
-	Umbral       float64    `json:"umbral_pct"` // por debajo, regar (1 − p de FAO-56)
-	TAWmm        float64    `json:"taw_mm"`     // agua disponible total de la zona de raíces
-	DrMM         float64    `json:"dr_mm"`      // agotamiento observado (mm que faltan para capacidad de campo)
-	Suelo        Hidraulica `json:"suelo"`
-	Textura      Textura    `json:"textura"`
-	Calibracion  string     `json:"calibracion"` // medida | supuesta
-	TSuelo       *float64   `json:"t_suelo,omitempty"`
-	TAire        *float64   `json:"t_aire,omitempty"`
-	HR           *float64   `json:"hr,omitempty"`
-	BatV         *float64   `json:"bat_v,omitempty"`
-	BatPct       *float64   `json:"bat_pct,omitempty"`
-	RSSI         *int       `json:"rssi,omitempty"`
-	LluviaHoyMM  float64    `json:"lluvia_hoy_mm"`
-	LluviaHora   []float64  `json:"lluvia_hora"` // mm por hora local de hoy (24)
-	Lluvia24hMM  float64    `json:"lluvia_24h_mm"`
-	UltimaLluvia *Episodio  `json:"ultima_lluvia,omitempty"`
-	PronHoyMM    *float64   `json:"pron_hoy_mm,omitempty"`
-	Eventos      []Evento   `json:"eventos"`
-	Fuentes      []string   `json:"fuentes"`
-	Zona         int        `json:"utc_offset_s"`
+	ParcelaID        string     `json:"parcela_id"`
+	Dispositivo      string     `json:"dispositivo"`
+	Nombre           string     `json:"nombre,omitempty"`
+	Simulado         bool       `json:"simulado"`
+	Fecha            time.Time  `json:"fecha"`    // de la última lectura
+	EdadMin          float64    `json:"edad_min"` // minutos desde la última lectura
+	Fresco           bool       `json:"fresco"`   // última lectura de hace menos de 3 h
+	H10              Capa       `json:"h10"`
+	H30              Capa       `json:"h30"`
+	ZrM              float64    `json:"raiz_m"`
+	AguaPct          float64    `json:"agua_pct"`   // zona de raíces, % del agua disponible
+	FAD              float64    `json:"fad"`        // fracción de agua disponible 0..1+ (zona de raíces)
+	Umbral           float64    `json:"umbral_pct"` // por debajo, regar (1 − p de FAO-56)
+	TAWmm            float64    `json:"taw_mm"`     // agua disponible total de la zona de raíces
+	DrMM             float64    `json:"dr_mm"`      // agotamiento observado (mm que faltan para capacidad de campo)
+	Suelo            Hidraulica `json:"suelo"`
+	Textura          Textura    `json:"textura"`
+	Calibracion      string     `json:"calibracion"` // medida | supuesta
+	TSuelo           *float64   `json:"t_suelo,omitempty"`
+	TAire            *float64   `json:"t_aire,omitempty"`
+	HR               *float64   `json:"hr,omitempty"`
+	BatV             *float64   `json:"bat_v,omitempty"`
+	BatPct           *float64   `json:"bat_pct,omitempty"`
+	RSSI             *int       `json:"rssi,omitempty"`
+	LluviaHoyMM      float64    `json:"lluvia_hoy_mm"`
+	LluviaRecienteMM float64    `json:"lluvia_reciente_mm"` // hoy + ayer (hora local): lluvia que todavía puede estar bajando a las raíces
+	LluviaHora       []float64  `json:"lluvia_hora"`        // mm por hora local de hoy (24)
+	Lluvia24hMM      float64    `json:"lluvia_24h_mm"`
+	UltimaLluvia     *Episodio  `json:"ultima_lluvia,omitempty"`
+	PronHoyMM        *float64   `json:"pron_hoy_mm,omitempty"`
+	Eventos          []Evento   `json:"eventos"`
+	Fuentes          []string   `json:"fuentes"`
+	Zona             int        `json:"utc_offset_s"`
 }
 
 // DrParaTAW agotamiento observado para el TAW del modelo (campo lo usa para reemplazar su Dr del día).

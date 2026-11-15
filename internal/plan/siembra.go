@@ -319,6 +319,19 @@ func evalSiembra(a *siembraArgs, elegida string) (*contract.SimSiembra, int) {
 		add("ventana", "ojo", fmt.Sprintf("Está fuera de la ventana de siembra de la temporada principal (%s a %s).", fechaCorta(a.realDe(d0), false), fechaCorta(a.realDe(d1), false)),
 			fmt.Sprintf("It is outside the main-season sowing window (%s to %s).", fechaCorta(a.realDe(d0), true), fechaCorta(a.realDe(d1), true)), fuenteOnset)
 	}
+	if !out.Recomendable && best.d != el.d {
+		// el resumen va como razón: a veces ningún riesgo suelto explica la diferencia (pesa la suma)
+		sv := sev(el.prob, 0.2, 0.4)
+		if sv == "ok" {
+			sv = "ojo"
+		}
+		add("perdida", sv,
+			fmt.Sprintf("Pérdida de cosecha en %d de cada 10 temporadas parecidas (%d de cada 10 con la fecha recomendada); cosecha típica %.0f qq/mz (%.0f con la recomendada).",
+				de10(el.prob), de10(best.prob), el.p50, best.p50),
+			fmt.Sprintf("Crop loss in %d of 10 similar seasons (%d of 10 with the recommended date); typical harvest %.0f qq/mz (%.0f with the recommended one).",
+				de10(el.prob), de10(best.prob), el.p50, best.p50),
+			fuenteFAO+" · "+fuentePOWER)
+	}
 	add("falso_inicio", sev(el.falso, 0.2, 0.4),
 		fmt.Sprintf("Falso inicio: en %d de cada 10 años parecidos vino una racha de %d+ días secos en el primer mes después de sembrar el %s (la semilla nace y se seca)%s.",
 			de10(el.falso), sim.OnsetDrySpell, fechaCorta(tEl, false), compara(el.falso, best.falso, best.d != el.d, false)),
@@ -416,9 +429,25 @@ func evalSiembra(a *siembraArgs, elegida string) (*contract.SimSiembra, int) {
 		add("ventana", "ojo", "La fecha está a más de 7 meses: lo que se ve es un escenario con años parecidos, no un pronóstico.",
 			"The date is more than 7 months away: what you see is a scenario from similar years, not a forecast.", fuenteSEAS5)
 	}
-	// ordenar: mala, ojo, ok (estable)
+	// ordenar: primero lo que la fecha elegida tiene peor que la recomendada (si no, "no te recomendamos ese día
+	// porque…" podía abrir con un riesgo en el que la recomendada sale igual o peor), después mala, ojo, ok (estable)
+	peor := map[string]bool{"ventana": true}
+	if best.d != el.d {
+		peor["perdida"] = true
+		peor["falso_inicio"] = el.falso > best.falso
+		peor["canicula_floracion"] = el.canFlor > best.canFlor
+		peor["frio_helada"] = el.helada > best.helada || el.frio > best.frio
+		peor["sequia"] = el.deficit > best.deficit
+		peor["exceso_cosecha"] = el.exceso > best.exceso
+	}
 	rank := map[string]int{"mala": 0, "ojo": 1, "ok": 2}
-	sort.SliceStable(out.Razones, func(i, j int) bool { return rank[out.Razones[i].Severidad] < rank[out.Razones[j].Severidad] })
+	sort.SliceStable(out.Razones, func(i, j int) bool {
+		a, b := out.Razones[i], out.Razones[j]
+		if pa, pb := peor[a.Codigo] && a.Severidad != "ok", peor[b.Codigo] && b.Severidad != "ok"; pa != pb {
+			return pa
+		}
+		return rank[a.Severidad] < rank[b.Severidad]
+	})
 	return out, el.d
 }
 

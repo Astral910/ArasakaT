@@ -220,7 +220,8 @@ export class Filtros {
         if (Number.isNaN(x)) { px[q + 3] = 0; continue }
         const [R, G, B] = colorDe(esc, x)
         px[q] = R; px[q + 1] = G; px[q + 2] = B
-        px[q + 3] = den[k] ? 255 : 205
+        // velo, no pintura: con 255 la parcela quedaba de un solo color plano (temperatura casi uniforme)
+        px[q + 3] = den[k] ? 150 : 125
       }
     }
     this.texB.needsUpdate = true

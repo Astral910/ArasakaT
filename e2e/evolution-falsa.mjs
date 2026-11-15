@@ -1,7 +1,7 @@
 // Punta a punta del bot por el canal Evolution con una Evolution API FALSA (sin WhatsApp real).
 // Levanta la Evolution falsa (127.0.0.1:8290), el server Go con WA_MODO=evolution (127.0.0.1:8200, oculto),
 // manda los webhooks que mandaría Evolution (hola → ubicación → respuestas → PLAN, PDF, PRUEBA ALERTA)
-// y revisa lo que el bot envía por la API REST de Evolution.
+// y revisa lo que el bot envía por la API REST de Evolution. Ronda 5: rango por texto libre y reporte con fuentes.
 // Uso (desde e2e/): node evolution-falsa.mjs  → resumen en consola + estado/muestras/e2e/evolution/
 import http from 'node:http'
 import { spawn } from 'node:child_process'
@@ -109,6 +109,11 @@ try {
   if (!plan) throw new Error('no llegó la tarjeta del plan (imagen)')
   await paso('INFORME (PDF)', { conversation: 'INFORME' }, (m) => m.mediatype === 'document', 120_000)
   await paso('PRUEBA ALERTA', { extendedTextMessage: { text: 'PRUEBA ALERTA' } }, (m) => /canícula|alerta|aviso/i.test(m.text || ''), 60_000)
+  // ronda 5: texto libre al asistente (claude -p o el respaldo por reglas): rango renderizado y reporte con fuentes
+  await paso('rango por texto libre', { conversation: 'Generame del 1 de julio al 1 de agosto' },
+    (m) => /jul/i.test(m.text || m.caption || '') || m.mediatype === 'video', 180_000)
+  await paso('reporte con fuentes', { conversation: 'Hoy llovió mucho y hay gusano cogollero, ¿qué hago?' },
+    (m) => /fuente|FAO|CIMMYT|MAGA/i.test(m.text || ''), 180_000)
   fs.writeFileSync(path.join(OUT, 'enviados.json'), JSON.stringify(enviados, null, 2))
   const tipos = [...new Set(enviados.map((m) => m.mediatype || m.tipo))]
   console.log(`\nRESUMEN: ${enviados.length} envíos por Evolution · tipos: ${tipos.join(', ')} · todos a ${[...new Set(enviados.map((m) => m.number))].join(',')}`)
