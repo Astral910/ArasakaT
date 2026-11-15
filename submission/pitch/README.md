@@ -18,5 +18,5 @@ All `img/` files were replaced by the integrator with frames of the final build 
 
 ## Before submitting
 - Fill every `⟦…⟧` (`grep -rn "⟦" submission/`): team name, WhatsApp number, final forecast numbers.
-- Slides use the forecast run of 14 Nov 2026 (47 %, 8 of 24, 17–32 qq/mz). If the final build shows different numbers, update slide 4 and the video text together.
+- Slides use the forecast run of 14 Nov 2026 (40 %, 8 of 24, 17–32 qq/mz). If the final build shows different numbers, update slide 4 and the video text together.
 - Upload `slides.pdf` as a public link (Drive/GitHub) only if the team picks slides instead of the video for field 3 (the portal accepts one or the other).

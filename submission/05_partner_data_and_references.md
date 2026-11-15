@@ -45,5 +45,5 @@
 
 ## Images, music, video
 - All illustrations are original SVG drawn for this project. ⟦TBD: list any AI-generated image (must carry a visible watermark) or third-party image⟧.
-- The demo video is a screen recording of our own app (headless browser, `/demo` route); no music and no audio.
+- The demo video is a screen recording of our own app (headless browser, real takes of the live tool; `tools/demo-video/`). Sound: an ambient bed synthesised with FFmpeg (low chord, wind, rain during the storm shot); no third-party music, samples or voice.
 - No NASA logos are used in any generated content.

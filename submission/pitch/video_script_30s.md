@@ -10,7 +10,7 @@ On-screen text: Figtree 600, white on a dark glass pill, bottom third; key numbe
 | 0:00–0:02 | Title card on dark earth | **Field Shift** · NASA Space Apps 2026 · Guatemala | ffmpeg title card |
 | 0:02–0:07 | Landing (EN): type "Jocotán", tap the place, tap **See my season** (×1.5) | Type your place. Two taps. The guide starts on its own. | `/?lang=en`, one take |
 | 0:07–0:11 | Globe → camera centred on the pin → municipality outline on SRTM + Sentinel-2 → diorama rises (×3.5) | Your place, from NASA satellites: anywhere on Earth | `/sandbox?…&auto=1`, same take |
-| 0:11–0:19 | Guided season (×6): forecast rain, maize grows, midsummer drought, harvest; narration subtitles and the confidence badge on screen | Next 16 days: forecast. Then the past year that best matches the seasonal outlook. → 47 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence | same take (scenario `pronostico`, run of 14 Nov 2026) |
+| 0:11–0:19 | Guided season (×6): forecast rain, maize grows, midsummer drought, harvest; narration subtitles and the confidence badge on screen | Next 16 days: forecast. Then the past year that best matches the seasonal outlook. → 40 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence | same take (scenario `pronostico`, run of 14 Nov 2026) |
 | 0:19–0:21.5 | Split screen S0 \| S2, same day, both animated | Same rain: what you do today vs. maize + velvet bean cover | `/sandbox?…&comparar=1` |
 | 0:21.5–0:24 | Season result card (both numbers, "lost season" mark, confidence line) | One clear result at the end of the season | same take |
 | 0:24–0:26.5 | Technical report page 1 (EN) | Every number in a technical report (web + PDF), with sources and limits | same take → `/informe?…` |
@@ -37,7 +37,7 @@ Next 16 days: forecast. Then the past year that best matches the seasonal outloo
 
 4
 00:00:15,000 --> 00:00:19,000
-47 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence
+40 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence
 
 5
 00:00:19,000 --> 00:00:21,500

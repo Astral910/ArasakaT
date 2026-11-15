@@ -19,7 +19,7 @@ Sound: an ambient bed synthesised with FFmpeg (low chord, wind, rain during the 
 | 0:11 | The estate diorama: polygon plot, real soil, neighbouring houses in 3D | Your real plot, in 3D |
 | 0:14 | Guided season, Jocotán: storm (62 mm in one day) | Storms... |
 | 0:16 | Midsummer drought, low camera over the maize | ...and the midsummer drought |
-| 0:18 | Confidence badge (47 % likely, 8 of 24 years, medium) | It tells you how sure it is |
+| 0:18 | Confidence badge (40 % likely, 8 of 24 years, medium) | It tells you how sure it is |
 | 0:20 | Season result card (19.4 vs 20.2 qq/mz) | One clear answer |
 | 0:22 | Technical report (web) | Every number in a technical report |
 | 0:25 | Web WhatsApp simulator (live bot): TEST ALERT answered with today's forecast | Real alerts on WhatsApp |
