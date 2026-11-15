@@ -8,7 +8,7 @@ Source: one continuous headless take of the real app (round-3 flow: place → 2 
 | 0:00–0:02 | Title card | Field Shift · NASA Space Apps 2026 · Guatemala |
 | 0:02–0:07 | Landing: type "Jocotán", tap it, tap *See my season* | Type your place. Two taps. The guide starts on its own. |
 | 0:07–0:11 | Globe → camera centred on the pin → SRTM + Sentinel-2 terrain → diorama with the ranch | Your place, from NASA satellites: anywhere on Earth |
-| 0:11–0:19 | Guided season driven by the engine (forecast, drought, harvest), narration subtitles, confidence badge | Next 16 days: forecast. Then the past year that best matches the seasonal outlook. / 47 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence |
+| 0:11–0:19 | Guided season driven by the engine (forecast, drought, harvest), narration subtitles, confidence badge | Next 16 days: forecast. Then the past year that best matches the seasonal outlook. / 40 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence |
 | 0:19–0:21.5 | Split screen S0 \| S2, same day | Same rain: what you do today vs. maize + velvet bean cover |
 | 0:21.5–0:24 | Season result card | One clear result at the end of the season |
 | 0:24–0:26.5 | Technical report page 1 | Every number in a technical report (web + PDF), with sources and limits |

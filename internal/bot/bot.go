@@ -190,6 +190,11 @@ func (b *Bot) paso(se *Sesion, e Entrada) []Salida {
 			return b.resumen(se, false)
 		}
 		return b.saludo(se)
+	case "INFORME", "REPORTE", "REPORT", "PDF":
+		if se.Plan == nil {
+			return append(txt(t(L, "sin_plan")), b.saludo(se)...)
+		}
+		return []Salida{b.informe(se)}
 	case "AVISAME", "ALERTS", "ALERTAS", "AVISOS":
 		if _, ok := b.suscriptorDe(se, ""); !ok {
 			return append(txt(t(L, "sin_plan")), b.saludo(se)...)

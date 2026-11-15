@@ -90,8 +90,8 @@ var textos = map[string][2]string{
 		"Done, no more alerts 👋 Your alert data was deactivated. Type HI whenever you want to come back.",
 	},
 	"ayuda": {
-		"Así me usás 👇\n• *MENU*: ver tu plan otra vez\n• *CAMBIAR*: empezar con otros datos\n• *1, 2, 3*: detalle de cada opción\n• *AVISAME*: recibir avisos de clima\n• *PRUEBA ALERTA*: una alerta real para tu lugar, ya\n• *VIDEO*: ver tu milpa en 3D 🎬\n• *ALTO*: dejar de recibir avisos\n• *EN*: English\nLos datos vienen de satélites de la NASA. Consultá siempre con tu extensionista 🤝",
-		"How to use me 👇\n• *MENU*: see your plan again\n• *CHANGE*: start over with new answers\n• *1, 2, 3*: details of each option\n• *ALERTS*: get weather alerts\n• *ALERT TEST*: a real alert for your place, now\n• *VIDEO*: see your milpa in 3D 🎬\n• *STOP*: stop alerts\n• *ES*: Español\nData comes from NASA satellites. Always check with your local extension agent 🤝",
+		"Así me usás 👇\n• *MENU*: ver tu plan otra vez\n• *CAMBIAR*: empezar con otros datos\n• *1, 2, 3*: detalle de cada opción\n• *AVISAME*: recibir avisos de clima\n• *PRUEBA ALERTA*: una alerta real para tu lugar, ya\n• *VIDEO*: ver tu milpa en 3D 🎬\n• *INFORME*: el informe técnico en PDF 📄\n• *ALTO*: dejar de recibir avisos\n• *EN*: English\nLos datos vienen de satélites de la NASA. Consultá siempre con tu extensionista 🤝",
+		"How to use me 👇\n• *MENU*: see your plan again\n• *CHANGE*: start over with new answers\n• *1, 2, 3*: details of each option\n• *ALERTS*: get weather alerts\n• *ALERT TEST*: a real alert for your place, now\n• *VIDEO*: see your milpa in 3D 🎬\n• *REPORT*: the technical report as a PDF 📄\n• *STOP*: stop alerts\n• *ES*: Español\nData comes from NASA satellites. Always check with your local extension agent 🤝",
 	},
 	"cambiar":   {"Empecemos de nuevo 🔄", "Let's start over 🔄"},
 	"idioma_ok": {"Listo, seguimos en español 🇬🇹", "Okay, switching to English 🇬🇧"},

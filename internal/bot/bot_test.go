@@ -343,3 +343,20 @@ func TestRiegoTextoLibre(t *testing.T) {
 		}
 	}
 }
+
+// INFORME en cualquier momento manda el PDF del plan (sin plan, pide empezar).
+func TestComandoInforme(t *testing.T) {
+	b, _ := nuevoBot(t)
+	tel := "50255550078"
+	say := func(e Entrada) []Salida { e.Tel = tel; return b.Responder(e) }
+	debe(t, say(Entrada{Texto: "informe"}), "Todavía no tenemos tu plan")
+	say(Entrada{Texto: "hola"})
+	say(Entrada{Texto: "Camotán"})
+	say(Entrada{BotonID: "milpa"})
+	say(Entrada{Texto: "4"})
+	say(Entrada{Texto: "1"})
+	out := say(Entrada{Texto: "Informe"})
+	if len(out) != 1 || out[0].Tipo != "document" || !strings.Contains(out[0].DocURL, "/api/informe.pdf?") {
+		t.Fatalf("INFORME debía mandar el PDF: %s", todo(out))
+	}
+}

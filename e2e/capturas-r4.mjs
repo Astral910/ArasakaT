@@ -49,10 +49,11 @@ await page.waitForTimeout(9000)
 await jpg('24-neighbourhood-diorama-3d-houses')
 
 // 4) Jocotán, punto (suelo con materiales, rancho)
-await page.goto(`${BASE}/sandbox?lat=14.82000&lon=-89.39000&lugar=Jocot%C3%A1n&pais=GT&forma=punto&area=1&unidad=manzana&cultivo=milpa&auto=1&lang=en`)
+await page.goto(`${BASE}/sandbox?lat=14.78500&lon=-89.34500&lugar=Jocot%C3%A1n&pais=GT&forma=punto&area=1&unidad=manzana&cultivo=milpa&auto=1&lang=en`)
 await listo()
 await page.getByRole('button', { name: /^(Pause|Pausa)$/ }).waitFor({ timeout: 90_000 })
 await page.waitForTimeout(12000)
+console.log('jocotan rural', JSON.stringify(await page.evaluate(() => { const d = (window).__fsListo; return { casas: d.casas, edificios: d.edificios, bioma: d.bioma } })))
 await jpg('03-guide-diorama-ranch')
 
 // 5) desierto

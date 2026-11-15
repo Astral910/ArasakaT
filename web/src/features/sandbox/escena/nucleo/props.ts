@@ -72,6 +72,16 @@ export interface ExtraProps {
   cobertura?: (x: number, z: number) => string
   altura?: number
   tipoGranja?: TipoGranja
+  /** Zona urbana (la ciudad ya puso las casas reales de OSM): sin rancho rural inventado. */
+  sinRancho?: boolean
+}
+
+/** Rancho vacío (zona urbana): misma interfaz, nada que dibujar ni ocupar. */
+function ranchoVacio(parcela: Parcela): Rancho {
+  return {
+    grupo: new THREE.Group(), tipo: 'milpa' as TipoGranja, pintar: (c) => c, vecinas: [], patio: [], plantas: [],
+    ocupado: () => false, esTierra: () => false, caminos: [], casas: 0, centro: [parcela.cx, parcela.cz], dispose() {},
+  }
 }
 
 /**
@@ -121,7 +131,8 @@ export function construirProps(
   const yUp = new THREE.Vector3(0, 1, 0)
   // rancho primero (ocupa los lugares planos)
   const esAgua = extra.esAgua ?? aguaDesdeSatelite(sat, L)
-  const rancho = construirRancho(bioma, parcela, alturaEn, L, mat, calidad, semilla, { U, esAgua, cobertura: extra.cobertura, altura: extra.altura, tipoGranja: extra.tipoGranja })
+  const rancho = extra.sinRancho ? ranchoVacio(parcela)
+    : construirRancho(bioma, parcela, alturaEn, L, mat, calidad, semilla, { U, esAgua, cobertura: extra.cobertura, altura: extra.altura, tipoGranja: extra.tipoGranja })
   grupo.add(rancho.grupo)
   rancho.pintar(sat)
   // instancias de árboles agrupadas por (especie, variante, detalle)
