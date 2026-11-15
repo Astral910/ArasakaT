@@ -236,6 +236,7 @@ class SandboxImpl implements Sandbox {
     if (ab.signal.aborted || this.desechado) return
     cierra('relieve')
     this.limpiarMundo()
+    tEtapa = performance.now()
     const dist = (x: number, z: number) => muestrearCampo(campo, x, z, poli)
     this.parcela = {
       cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, hx: (x1 - x0) / 2, hz: (z1 - z0) / 2, surco: 0.9 * ESCALA_PLANTA,
@@ -245,6 +246,7 @@ class SandboxImpl implements Sandbox {
     const exag = p.exageracion ?? Math.min(1.5, Math.max(1.0, 1.5 - (rec.desnivel - 25) / 90))
     this.maqueta = construirMaqueta(datos, this.parcela, exag, this.U, this.US, this.calidad)
     this.mundo.add(this.maqueta.grupo)
+    cierra('maqueta')
     // ajustar la dirección de los surcos (a lo largo de x) y ladera abajo
     this.US.uParcel.value.set(this.parcela.cx, this.parcela.cz, this.parcela.hx, this.parcela.hz)
     this.US.uDown.value.copy(this.maqueta.abajo)
@@ -524,8 +526,10 @@ class SandboxImpl implements Sandbox {
   // ------------------------------------------------------------ cámara
   private vistaDe(p: CameraPreset): Vista {
     const mq = this.maqueta
-    const { cx, cz, hx } = this.parcela
-    const s = hx * 2
+    const { cx, cz, hx, hz } = this.parcela
+    // lado que hay que encuadrar (parcelas grandes a escala real: la toma se aleja más que en proporción)
+    const s = Math.max(hx, hz * 0.85) * 2
+    const sG = s <= 60 ? s * 1.3 + 34 : 112 + (s - 60) * 2.4
     const hP = mq ? mq.alturaEn(cx, cz) : 0
     const L = mq?.L ?? 280
     switch (p) {
@@ -537,7 +541,7 @@ class SandboxImpl implements Sandbox {
       case 'ras': return { target: new THREE.Vector3(cx - s * 0.05, hP + 1.6, cz - s * 0.1), az: 0.12, el: 0.09, dist: Math.max(16, s * 0.33), fov: 48, banda: 0.32 }
       case 'lenta': return { target: new THREE.Vector3(cx, hP + 2, cz), az: this.vista.az + 0.35, el: 0.3, dist: s * 0.9 + 22, fov: 34, banda: 0.15 }
       case 'cenital': return { target: new THREE.Vector3(0, hP, 0), az: 0.0, el: 1.42, dist: L * 1.65, fov: 30, banda: 0.3 }
-      default: return { target: new THREE.Vector3(cx, hP + 1.5, cz - s * 0.05), az: 0.6, el: 0.4, dist: s * 1.3 + 34, fov: 30, banda: 0.2 }
+      default: return { target: new THREE.Vector3(cx, hP + 1.5, cz + s * 0.1), az: 0.6, el: 0.42, dist: sG, fov: 30, banda: 0.2 }
     }
   }
   private irA(p: CameraPreset, dur: number) {
