@@ -68,7 +68,7 @@ function hslARgb(h: number, s: number, l: number): [number, number, number] {
 function colorPlausible(tipo: TipoTecho, m: MuestraTecho): [number, number, number] {
   const { h, s, l } = rgbAHsl(m.r, m.g, m.b)
   const L = Math.max(0.22, Math.min(0.78, l))
-  if (tipo === 'teja') return hslARgb(h < 40 || h > 330 ? (h > 330 ? 8 : Math.max(6, h)) : 16, Math.max(0.38, Math.min(0.62, s)), Math.max(0.3, Math.min(0.55, L)))
+  if (tipo === 'teja') return hslARgb(h < 40 || h > 330 ? (h > 330 ? 8 : Math.max(6, h)) : 16, Math.max(0.32, Math.min(0.5, s)), Math.max(0.3, Math.min(0.5, L)))
   if (tipo === 'losa') return hslARgb(h, Math.min(0.12, s), L)
   if (tipo === 'pizarra') return hslARgb(h, Math.min(0.1, s), Math.min(0.4, L))
   // lámina: pintada si la foto es muy saturada; si no, gris galvanizado
@@ -103,13 +103,15 @@ export function elegirTecho(tags: Record<string, string>, m: MuestraTecho | null
   else if (/slate/.test(mat)) tipo = 'pizarra'
   let color: [number, number, number] | null = tags['roof:colour'] ? hexA(tags['roof:colour']) : null
   let foto = 0
-  if (m && m.n >= 6) {
+  // verde = copa de árbol sobre el techo (o foto borrosa): la foto no sirve para elegir ni pintar
+  const verde = !!m && (() => { const { h, s } = rgbAHsl(m.r, m.g, m.b); return h > 65 && h < 170 && s > 0.1 })()
+  if (m && m.n >= 6 && !verde) {
     const { h, s, l } = rgbAHsl(m.r, m.g, m.b)
     if (!tipo) {
-      if ((h < 32 || h > 340) && s > 0.22 && l > 0.18 && l < 0.7) tipo = o.region === 'europa' ? 'teja' : 'teja'
+      if ((h < 32 || h > 340) && s > 0.22 && l > 0.18 && l < 0.7) tipo = (o.region === 'europa' || o.region === 'norteamerica') && (o.niveles > 6 || o.areaM2 > 450) ? 'losa' : 'teja'
       else if (s > 0.25 && h > 165 && h < 260) tipo = 'lamina' // lámina pintada azul (el verde suele ser un árbol encima)
       else if (s < 0.16 && l > 0.62 && o.areaM2 > 250 && o.niveles <= 1) tipo = 'lamina' // bodega galvanizada
-      else if (o.region === 'europa' || o.region === 'norteamerica') tipo = l < 0.42 && o.niveles <= 4 ? 'pizarra' : 'losa'
+      else if (o.region === 'europa' || o.region === 'norteamerica') tipo = o.niveles <= 6 && o.areaM2 < 450 && r < 0.8 ? 'pizarra' : 'losa'
       else if (o.region === 'colonial') tipo = l < 0.35 ? 'losa' : s < 0.12 ? 'losa' : 'teja'
       else tipo = s < 0.14 && l > 0.55 && o.areaM2 < 160 && r < 0.4 ? 'lamina' : 'losa'
     }
@@ -121,7 +123,7 @@ export function elegirTecho(tags: Record<string, string>, m: MuestraTecho | null
     if (o.region === 'colonial') tipo = 'teja'
     else if (o.region === 'europa' || o.region === 'norteamerica') tipo = o.niveles > 4 ? 'losa' : 'pizarra'
     else if (o.region === 'surasia') tipo = 'losa'
-    else tipo = r < 0.55 ? 'losa' : r < 0.8 ? 'lamina' : 'teja'
+    else tipo = r < 0.42 ? 'losa' : r < 0.77 ? 'lamina' : 'teja'
   }
   const base: Record<TipoTecho, [number, number, number]> = {
     losa: [0.66, 0.64, 0.6], lamina: [0.62, 0.64, 0.66], teja: [0.62, 0.3, 0.2], pizarra: [0.24, 0.25, 0.28],
@@ -134,8 +136,9 @@ export function elegirTecho(tags: Record<string, string>, m: MuestraTecho | null
   else if (forma0 === 'hipped' || forma0 === 'pyramidal' || forma0 === 'half-hipped') forma = 'cuatroaguas'
   else if (forma0 === 'skillion') forma = 'unagua'
   else if (tipo === 'losa') forma = 'plano'
-  else if (o.niveles > 5 || o.areaM2 > 1500) { forma = 'plano'; if (tipo === 'teja') tipo = 'losa' }
+  else if ((o.niveles > 5 && o.region !== 'europa') || o.niveles > 7 || o.areaM2 > 1500) { forma = 'plano'; if (tipo === 'teja' || tipo === 'pizarra') tipo = 'losa' }
   else if (tipo === 'lamina') forma = !o.rect ? 'unagua' : o.areaM2 > 250 ? 'dosaguas' : r < 0.55 ? 'unagua' : 'dosaguas'
+  else if (o.region === 'europa') forma = o.rect ? 'dosaguas' : 'cuatroaguas' // casas de canal: hastial a la calle
   else forma = !o.rect ? 'cuatroaguas' : r < 0.6 ? 'dosaguas' : 'cuatroaguas'
   const conTinaco = (o.region === 'latam' || o.region === 'surasia' || o.region === 'africa' || o.region === 'colonial')
   const tinaco = conTinaco && forma === 'plano' && o.areaM2 > 30 && o.areaM2 < 2500 && hash01(o.semilla, 11) < (o.region === 'surasia' ? 0.8 : 0.65)

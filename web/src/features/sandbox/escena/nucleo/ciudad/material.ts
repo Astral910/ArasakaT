@@ -106,9 +106,20 @@ export function materialMuros(U?: U) {
           float du = abs(u - cu) - anchoV*0.5;
           float enV = step(du, 0.0) * step(y0, fv) * step(fv, y1);
           float marco = step(du, 0.09) * step(y0 - 0.09, fv) * step(fv, y1 + 0.09) * (1.0 - enV);
-          // puerta en planta baja
+          // puerta en planta baja (y portón de garaje al lado en casas con frente ancho)
           bool esPuerta = bajo && pu >= 0.0 && abs(u - pu) < 0.55;
+          bool conPorton = abs(fach) < 0.5 && largo > 7.5 && sem > 0.3;
+          float pc = pu + (sem > 0.65 ? -2.3 : 2.3);
+          bool esPorton = bajo && pu >= 0.0 && conPorton && abs(u - pc) < 1.3 && pc > 1.4 && pc < largo - 1.4;
           if (bajo && pu >= 0.0 && abs(u - pu) < 1.6) hay = esPuerta;
+          if (esPorton) {
+            hay = false;
+            float enG = step(abs(u - pc), 1.25) * step(fv, 2.3);
+            vec3 colG = sem > 0.8 ? vec3(0.85,0.84,0.8) : (sem > 0.55 ? vec3(0.32,0.24,0.18) : vec3(0.36,0.38,0.4));
+            colG *= 0.88 + 0.14*step(0.5, fract(fv/0.3));
+            muro = mix(muro, colG, enG);
+            marcoF = step(abs(u - pc), 1.33) * step(fv, 2.38) * (1.0 - enG);
+          }
           if (esPuerta) {
             float enP = step(abs(u - pu), 0.5) * step(fv, 2.15);
             float mP = step(abs(u - pu), 0.6) * step(fv, 2.25) * (1.0 - enP);
@@ -117,6 +128,13 @@ export function materialMuros(U?: U) {
             marcoF = mP;
           } else if (hay) {
             vidrioF = enV; marcoF = marco;
+            // rejas de hierro en las ventanas de abajo (casas y colonial)
+            if (bajo && fach < 1.5) {
+              float barra = step(fract((u - cu)/0.13 + 0.5), 0.16) + step(abs(fv - (y0 + y1)*0.5), 0.03);
+              float rej = clamp(barra, 0.0, 1.0) * enV * finoB;
+              vidrioF *= 1.0 - rej;
+              muro = mix(muro, vec3(0.1,0.1,0.1), rej);
+            }
             // repisa
             float rep = step(du, 0.14) * step(y0 - 0.16, fv) * step(fv, y0 - 0.04);
             muro = mix(muro, muro*1.12, rep);
@@ -198,6 +216,7 @@ export function materialTechos(U: U | undefined, sat: THREE.Texture | null, L: n
         if (foto > 0.01) {
           vec2 uv = vec2(p.x/uL + 0.5, 1.0 - (p.y/uL + 0.5));
           vec3 f = pow(texture2D(uSat, uv).rgb, vec3(1.0/2.2));
+          f = mix(vec3(dot(f, vec3(0.3,0.59,0.11))), f, 0.55); // la foto satelital viene saturada y con árboles
           float lc = dot(c, vec3(0.3,0.59,0.11));
           // la foto aporta el color y las manchas reales; el patrón aporta el relieve fino
           vec3 mezcla = f * clamp(0.6 + 0.4 * lc / max(dot(c0, vec3(0.3,0.59,0.11)), 0.05), 0.5, 1.4);
@@ -229,7 +248,7 @@ export function materialCalles(U?: U) {
         vec3 c;
         mojado = uWet;
         if (tipo < 0.5) {
-          float n = fbm(p*1.7), g = h21(floor(p*14.0));
+          float n = fbm(p*1.7), g = h21(floor(p*14.0)) * (1.0 - smoothstep(0.03, 0.08, max(fwidth(p.x), fwidth(p.y))));
           c = vec3(0.3,0.305,0.31) * (0.85 + 0.25*n + 0.08*g);
           c *= 1.0 - 0.12*smoothstep(0.62, 0.75, fbm(p*0.35 + 3.0)); // parches
           c = mix(c, c*0.82, smoothstep(0.75, 0.2, abs(abs(u)-0.45))*0.35);   // huella de llantas
@@ -238,7 +257,7 @@ export function materialCalles(U?: U) {
           if (marcas > 1.5) c = mix(c, vec3(0.86,0.7,0.22), (step(abs(u - 0.02), 0.012) + step(abs(u + 0.02), 0.012)) * 0.9);
           if (marcas > 0.5) c = mix(c, vec3(0.85,0.84,0.8), step(0.93, abs(u)) * step(abs(u), 0.96) * 0.75);
         } else if (tipo < 1.5) {
-          float n = fbm(p*1.3), piedras = step(0.86, h21(floor(p*6.0)));
+          float n = fbm(p*1.3), piedras = step(0.86, h21(floor(p*6.0))) * (1.0 - smoothstep(0.05, 0.15, max(fwidth(p.x), fwidth(p.y))));
           c = vec3(0.47,0.38,0.29) * (0.8 + 0.35*n);
           c = mix(c, c*0.78, smoothstep(0.3, 0.0, abs(abs(u)-0.42))*0.6);  // rodadas
           c = mix(c, vec3(0.6,0.56,0.5), piedras*0.5);
