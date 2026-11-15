@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // Página de prueba de la escena 3D (sin router): /src/features/sandbox/escena/preview.html
 // Parámetros: ?est=S2&dia=150&clima=tormenta&cam=general&q=media&play=1&vel=1&sinRed=1&hud=0&lat=..&lon=..&area=8&unidad=cuerda&tl=<url>
+// Ronda 4: &forma=punto|circulo|poligono&radio=<m>&poly=<polilínea Google, precisión 6>
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
-import { createSandbox, generarTimelineSintetico, type Bioma, type CameraPreset, type ClimaVisual, type Quality, type Sandbox, type SimTimeline } from './api'
+import { createSandbox, decodificarPolilinea, generarTimelineSintetico, type Bioma, type ParcelaGeo, type CameraPreset, type ClimaVisual, type Quality, type Sandbox, type SimTimeline } from './api'
 import '@fontsource-variable/figtree'
 
 const q = new URLSearchParams(location.search)
@@ -23,6 +24,8 @@ const fecha = ref('')
 const tl = shallowRef<SimTimeline>()
 const eventos = ref<string[]>([])
 const fuenteTl = ref('')
+const carga = ref({ p: 0, texto: 'Relieve del terreno…' })
+const aguaAviso = ref('')
 
 const CLIMAS: Record<string, Partial<ClimaVisual> | null> = {
   auto: null,
@@ -77,7 +80,9 @@ onMounted(async () => {
   s.on('fps', (d) => { fps.value = d.fps; ;(window as unknown as Record<string, unknown>).__fps = d.fps })
   s.on('dia', (d) => { fecha.value = d.fecha })
   s.on('evento', (e) => { eventos.value = [e.texto, ...eventos.value].slice(0, 4) })
-  s.on('ready', (d) => { ;(window as unknown as Record<string, unknown>).__readyMs = d.ms; (window as unknown as Record<string, unknown>).__ready = d; info.value = `lista en ${d.ms} ms · relieve ${d.relieveReal ? 'SRTM real' : 'plantilla'} · ${d.satelite ? 'satélite Esri' : 'textura de plantilla'} · ${d.bioma} · ${d.casas} casas · ${d.picosCorregidos} picos corregidos` })
+  s.on('ready', (d) => { ;(window as unknown as Record<string, unknown>).__readyMs = d.ms; (window as unknown as Record<string, unknown>).__ready = d; info.value = `lista en ${d.ms} ms · ${d.forma} ${(d.areaM2 / 10000).toFixed(2)} ha · relieve ${d.relieveReal ? 'SRTM real' : 'plantilla'} · ${d.satelite ? 'satélite Esri' : 'textura de plantilla'} · ${d.bioma} · ${d.casas} casas · ${d.edificios} edificios · ${d.quitados} quitados · ${Object.entries(d.tiempos).map(([k, v]) => `${k} ${v}`).join(' / ')} ms` })
+  s.on('progreso', (d) => { carga.value = { p: d.p, texto: d.texto } })
+  s.on('parcelaEnAgua', (d) => { aguaAviso.value = `La parcela cae en agua (${Math.round(d.fraccion * 100)} %)`; (window as unknown as Record<string, unknown>).__agua = d })
   tl.value = await cargarTimeline()
   s.setTimeline(tl.value)
   s.setDay(Math.floor(dia.value), dia.value % 1)
@@ -88,12 +93,21 @@ onMounted(async () => {
     areaValor: Number(q.get('area') ?? 8), areaUnidad: (q.get('unidad') as 'cuerda') ?? 'cuerda',
     cultivo: 'milpa', estrategia: est.value, sinRed: q.get('sinRed') === '1',
     bioma: (q.get('bioma') as Bioma | null) ?? undefined,
+    parcela: parcelaDeUrl(),
   })
   listo.value = true
   ;(window as unknown as Record<string, unknown>).__listo = true
   raf = requestAnimationFrame(bucle)
 })
 onBeforeUnmount(() => { cancelAnimationFrame(raf); sb.value?.dispose() })
+
+function parcelaDeUrl(): ParcelaGeo | undefined {
+  const forma = q.get('forma') as ParcelaGeo['forma'] | null
+  if (!forma) return undefined
+  const centro: [number, number] = [Number(q.get('lat') ?? 14.8121), Number(q.get('lon') ?? -89.3778)]
+  const poly = q.get('poly')
+  return { forma, centro, radioM: q.get('radio') ? Number(q.get('radio')) : undefined, poligono: poly ? decodificarPolilinea(poly, 6) : undefined }
+}
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
 function estadoHud() {
@@ -141,7 +155,14 @@ function estadoHud() {
         <button v-for="c in ['auto', 'alta', 'media', 'baja']" :key="c" :class="{ on: calidad === c }" @click="ponerCalidad(c as Quality)">{{ c }}</button>
       </div>
     </div>
-    <div v-if="!listo" class="carga">Armando la maqueta…</div>
+    <div v-if="aguaAviso" class="agua">{{ aguaAviso }}</div>
+    <div v-if="!listo" class="carga">
+      <div class="caja">
+        <div class="titulo">Armando tu terreno</div>
+        <div class="txt">{{ carga.texto }}</div>
+        <div class="pista"><div class="lleno" :style="{ width: Math.round(carga.p * 100) + '%' }" /></div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -162,5 +183,11 @@ button.on { background: #e3b23c; color: #2a2118; border-color: #e3b23c; }
 .barra { flex: 1; min-width: 200px; accent-color: #e3b23c; }
 .info { font-size: 11px; opacity: 0.7; }
 .ev { font-size: 12px; background: rgba(179, 38, 58, 0.6); padding: 3px 8px; border-radius: 8px; width: fit-content; }
-.carga { position: absolute; inset: 0; display: grid; place-items: center; font-size: 18px; background: #0e1013; }
+.carga { position: absolute; inset: 0; display: grid; place-items: center; background: #0e1013; }
+.caja { width: min(320px, 80vw); display: flex; flex-direction: column; gap: 10px; }
+.titulo { font-size: 20px; }
+.txt { font-size: 14px; opacity: 0.75; }
+.pista { height: 4px; border-radius: 4px; background: #ffffff1c; overflow: hidden; }
+.lleno { height: 100%; background: #e3b23c; transition: width 0.3s ease; }
+.agua { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 90, 160, 0.78); padding: 10px 16px; border-radius: 12px; font-size: 15px; }
 </style>

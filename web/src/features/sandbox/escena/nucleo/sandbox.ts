@@ -6,17 +6,26 @@ import type {
 } from '../api'
 import type { SimTimeline } from '../tipos'
 import { crearUniformsGlobales } from './glsl'
-import { cargarRelieve, cargarSatelite } from './relieve'
+import { cargarSatelite } from './relieve'
 import { construirMaqueta, crearUniformsSuelo, type Maqueta, type Parcela } from './maqueta'
 import { crearCapa, estadoCapa, liberarCapa, type Capa3D, ESCALA_PLANTA } from './cultivos'
 import { construirProps, type Props } from './props'
-import { sugerirBioma, type Bioma } from './biomas'
+import { ESTILOS, sugerirBioma, type Bioma } from './biomas'
 import { CANALES, climaVacio, muestrearClima, precalcularClima, type ClimaInterno, type ClimaPre } from './climaDatos'
 import {
   actualizarUniformsClima, crearCielo, crearLluvia, crearNubes, crearPolvo, crearSalpicaduras, luzDelClima, Rayos, type LuzClima,
 } from './clima3d'
 import { Post } from './post'
 import { orientarYRecortar, recortarImagen } from './recorte'
+import {
+  campoAsync, esAGeo, esALocal, geoAEs, localAEs, muestrearCampo, Ocupacion, poligonoLocal, prepararParcela,
+} from './ubicacion'
+import { cache } from './cache'
+import { construirCerco, type Cerco } from './cerco'
+import {
+  aplicarReglas, calidadInicial, cargarModulo, esMovil, relieveConCache, TEXTO_ETAPA, TRAMOS,
+  type CtxEscena, type EtapaCarga, type ModCiudad, type ModSuelo,
+} from './modulos'
 
 type Calidad = Exclude<Quality, 'auto'>
 const CFG: Record<Calidad, { pr: number; msaa: number; sombra: number; tope: number; lluvia: number; tilt: boolean; N: number; sat: number; polvo: number; grano: number }> = {
@@ -26,11 +35,16 @@ const CFG: Record<Calidad, { pr: number; msaa: number; sombra: number; tope: num
 }
 
 const M2: Record<string, number> = { cuerda: 436.7, manzana: 6987, ha: 10000 }
+/** Radio máximo de la parcela a escala real (m) y lado máximo de la maqueta: más grande se dibuja reducida. */
+const R_MAX = 420
+const L_MAX = 1100
 
-function esMovil() {
-  if (typeof navigator === 'undefined') return false
-  if (/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return true
-  return typeof matchMedia !== 'undefined' && matchMedia('(pointer:coarse)').matches && Math.min(screen.width, screen.height) < 820
+/** props.ts dibuja un cerco de caja (rancho, postes, alambres en ese orden): se oculta, el cerco real va en cerco.ts. */
+function quitarCercoCaja(g: THREE.Group) {
+  const [, postes, alambres] = g.children
+  if (postes && alambres && (postes as THREE.InstancedMesh).isInstancedMesh && (alambres as THREE.LineSegments).isLineSegments && !postes.name) {
+    postes.visible = false; alambres.visible = false
+  }
 }
 
 const easeIO = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2)
@@ -55,6 +69,11 @@ class SandboxImpl implements Sandbox {
   private mundo = new THREE.Group()
   private maqueta: Maqueta | null = null
   private props: Props | null = null
+  private ctx: CtxEscena | null = null
+  private suelo: ModSuelo | null = null
+  private ciudad: ModCiudad | null = null
+  private cerco: Cerco | null = null
+  private quitados = 0
   private parcela: Parcela = { cx: 0, cz: 0, hx: 30, hz: 30, surco: 1.35 }
   private capas: Array<{ c3: Capa3D; idx: number }> = []
   private vecinas: Capa3D[] = []
@@ -109,6 +128,8 @@ class SandboxImpl implements Sandbox {
       canvas, antialias: false, alpha: !!opts.transparente, preserveDrawingBuffer: !!opts.preserveDrawingBuffer,
       powerPreference: 'high-performance', stencil: false,
     })
+    // calidad automática según la GPU y la memoria del equipo del visitante
+    if (this.calidadAuto) this.calidad = calidadInicial(this.renderer.getContext())
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.NoToneMapping
     this.renderer.shadowMap.enabled = true
@@ -170,32 +191,56 @@ class SandboxImpl implements Sandbox {
     this.abort = ab
     this.plantilla = p
     this.listo = false
-    const area = Math.max(100, (p.areaValor ?? 8) * (M2[p.areaUnidad ?? 'cuerda'] ?? M2.cuerda))
-    const ladoReal = Math.sqrt(area)
-    // la parcela se dibuja entre 28 y 64 m de lado (ilustrativo): más grande queda vacía y sin rancho alrededor
-    const lado = Math.min(64, Math.max(28, ladoReal))
-    const L = Math.min(800, Math.max(p.ladoM ?? 280, lado * 2.4))
-    const cz = L / 2 - lado / 2 - L * 0.035
+    const tiempos: Record<string, number> = {}
+    let tEtapa = t0
+    const etapa = (e: EtapaCarga, f: number) => {
+      // progreso global: cada etapa ocupa un tramo de la barra
+      const [a, b] = TRAMOS[e]
+      this.emitir('progreso', { etapa: e, p: Math.min(1, a + (b - a) * Math.min(1, Math.max(0, f))), texto: TEXTO_ETAPA[this.opts.idioma ?? 'es'][e] })
+    }
+    const cierra = (e: string) => { const t = performance.now(); tiempos[e] = Math.round(t - tEtapa); tEtapa = t }
+    const areaPedida = Math.max(100, (p.areaValor ?? 8) * (M2[p.areaUnidad ?? 'cuerda'] ?? M2.cuerda))
+    const prep = prepararParcela(p.parcela, p.lat, p.lon, areaPedida)
+    const [lat, lon] = prep.centro
+    // escala real en metros; solo si no entra en la maqueta (> ~40 ha) se dibuja reducida
+    const escala = prep.R > R_MAX ? R_MAX / prep.R : 1
+    const R = prep.R * escala
+    const L = Math.min(L_MAX, Math.max(p.ladoM ?? 280, R * 2 * 2.3))
+    const cz = Math.max(0, L / 2 - R - L * 0.035)
     const cfg = CFG[this.calidad]
     this.emitir('progress', { fase: 'relieve', p: 0 })
+    etapa('relieve', 0)
     // región grande centrada en el punto → se recorta rotada para que la ladera baje hacia la cámara
     const B = 2 * (cz + L * 0.7072) + 16
     let rec
     try {
-      const grande = await cargarRelieve({
-        lat: p.lat, lon: p.lon, L: B, offX: 0, offZ: 0, N: Math.round((cfg.N * B) / L), satPx: Math.min(3072, Math.round((cfg.sat * B) / L)),
-        zSat: 17, sinRed: p.sinRed, bioma: p.bioma, signal: ab.signal, progreso: (fase, v) => this.emitir('progress', { fase, p: v }),
+      const grande = await relieveConCache({
+        lat, lon, L: B, offX: 0, offZ: 0, N: Math.round((cfg.N * B) / L), satPx: Math.min(3072, Math.round((cfg.sat * B) / L)),
+        zSat: 17, sinRed: p.sinRed, bioma: p.bioma, signal: ab.signal,
+        progreso: (fase, v) => { this.emitir('progress', { fase, p: v }); etapa('relieve', v) },
       })
-      rec = orientarYRecortar(grande, L, cfg.N, cfg.sat, cz, lado / 2)
+      if (ab.signal.aborted || this.desechado) return
+      rec = orientarYRecortar(grande, L, cfg.N, cfg.sat, cz, R)
     } catch (e) {
+      if (ab.signal.aborted) return
       this.emitir('error', { mensaje: String(e) })
       throw e
     }
-    if (ab.signal.aborted || this.desechado) return
     const datos = rec.datos
     this.rumbo = rec.rumboCamara
+    // forma real de la parcela en coordenadas de la maqueta + campo de distancia (worker)
+    const poli = poligonoLocal(prep, rec.phi, rec.Cx, rec.Cz, 0, cz, escala)
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity
+    for (let k = 0; k < poli.length; k += 2) { x0 = Math.min(x0, poli[k]); x1 = Math.max(x1, poli[k]); z0 = Math.min(z0, poli[k + 1]); z1 = Math.max(z1, poli[k + 1]) }
+    const campo = await campoAsync(poli, 16, this.calidad === 'alta' ? 448 : this.calidad === 'media' ? 352 : 256)
+    if (ab.signal.aborted || this.desechado) return
+    cierra('relieve')
     this.limpiarMundo()
-    this.parcela = { cx: 0, cz, hx: lado / 2, hz: lado / 2, surco: 0.9 * ESCALA_PLANTA }
+    const dist = (x: number, z: number) => muestrearCampo(campo, x, z, poli)
+    this.parcela = {
+      cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, hx: (x1 - x0) / 2, hz: (z1 - z0) / 2, surco: 0.9 * ESCALA_PLANTA,
+      forma: prep.forma, poli, area: prep.area * escala * escala, campo, dist, dentro: (x, z) => dist(x, z) < 0,
+    }
     // exageración leve: más en terreno suave, nada en laderas muy empinadas
     const exag = p.exageracion ?? Math.min(1.5, Math.max(1.0, 1.5 - (rec.desnivel - 25) / 90))
     this.maqueta = construirMaqueta(datos, this.parcela, exag, this.U, this.US, this.calidad)
@@ -203,25 +248,68 @@ class SandboxImpl implements Sandbox {
     // ajustar la dirección de los surcos (a lo largo de x) y ladera abajo
     this.US.uParcel.value.set(this.parcela.cx, this.parcela.cz, this.parcela.hx, this.parcela.hz)
     this.US.uDown.value.copy(this.maqueta.abajo)
-    this.bioma = p.bioma ?? sugerirBioma(p.lat, p.lon, datos.relieveReal ? datos.alturaMedia : undefined)
-    const semilla = Math.abs(Math.round(p.lat * 1000) * 31 + Math.round(p.lon * 1000) * 17) % 100000 + 1
-    this.props = construirProps(this.U, this.parcela, this.maqueta.alturaEn, L, datos.satelite, this.calidad, this.bioma, semilla)
-    this.maqueta.actualizarSatelite(datos.satelite)
+    this.bioma = p.bioma ?? sugerirBioma(lat, lon, datos.relieveReal ? datos.alturaMedia : undefined)
+    const semilla = Math.abs(Math.round(lat * 1000) * 31 + Math.round(lon * 1000) * 17) % 100000 + 1
+    const mq = this.maqueta
+    // contexto común para los módulos (suelo, ciudad, casas): ver COORDINACION.md, ronda 4
+    const ocupacion = new Ocupacion(L, Math.max(0.75, L / 760))
+    const ctx: CtxEscena = {
+      L, N: datos.N, lat, lon, phi: rec.phi, Cx: rec.Cx, Cz: rec.Cz, alturaEn: mq.alturaEn, alturasRaw: datos.alturas,
+      satelite: datos.satelite, parcela: this.parcela, bioma: this.bioma, calidad: this.calidad, semilla, U: this.U, US: this.US,
+      signal: ab.signal, ocupacion, cache, sinRed: !!p.sinRed, grupo: this.mundo, maqueta: mq,
+      aLocal: (la, lo) => { const [E, S] = geoAEs(lat, lon, la, lo); return esALocal(E, S, rec.phi, rec.Cx, rec.Cz) },
+      aGeo: (x, z) => { const [E, S] = localAEs(x, z, rec.phi, rec.Cx, rec.Cz); return esAGeo(lat, lon, E, S) },
+      progreso: () => {},
+    }
+    this.ctx = ctx
+    // 2) suelo: materiales del terreno + agua (nada se pone en el agua)
+    etapa('suelo', 0)
+    ctx.progreso = (_f, v) => etapa('suelo', v)
+    this.suelo = await cargarModulo<ModSuelo>('suelo', (m) => m.crearSuelo?.(ctx))
+    if (ab.signal.aborted || this.desechado) return
+    if (this.suelo?.grupo) this.mundo.add(this.suelo.grupo)
+    const esAgua = this.suelo?.esAgua ? (x: number, z: number) => this.suelo!.esAgua!(x, z) : () => false
+    if (this.suelo?.esAgua) ocupacion.marcarFuncion('agua', esAgua, true)
+    const fracAgua = this.suelo?.esAgua ? ocupacion.fraccionEn('agua', this.parcela.dentro!, esAgua) : 0
+    if (fracAgua > 0.2) this.emitir('parcelaEnAgua', { fraccion: Math.round(fracAgua * 100) / 100, lat, lon })
+    ocupacion.marcarPoligono('parcela', poli)
+    cierra('suelo')
+    // 3) ciudad: calles, edificios vecinos (los que caen en la parcela se quitan)
+    etapa('ciudad', 0)
+    ctx.progreso = (_f, v) => etapa('ciudad', v)
+    this.ciudad = await cargarModulo<ModCiudad>('ciudad', (m) => m.crearCiudad?.(ctx, { parcela: this.parcela, esAgua }))
+    if (ab.signal.aborted || this.desechado) return
+    if (this.ciudad?.grupo) this.mundo.add(this.ciudad.grupo)
+    cierra('ciudad')
+    // 4) casas y rancho
+    etapa('casas', 0)
+    this.props = construirProps(this.U, this.parcela, mq.alturaEn, L, datos.satelite, this.calidad, this.bioma, semilla)
+    quitarCercoCaja(this.props.grupo)
     this.mundo.add(this.props.grupo)
+    cierra('casas')
+    // 5) vegetación: cerco por el borde real, cultivos dentro, árboles fuera del agua/calles/edificios
+    etapa('vegetacion', 0)
+    this.cerco = construirCerco(this.U, { poli, alturaEn: mq.alturaEn, ocupacion, tipo: ESTILOS[this.bioma]?.cerco ?? 'postes', calidad: this.calidad, semilla })
+    this.mundo.add(this.cerco.grupo)
+    this.quitados = aplicarReglas(this.props.grupo, ocupacion, this.parcela)
+    mq.actualizarSatelite(datos.satelite)
     this.construirEfectos()
     this.construirCultivos()
+    cierra('vegetacion')
     this.irA(this.preset, 0)
     this.listo = true
     this.cuadro(0, false)
     this.emitir('progress', { fase: 'listo', p: 1 })
+    etapa('listo', 1)
     this.emitir('ready', {
       ms: Math.round(performance.now() - t0), relieveReal: datos.relieveReal, satelite: datos.sateliteReal, rumboCamara: Math.round(this.rumbo),
       bioma: this.bioma, casas: this.props.rancho.casas, picosCorregidos: datos.picosCorregidos,
+      forma: prep.forma, areaM2: Math.round(prep.area), escalaParcela: escala, aguaEnParcela: Math.round(fracAgua * 100) / 100,
+      tiempos, quitados: this.quitados, edificios: this.ciudad?.edificios ?? 0,
     })
     // carga progresiva: la imagen nítida (z18) llega después sin frenar el arranque
     if (datos.sateliteReal && !p.sinRed && this.calidad !== 'baja') {
-      const mq = this.maqueta
-      cargarSatelite(p.lat, p.lon, B, Math.min(4096, Math.round((cfg.sat * 1.6 * B) / L)), 18, ab.signal)
+      cargarSatelite(lat, lon, B, Math.min(4096, Math.round((cfg.sat * 1.6 * B) / L)), 18, ab.signal)
         .then((c) => {
           if (ab.signal.aborted || this.desechado || this.maqueta !== mq) return
           const hd = recortarImagen(c, B, L, Math.round(cfg.sat * 1.33), rec.phi, rec.Cx, rec.Cz)
@@ -267,7 +355,7 @@ class SandboxImpl implements Sandbox {
 
   setQuality(q: Quality) {
     this.calidadAuto = q === 'auto'
-    const nueva: Calidad = q === 'auto' ? (esMovil() ? 'baja' : 'media') : q
+    const nueva: Calidad = q === 'auto' ? calidadInicial(this.renderer.getContext()) : q
     this.cambiarCalidad(nueva)
   }
 
@@ -337,6 +425,14 @@ class SandboxImpl implements Sandbox {
     }
     this.nubes = this.lluvia = this.salp = this.polvo = null
     if (this.props) { this.mundo.remove(this.props.grupo); this.props.dispose(); this.props = null }
+    if (this.cerco) { this.mundo.remove(this.cerco.grupo); this.cerco.dispose(); this.cerco = null }
+    for (const m of [this.suelo, this.ciudad]) {
+      if (!m) continue
+      if (m.grupo) this.mundo.remove(m.grupo)
+      try { m.dispose?.() } catch (e) { console.warn(e) }
+    }
+    this.suelo = this.ciudad = null
+    this.ctx = null
     if (this.maqueta) { this.mundo.remove(this.maqueta.grupo); this.maqueta.dispose(); this.maqueta = null }
   }
 
@@ -753,6 +849,7 @@ class SandboxImpl implements Sandbox {
       if (performance.now() / 1000 - this.tUltimoSetDay > 0.4) this.velDias *= Math.max(0, 1 - dt * 2)
       this.actualizarClima(dt)
       this.actualizarPlantas()
+      for (const m of [this.suelo, this.ciudad]) if (m?.actualizar) { try { m.actualizar(this.clima, dtE) } catch { m.actualizar = undefined } }
     }
     this.actualizarCamara(dt)
     this.actualizarLuzYEfectos(dt, dtE)

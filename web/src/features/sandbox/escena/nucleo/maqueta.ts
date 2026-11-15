@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import type { DatosRelieve } from './relieve'
 import { fbm2 } from './ruido'
 import { GLSL_NUBES, GLSL_RUIDO, type UniformsGlobales } from './glsl'
+import { bytesCampo, distParcela, RANGO_CAMPO, type CampoDist, type FormaParcela } from './ubicacion'
 
 export interface Parcela {
   cx: number
@@ -11,11 +12,25 @@ export interface Parcela {
   hx: number // medio lado en x
   hz: number // medio lado en z
   surco: number // separación visual entre surcos (m)
+  /** Forma real (ronda 4). Sin esto la parcela es la caja cx±hx, cz±hz. */
+  forma?: FormaParcela
+  /** Polígono local cerrado x0,z0,x1,z1,… */
+  poli?: Float64Array
+  /** Área real (m²). */
+  area?: number
+  campo?: CampoDist
+  /** Distancia con signo al borde (m, <0 dentro). */
+  dist?: (x: number, z: number) => number
+  dentro?: (x: number, z: number) => boolean
 }
 
 export function crearUniformsSuelo() {
   return {
     uParcel: { value: new THREE.Vector4(0, 0, 30, 30) },
+    // forma real: campo de distancia (8 bits, ±RANGO_CAMPO m) sobre la caja uCampoCaja (x0, z0, ancho, alto)
+    uCampo: { value: null as THREE.Texture | null },
+    uCampoCaja: { value: new THREE.Vector4(0, 0, 1, 1) },
+    uConCampo: { value: 0 },
     uRowSp: { value: 1.4 },
     uHum: { value: 0.4 },
     uResiduo: { value: 0 },
@@ -71,7 +86,7 @@ export function construirMaqueta(
   let sx = 0, sz = 0, sh = 0, sxx = 0, szz = 0, sxz = 0, sxh = 0, szh = 0, n = 0
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const x = xDe(i) - parcela.cx, z = xDe(j) - parcela.cz
-    if (Math.abs(x) > parcela.hx + 4 || Math.abs(z) > parcela.hz + 4) continue
+    if (distParcela(parcela, x + parcela.cx, z + parcela.cz) > 4) continue
     const v = h[idx(i, j)]
     sx += x; sz += z; sh += v; sxx += x * x; szz += z * z; sxz += x * z; sxh += x * v; szh += z * v; n++
   }
@@ -90,7 +105,7 @@ export function construirMaqueta(
   for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
     const x = xDe(i), z = xDe(j)
     const qx = x - parcela.cx, qz = z - parcela.cz
-    const d = Math.max(Math.abs(qx) - parcela.hx, Math.abs(qz) - parcela.hz)
+    const d = distParcela(parcela, x, z)
     const m = 1 - suave(-2, 14, d)
     const plano = a * qx + b * qz + c0
     const micro = (fbm2(x / 7, z / 7, 3) - 0.5) * 0.9 * (1 - m)
@@ -119,6 +134,19 @@ export function construirMaqueta(
     return t
   }
   const tex = texDe(datos.satelite)
+  // forma real de la parcela → textura del campo de distancia
+  let texCampo: THREE.DataTexture | null = null
+  if (parcela.campo) {
+    const c = parcela.campo
+    texCampo = new THREE.DataTexture(bytesCampo(c), c.nx, c.nz, THREE.RedFormat, THREE.UnsignedByteType)
+    texCampo.magFilter = texCampo.minFilter = THREE.LinearFilter
+    texCampo.wrapS = texCampo.wrapT = THREE.ClampToEdgeWrapping
+    texCampo.needsUpdate = true
+    // centros de texel: la grilla va de x0 a x0+(nx-1)·paso
+    US.uCampoCaja.value.set(c.x0 - c.paso / 2, c.z0 - c.paso / 2, c.nx * c.paso, c.nz * c.paso)
+    US.uCampo.value = texCampo
+    US.uConCampo.value = 1
+  } else US.uConCampo.value = 0
   const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, metalness: 0 })
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U, US)
@@ -129,7 +157,7 @@ export function construirMaqueta(
       .replace('#include <common>', `#include <common>
         varying vec3 vMundo;
         uniform float uTime, uFrost, uWet, uDry, uHeat;
-        uniform vec4 uParcel; uniform float uRowSp, uHum, uResiduo, uDesnudo, uGrietas, uCharcos, uErosion, uEscorr, uRiego, uMO, uSeason, uCover;
+        uniform vec4 uParcel, uCampoCaja; uniform sampler2D uCampo; uniform float uConCampo; uniform float uRowSp, uHum, uResiduo, uDesnudo, uGrietas, uCharcos, uErosion, uEscorr, uRiego, uMO, uSeason, uCover;
         uniform vec2 uDown; uniform vec3 uSkyCol;
         ${GLSL_RUIDO}
         ${GLSL_NUBES}
@@ -152,7 +180,14 @@ export function construirMaqueta(
         // parcela
         vec2 q = xz - uParcel.xy;
         float bordeR = (vnoise(xz*0.35)-0.5)*0.6;
-        float dP = max(abs(q.x)-uParcel.z, abs(q.y)-uParcel.w) + bordeR;
+        float dP = max(abs(q.x)-uParcel.z, abs(q.y)-uParcel.w);
+        if (uConCampo > 0.5) {
+          vec2 uvC = (xz - uCampoCaja.xy) / uCampoCaja.zw;
+          float dC = (texture2D(uCampo, clamp(uvC, 0.0, 1.0)).r - 0.5) * ${(2 * RANGO_CAMPO).toFixed(1)};
+          vec2 fuera = max(max(-uvC, uvC - 1.0), 0.0) * uCampoCaja.zw;
+          dP = (uvC.x < 0.0 || uvC.y < 0.0 || uvC.x > 1.0 || uvC.y > 1.0) ? max(dC, length(fuera)) : dC;
+        }
+        dP += bordeR;
         float mP = 1.0 - smoothstep(0.1, 0.7, dP);
         float cresta = 0.5 + 0.5*cos(q.y*6.2831/uRowSp);
         float valle = smoothstep(0.55, 1.0, 1.0-cresta);
@@ -251,6 +286,7 @@ export function construirMaqueta(
       vieja?.dispose()
     },
     dispose() {
+      if (texCampo) { if (US.uCampo.value === texCampo) { US.uCampo.value = null; US.uConCampo.value = 0 } texCampo.dispose() }
       grupo.traverse((o) => {
         const m = o as THREE.Mesh
         if (m.geometry) m.geometry.dispose()
