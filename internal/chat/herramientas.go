@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -697,6 +698,11 @@ func PlagasDe(cultivo, texto, idioma string) []Plaga {
 	return append(nombradas, otras...)
 }
 
+// fuentesCortasCampo nombre legible de las marcas cortas que campo pone en cada día de la serie.
+var marcaCorta = regexp.MustCompile(`^[a-z_-]+$`)
+
+var fuentesCortasCampo = map[string]string{"nasa": "NASA POWER", "nasa_power": "NASA POWER", "openmeteo": "Open-Meteo", "open-meteo": "Open-Meteo"}
+
 // fuentesDe saca fuentes de un JSON de campo ({…, fuente: "…"} en cualquier nivel).
 func fuentesDe(v any) []Fuente {
 	var fs []Fuente
@@ -708,6 +714,10 @@ func fuentesDe(v any) []Fuente {
 				if s, ok := z.(string); ok && (k == "fuente" || k == "source") && s != "" {
 					if strings.HasPrefix(s, "http") {
 						fs = append(fs, Fuente{Titulo: dominio(s), URL: s})
+					} else if marcaCorta.MatchString(s) { // marcas internas de la serie de campo ("nasa", "openmeteo", "reporte")
+						if n, ok := fuentesCortasCampo[strings.ToLower(s)]; ok {
+							fs = append(fs, Fuente{Titulo: n})
+						}
 					} else {
 						fs = append(fs, Fuente{Titulo: s})
 					}

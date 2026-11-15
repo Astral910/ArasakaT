@@ -171,7 +171,7 @@ function materialCapa(U: UniformsGlobales, uc: ReturnType<typeof uniformsCapa>, 
           vec4 fa = texture2D(uFiltroA, fu), fb = texture2D(uFiltroB, fu);
           float fal = mix(fa.a, fb.a, uFiltroMix);
           vec3 fc = (fa.rgb*fa.a*(1.0 - uFiltroMix) + fb.rgb*fb.a*uFiltroMix) / max(fal, 1e-3);
-          c = mix(c, fc*(0.75 + 0.25*smoothstep(0.0, 0.8, vAlt)), fal*uFiltroOp*0.85);
+          c = mix(c, fc*(0.75 + 0.25*smoothstep(0.0, 0.8, vAlt)), fal*uFiltroOp*0.6);
         }
         diffuseColor.rgb = c;
       }`)

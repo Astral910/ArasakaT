@@ -296,12 +296,13 @@ async function revisarFecha() {
   }
   revisando.value = false
 }
-const RANGO_SEV = { ok: 0, ojo: 1, mala: 2 } as const
 const sev = computed(() => (rec.value ? peor(rec.value.razones) : 'ok'))
 const razon = computed(() => {
   const r = rec.value
   if (!r) return ''
-  const z = [...r.razones].sort((a, b) => RANGO_SEV[b.severidad] - RANGO_SEV[a.severidad])[0]
+  // el motor ya las ordena: primero lo que la fecha elegida tiene peor que la recomendada, después por severidad
+  const z = r.razones.find((x) => x.severidad !== 'ok') ?? r.razones[0]
+  if (!z) return ''
   return lang.value === 'en' ? z.texto_en || z.texto : z.texto
 })
 const otraFecha = computed(() => !!rec.value && Math.abs(difDias(rec.value.recomendada, rec.value.elegida)) > 3)
