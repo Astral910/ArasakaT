@@ -24,6 +24,7 @@ import (
 	"fieldshift/internal/geo"
 	"fieldshift/internal/informe"
 	"fieldshift/internal/plan"
+	"fieldshift/internal/sensores"
 	"fieldshift/internal/voz"
 )
 
@@ -48,6 +49,7 @@ type app struct {
 	comp      Componentes
 	cerrar    []func()
 	waAdmin   http.Handler // página de vinculación de WhatsApp (solo con WA_MODO=vinculado)
+	sensores  *sensores.Servicio // SENSOR: estación de campo (UltimoEstado para campo)
 }
 
 func montar(mux *http.ServeMux, cfg Config) *app {
@@ -55,8 +57,9 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 
 	// MOTOR (internal/plan)
 	var muni *geo.Index
+	var motor *plan.Engine // SENSOR: textura del suelo para la estación
 	if eng, err := plan.Routes(mux, cfg.DataDir, cfg.StaticDir); err == nil {
-		a.planner, muni = eng, eng.Muni
+		a.planner, muni, motor = eng, eng.Muni, eng
 		a.comp.Motor = "real"
 	} else {
 		log.Printf("motor: %v → uso el fixture", err)
@@ -64,6 +67,11 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		a.comp.Motor = "falso:fixture"
 		planRoutes(mux, cfg, a.planner)
 	}
+
+	// SENSOR (internal/sensores): estación de campo, cmd/server/sensores.go
+	var cerrarSens func()
+	a.sensores, cerrarSens = montarSensores(mux, cfg, motor)
+	a.cerrar = append(a.cerrar, cerrarSens)
 
 	// ALERTAS (internal/alerts, internal/forecast, internal/store). Se arma antes que el bot:
 	// el bot guarda suscripciones en su store y las alertas envían por los canales del bot

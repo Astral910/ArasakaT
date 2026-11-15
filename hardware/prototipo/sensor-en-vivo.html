@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sensor en vivo · Field Shift</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b1f17;--panel:#12382a;--borde:#1e4a39;--texto:#eef6f0;--suave:#a9c7b6;--maiz:#f2c14e;--ok:#5cc28a;--ojo:#f2c14e;--mal:#e0664f;--agua:#4fa8e0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--texto);font:16px/1.45 Inter,system-ui,sans-serif;min-height:100vh}
+main{max-width:980px;margin:0 auto;padding:24px 16px 48px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.marca{font:700 1.1rem Fraunces,serif;letter-spacing:.01em}
+.marca small{display:block;font:500 .75rem Inter;color:var(--maiz);letter-spacing:.14em;text-transform:uppercase}
+button{font:600 .95rem Inter;border:0;border-radius:999px;padding:11px 18px;cursor:pointer;background:var(--maiz);color:#1d1606}
+button.sec{background:transparent;color:var(--texto);border:1px solid var(--borde)}
+button:disabled{opacity:.45;cursor:default}
+.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;margin-top:22px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--borde);border-radius:20px;padding:20px}
+.medidor{display:flex;align-items:center;gap:22px}
+.anillo{width:180px;height:180px;flex:none}
+.cifra{font:700 3.4rem Fraunces,serif;line-height:1}
+.cifra span{font-size:1.4rem;color:var(--suave)}
+.chip{display:inline-block;margin-top:10px;padding:6px 14px;border-radius:999px;font-weight:600;font-size:.95rem}
+.consejo{margin-top:10px;color:var(--suave)}
+h2{font:600 .78rem Inter;letter-spacing:.14em;text-transform:uppercase;color:var(--suave);margin:0 0 12px}
+canvas#graf{width:100%;height:220px;display:block}
+ul#eventos{list-style:none;margin:0;padding:0;max-height:220px;overflow:auto}
+ul#eventos li{padding:9px 0;border-bottom:1px solid var(--borde);font-size:.95rem}
+ul#eventos li b{color:var(--agua)}
+.fila{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.crudo{font:500 .85rem ui-monospace,Consolas,monospace;color:var(--suave)}
+.nota{font-size:.82rem;color:var(--suave);margin-top:18px}
+.estado{font-size:.9rem;color:var(--suave)}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="marca"><small>Field Shift · hardware</small>Sensor de humedad en vivo</div>
+    <div class="fila">
+      <span class="estado" id="conexion">Sin conectar</span>
+      <button id="btnConectar">Conectar sensor (USB)</button>
+      <button class="sec" id="btnDemo">Modo demo</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2>Humedad del suelo ahora</h2>
+      <div class="medidor">
+        <svg class="anillo" viewBox="0 0 120 120" aria-hidden="true">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#1e4a39" stroke-width="12"/>
+          <circle id="arco" cx="60" cy="60" r="50" fill="none" stroke="#5cc28a" stroke-width="12" stroke-linecap="round"
+                  stroke-dasharray="314.16" stroke-dashoffset="314.16" transform="rotate(-90 60 60)" style="transition:stroke-dashoffset .6s,stroke .6s"/>
+        </svg>
+        <div>
+          <div class="cifra" id="pct">—<span>%</span></div>
+          <div class="chip" id="chip" style="background:#1e4a39">Esperando datos</div>
+          <div class="consejo" id="consejo">Conectá el ESP32 por USB y tocá «Conectar sensor».</div>
+        </div>
+      </div>
+      <div class="fila" style="margin-top:18px">
+        <button class="sec" id="btnSeco" disabled>Calibrar: en el aire (seco)</button>
+        <button class="sec" id="btnMojado" disabled>Calibrar: en agua (mojado)</button>
+        <span class="crudo" id="crudo"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Lo que detectó</h2>
+      <ul id="eventos"><li>Todavía nada.</li></ul>
+    </section>
+
+    <section class="card" style="grid-column:1/-1">
+      <h2>Últimos 10 minutos</h2>
+      <canvas id="graf"></canvas>
+    </section>
+  </div>
+
+  <p class="nota">El dato medido reemplaza la estimación del motor (balance de agua FAO-56 con NASA POWER) para ese día: si el suelo ya está húmedo, la recomendación de riego baja. Umbrales del prototipo: &lt; 35 % regar · 35–75 % bien · &gt; 75 % muy húmedo. Un salto de humedad de más de 12 puntos en pocos minutos se marca como lluvia o riego. Funciona en Chrome o Edge (Web Serial).</p>
+</main>
+<script>
+const $ = id => document.getElementById(id)
+const datos = []            // {t, h}
+const VENTANA = 10 * 60e3
+let puerto = null, escritor = null, demo = null
+
+function color(h){ return h < 35 ? 'var(--mal)' : h > 75 ? 'var(--agua)' : 'var(--ok)' }
+function hora(t){ return new Date(t).toLocaleTimeString('es-GT',{hour:'2-digit',minute:'2-digit'}) }
+
+function evento(texto){
+  const ul = $('eventos')
+  if (ul.firstChild && ul.firstChild.textContent === 'Todavía nada.') ul.innerHTML = ''
+  const li = document.createElement('li'); li.innerHTML = texto; ul.prepend(li)
+}
+
+let ultimoEstado = null
+function recibir(j){
+  const t = Date.now(), h = +j.humedad
+  datos.push({t, h}); while (datos.length && t - datos[0].t > VENTANA) datos.shift()
+  $('pct').innerHTML = h.toFixed(0) + '<span>%</span>'
+  const arco = $('arco'); arco.style.strokeDashoffset = 314.16 * (1 - h/100)
+  arco.style.stroke = getComputedStyle(document.documentElement).getPropertyValue(h < 35 ? '--mal' : h > 75 ? '--agua' : '--ok')
+  const chip = $('chip')
+  const est = j.estado || (h < 35 ? 'regar' : h > 75 ? 'muy_humedo' : 'bien')
+  const txt = { regar:['Hay que regar','El suelo está seco: regá hoy, temprano en la mañana o al atardecer.'],
+                bien:['Humedad buena','No hace falta regar hoy.'],
+                muy_humedo:['Muy húmedo','No regués: el suelo está saturado; cuidado con encharcamiento.'] }[est]
+  chip.textContent = txt[0]; chip.style.background = color(h); chip.style.color = '#0b1f17'
+  $('consejo').textContent = txt[1]
+  if (j.crudo != null) $('crudo').textContent = `crudo ${j.crudo} · seco ${j.seco ?? '—'} · mojado ${j.mojado ?? '—'}`
+  if (ultimoEstado && est !== ultimoEstado) evento(`<b>${hora(t)}</b> · ${txt[0]} (${h.toFixed(0)} %)`)
+  ultimoEstado = est
+  // salto rápido = lluvia o riego
+  const hace = datos.find(d => t - d.t <= 3 * 60e3)
+  if (hace && h - hace.h > 12 && !recibir.aviso) {
+    evento(`<b>${hora(t)}</b> · Subió la humedad ${ (h-hace.h).toFixed(0) } puntos: <b>lluvia o riego detectado</b>. Si no estaba pronosticado, el motor corrige su balance y baja el riego de hoy.`)
+    recibir.aviso = true; setTimeout(() => recibir.aviso = false, 3 * 60e3)
+  }
+  dibujar()
+}
+
+function dibujar(){
+  const c = $('graf'), dpr = devicePixelRatio || 1
+  c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr
+  const g = c.getContext('2d'); g.scale(dpr, dpr)
+  const W = c.clientWidth, H = c.clientHeight, ahora = Date.now()
+  g.clearRect(0,0,W,H)
+  g.fillStyle = 'rgba(224,102,79,.10)'; g.fillRect(0, H*(1-.35), W, H*.35)
+  g.fillStyle = 'rgba(79,168,224,.10)'; g.fillRect(0, 0, W, H*.25)
+  g.strokeStyle = '#1e4a39'; g.lineWidth = 1
+  for (const v of [25,50,75]) { const y = H*(1-v/100); g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke() }
+  if (datos.length < 2) return
+  g.strokeStyle = '#f2c14e'; g.lineWidth = 2.5; g.lineJoin = 'round'; g.beginPath()
+  datos.forEach((d,i) => { const x = W * (1 - (ahora - d.t)/VENTANA), y = H*(1-d.h/100); i ? g.lineTo(x,y) : g.moveTo(x,y) })
+  g.stroke()
+}
+
+async function conectar(){
+  if (!('serial' in navigator)) { alertaSuave('Este navegador no tiene Web Serial: usá Chrome o Edge, o el Modo demo.'); return }
+  try {
+    puerto = await navigator.serial.requestPort()
+    await puerto.open({ baudRate: 115200 })
+    escritor = puerto.writable.getWriter()
+    $('conexion').textContent = 'Conectado'; $('btnSeco').disabled = $('btnMojado').disabled = false
+    pararDemo()
+    const lector = puerto.readable.pipeThrough(new TextDecoderStream()).getReader()
+    let buf = ''
+    for (;;) {
+      const { value, done } = await lector.read(); if (done) break
+      buf += value; let i
+      while ((i = buf.indexOf('\n')) >= 0) {
+        const linea = buf.slice(0, i).trim(); buf = buf.slice(i + 1)
+        if (linea.startsWith('{')) { try { recibir(JSON.parse(linea)) } catch {} }
+      }
+    }
+  } catch (e) { $('conexion').textContent = 'No se pudo conectar' }
+}
+function alertaSuave(m){ $('consejo').textContent = m }
+async function enviar(cmd){ if (escritor) await escritor.write(new TextEncoder().encode(cmd + '\n')) }
+
+function pararDemo(){ if (demo) { clearInterval(demo); demo = null; $('btnDemo').textContent = 'Modo demo' } }
+$('btnDemo').onclick = () => {
+  if (demo) return pararDemo()
+  let h = 42, paso = 0
+  $('conexion').textContent = 'Demo (datos simulados)'; $('btnDemo').textContent = 'Parar demo'
+  demo = setInterval(() => {
+    paso++
+    h += paso === 40 ? 28 : -0.35 + (Math.random() - .5) * .6   // se seca despacio y a los 80 s "llueve"
+    h = Math.max(5, Math.min(98, h))
+    recibir({ humedad: h })
+  }, 2000)
+}
+$('btnConectar').onclick = conectar
+$('btnSeco').onclick = () => { enviar('seco'); evento(`<b>${hora(Date.now())}</b> · Calibrado: seco`) }
+$('btnMojado').onclick = () => { enviar('mojado'); evento(`<b>${hora(Date.now())}</b> · Calibrado: mojado`) }
+addEventListener('resize', dibujar)
+</script>
+</body>
+</html>
