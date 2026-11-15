@@ -61,3 +61,8 @@ Se regenera cuando cambia la escena (servidor en 127.0.0.1:8200, caché de video
 4. Precalculados: `go run ./internal/simvideo/precalc -base http://127.0.0.1:8200 -forzar`. Video de la entrega: `node record-demo.mjs "http://127.0.0.1:8200/demo?autostart=1&rec=1" 29.9 --skip=1.4`.
 
 Fidelidad escena ↔ motor: `cd e2e && node fidelidad.mjs <vite> <api> <carpeta>` (5 días: racha seca, tormenta, desarrollo, llenado, cosecha).
+
+## Video de la entrega (ronda 3, flujo nuevo)
+1. Toma única 1080p EN: `cd e2e && node record-flujo.mjs http://127.0.0.1:8200 "Jocotán" <carpeta>` → `flujo.mp4` + `marcas.json` (landing → 2 toques → vuelo → guía → tarjeta → informe).
+2. Teléfono EN con TEST ALERT (`tel-alerta.png`, captura del simulador) y comparar S0 | S2 (`grabar-comparar.mjs`, arriba).
+3. `bash e2e/cortar-entrega.sh <carpeta> <comparar.mp4> submission/video/fieldshift-demo-30s.mp4` (subtítulos de `<carpeta>/subs.srt` = `submission/video/subtitles_en.srt`). Si cambian las marcas, ajustar los `-ss` del script.

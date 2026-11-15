@@ -1,28 +1,31 @@
 1
-00:00:00,000 --> 00:00:04,000
-A farmer in Jocotán shares a location on WhatsApp
+00:00:02,000 --> 00:00:07,000
+Type your place. Two taps. The guide starts on its own.
 
 2
-00:00:04,000 --> 00:00:07,500
-The plan card arrives in seconds
+00:00:07,000 --> 00:00:11,000
+Your place, from NASA satellites: anywhere on Earth
 
 3
-00:00:07,500 --> 00:00:11,500
-NASA terrain and climate data for the area
+00:00:11,000 --> 00:00:15,000
+Next 16 days: forecast. Then the past year that best matches the seasonal outlook.
 
 4
-00:00:11,500 --> 00:00:17,400
-Real NASA weather, day by day: dry spells and storms
+00:00:15,000 --> 00:00:19,000
+47 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence
 
 5
-00:00:17,400 --> 00:00:20,300
-Same season: today's milpa vs a cover crop
+00:00:19,000 --> 00:00:21,500
+Same rain: what you do today vs. maize + velvet bean cover
 
 6
-00:00:20,300 --> 00:00:25,000
-In 2026 it warned up to 7 days ahead of a real dry spell
+00:00:21,500 --> 00:00:24,000
+One clear result at the end of the season
 
 7
-00:00:25,000 --> 00:00:29,900
-Free · on WhatsApp · for 3.4 million people facing hunger
-(IPC/SESAN 2025)
+00:00:24,000 --> 00:00:26,500
+Every number in a technical report (web + PDF), with sources and limits
+
+8
+00:00:26,500 --> 00:00:28,500
+Real WhatsApp bot · 2026 replay: 5 of 6 dry-spell alerts confirmed
