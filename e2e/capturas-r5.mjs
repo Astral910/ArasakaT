@@ -74,7 +74,13 @@ for (const [nombre, archivo] of [[/Temperature/, '35-layer-temperature-by-zone']
   await page.locator('button.chip.capas').click()
   await page.getByRole('menuitemradio', { name: nombre }).click()
   await page.locator('.leyenda').waitFor({ timeout: 30_000 })
-  await page.waitForTimeout(9000)
+  // el rango termina el 1 ago y sale la tarjeta final: la segunda capa se toma antes de que tape la escena
+  if (archivo.startsWith('35')) await page.waitForTimeout(9000)
+  else { // pausa y espera la imagen Sentinel-2 real, sin que salga la tarjeta final
+    await page.getByRole('button', { name: /^Pause$/ }).first().click().catch(() => {})
+    await page.locator('.leyenda').filter({ hasText: /real data|dato real/i }).waitFor({ timeout: 45_000 }).catch(() => console.log('  (sin Sentinel-2: queda estimado)'))
+    await page.waitForTimeout(2500)
+  }
   await jpg(archivo)
   console.log(archivo, 'ok')
 }

@@ -116,3 +116,13 @@ func TestReportes(t *testing.T) {
 		t.Fatal("detectar")
 	}
 }
+
+// Tres reportes de la misma plaga: el "ya está en tu campo" va una sola vez (antes se repetía por reporte).
+func TestReportesRepetidos(t *testing.T) {
+	r := Reporte{Fecha: "2026-07-29", Tipo: "plaga", Texto: "roya en el frijol"}
+	in := Entrada{Cultivo: "milpa", DiasSiembra: 90, Ciclo: maiz, Pasado: dias(30, 30, 20, 0, 50), Reportes: []Reporte{r, r, r}}
+	q := por(Evaluar(in), "roya_mustia_frijol").QueHacer
+	if n := strings.Count(q, "Ya está en tu campo"); n != 1 {
+		t.Fatalf("aviso repetido %d veces: %s", n, q)
+	}
+}
