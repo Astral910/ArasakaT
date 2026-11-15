@@ -1,26 +1,21 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
-import { MessageCircle, MapPin, FileImage, BellRing, ArrowRight, CloudRain, Thermometer, Leaf, Mountain, Globe2, ShieldCheck, Map as MapIcon, History, Users, Microscope } from 'lucide-vue-next'
+import { ArrowRight, CloudRain, Thermometer, Leaf, Mountain, Globe2, Map as MapIcon, Microscope } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 import HeroLugar from './inicio/HeroLugar.vue'
-import PhoneSim from '@/components/phone/PhoneSim.vue'
 import CalendarRing from '@/components/plan/CalendarRing.vue'
 import CropIllustration from '@/components/illus/CropIllustration.vue'
 import { FsButton, FsCard, HuipilBand, CountUp, StatusBadge, DataTag } from '@/components/ui'
-import { useUiStore } from '@/stores/ui'
 import { usePlanStore } from '@/stores/plan'
 import { fixturePlan } from '@/api/client'
 import { t, lang } from '@/i18n'
 import { nombreEstrategia, nivelRiesgo, cultivoEstrategia, saludDeRiesgo } from '@/components/plan/util'
 
-const ui = useUiStore()
 const store = usePlanStore()
 onMounted(() => { if (!store.plan) store.calcular() })
 const plan = computed(() => store.plan ?? fixturePlan({ idioma: lang.value }))
 const explorar = [
   { k: 'map', to: '/map', icon: MapIcon },
-  { k: 'time', to: '/alerts', icon: History },
-  { k: 'ext', to: '/alerts', icon: Users },
   { k: 'how', to: '/how', icon: Microscope },
 ]
 
@@ -49,24 +44,6 @@ const datos = [
       </div>
     </section>
 
-    <!-- WHATSAPP -->
-    <section class="wa container">
-      <div class="wa-grid">
-        <div class="copy">
-          <p class="eyebrow">{{ t('hero.eyebrow') }}</p>
-          <h2>{{ t('hero.title') }}</h2>
-          <p class="sub">{{ t('hero.sub') }}</p>
-          <div class="ctas">
-            <FsButton size="lg" variant="whatsapp" @click="ui.waOpen = true"><template #icon><MessageCircle /></template>{{ t('hero.ctaWa') }}</FsButton>
-          </div>
-          <p class="free"><ShieldCheck aria-hidden="true" />{{ t('hero.free') }}</p>
-        </div>
-        <div class="device">
-          <PhoneSim :plan="plan" />
-        </div>
-      </div>
-    </section>
-
     <HuipilBand :h="12" />
 
     <!-- CIFRAS -->
@@ -76,23 +53,6 @@ const datos = [
         <div class="stat"><strong><CountUp :value="342" /></strong><span>{{ t('stats.municipios') }}</span></div>
         <div class="stat"><strong><CountUp :value="3" /></strong><span>{{ t('stats.strategies') }}</span></div>
         <div class="stat"><strong><CountUp :value="3.4" :decimals="1" />M</strong><span>{{ t('stats.hunger') }} <DataTag :source="t('stats.hungerSrc')" /></span></div>
-      </div>
-    </section>
-
-    <!-- CÓMO FUNCIONA -->
-    <section class="how container">
-      <p class="eyebrow">{{ t('how.eyebrow') }}</p>
-      <h2>{{ t('how.title') }}</h2>
-      <div class="steps">
-        <FsCard v-for="(s, i) in [{ icon: MapPin, k: 's1', crop: 'maiz', st: 1 }, { icon: FileImage, k: 's2', crop: 'milpa', st: 2 }, { icon: BellRing, k: 's3', crop: 'milpa', st: 3 }]" :key="s.k" class="step" pad="lg">
-          <div class="step-top">
-            <span class="n">{{ i + 1 }}</span>
-            <component :is="s.icon" class="step-ic" aria-hidden="true" />
-          </div>
-          <CropIllustration :crop="(s.crop as any)" :stage="s.st" :size="96" class="step-ill" />
-          <h3>{{ t(`how.${s.k}.t`) }}</h3>
-          <p class="muted">{{ t(`how.${s.k}.d`) }}</p>
-        </FsCard>
       </div>
     </section>
 
@@ -140,22 +100,13 @@ const datos = [
 
 <style scoped>
 .mas { padding: 2.2rem 0 1.4rem; }
-.mas-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.9rem; }
+.mas-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.9rem; }
 .ex { position: relative; display: flex; flex-direction: column; gap: 0.3rem; padding: 1.2rem 1.2rem 1.1rem; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: var(--ink); transition: transform 200ms var(--ease), box-shadow 200ms var(--ease); }
 .ex:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
 .ex:focus-visible { outline: 3px solid var(--anil); outline-offset: 2px; }
 .ex-ic { width: 26px; height: 26px; color: var(--jade); margin-bottom: 0.3rem; }
 .ex .muted { font-size: 0.9rem; line-height: 1.35; }
 .ex-go { position: absolute; top: 1.1rem; right: 1.1rem; width: 18px; height: 18px; color: var(--ink-3); }
-.wa { padding: 2.5rem 0 3rem; }
-.wa-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 3rem; align-items: center; }
-.copy { display: flex; flex-direction: column; gap: 1.2rem; max-width: 620px; }
-.copy h2 { text-wrap: balance; }
-.sub { font-size: clamp(1.02rem, 1.5vw, 1.15rem); color: var(--ink-2); }
-.ctas { display: flex; flex-wrap: wrap; gap: 0.8rem; }
-.free { display: flex; align-items: center; gap: 0.45rem; font-size: 0.9rem; color: var(--ink-2); font-weight: 600; }
-.free svg { width: 18px; height: 18px; color: var(--jade); }
-.device { display: flex; justify-content: center; }
 
 .stats { background: var(--surface); border-bottom: 1px solid var(--line); }
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
@@ -164,13 +115,6 @@ const datos = [
 .stat strong { font-family: var(--font-display); font-size: clamp(2.2rem, 4vw, 3.1rem); line-height: 1; letter-spacing: -0.02em; }
 .stat > span { color: var(--ink-2); font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.2rem; }
 
-.how { padding: 5rem 0 3rem; display: flex; flex-direction: column; gap: 0.8rem; }
-.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; margin-top: 1.4rem; }
-.step { display: flex; flex-direction: column; gap: 0.6rem; }
-.step-top { display: flex; justify-content: space-between; align-items: center; }
-.n { font-family: var(--font-display); font-size: 2.6rem; line-height: 1; color: var(--maiz); font-weight: 700; }
-.step-ic { width: 26px; height: 26px; color: var(--jade); }
-.step-ill { align-self: center; margin: 0.2rem 0 0.4rem; }
 
 .preview { padding: 3rem 0; background: linear-gradient(180deg, transparent, var(--bg-2) 30%, var(--bg-2) 70%, transparent); }
 .prev-grid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 3rem; align-items: center; }
@@ -191,8 +135,6 @@ const datos = [
 .small { font-size: 0.86rem; }
 
 @media (max-width: 980px) {
-  .wa-grid { grid-template-columns: 1fr; gap: 2.5rem; }
-  .mas-grid { grid-template-columns: repeat(2, 1fr); }
   .prev-grid { grid-template-columns: 1fr; }
   .data-grid { grid-template-columns: repeat(2, 1fr); }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -201,7 +143,6 @@ const datos = [
   .stat:nth-child(-n+2) { border-top: 0; }
 }
 @media (max-width: 720px) {
-  .steps { grid-template-columns: 1fr; }
   .prev-inner { grid-template-columns: 1fr; justify-items: center; }
   .mas-grid { grid-template-columns: 1fr; }
 }

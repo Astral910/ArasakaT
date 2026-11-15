@@ -12,8 +12,8 @@ import { t } from '@/i18n'
         <p class="muted">{{ t('footer.honest') }}</p>
       </div>
       <nav class="col links" aria-label="Footer">
+        <RouterLink to="/terrenos">{{ t('nav.fields') }}</RouterLink>
         <RouterLink to="/map">{{ t('nav.map') }}</RouterLink>
-        <RouterLink to="/alerts">{{ t('nav.alerts') }}</RouterLink>
         <RouterLink to="/how">{{ t('nav.how') }}</RouterLink>
         <RouterLink to="/demo">{{ t('nav.demo') }}</RouterLink>
       </nav>
