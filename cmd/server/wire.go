@@ -18,6 +18,7 @@ import (
 	"fieldshift/internal/alerts"
 	"fieldshift/internal/bot"
 	"fieldshift/internal/channels"
+	"fieldshift/internal/channels/evolution"
 	"fieldshift/internal/channels/whatsmeow"
 	"fieldshift/internal/contract"
 	"fieldshift/internal/geo"
@@ -117,6 +118,11 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 	if wa != nil {
 		d.Vinculado = wa
 	}
+	evo := evolucion(cfg)
+	if evo != nil {
+		d.Vinculado = evo
+		mux.Handle("/webhook/evolution", evo.Handler())
+	}
 	if os.Getenv("BOT_SESIONES") == "" {
 		d.SesionesPath = filepath.Join(filepath.Dir(cfg.DBPath), "sesiones.json")
 	}
@@ -137,6 +143,13 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		a.waAdmin = wa.AdminHandler()
 		a.cerrar = append(a.cerrar, wa.Cerrar)
 		a.comp.WhatsApp = "vinculado"
+	}
+	if evo != nil {
+		evo.OnMensaje = func(m evolution.Mensaje) { svc.Vinculado.Recibir(m.ID, m.Entrada) }
+		evo.Iniciar(context.Background())
+		a.waAdmin = evo.AdminHandler()
+		a.cerrar = append(a.cerrar, evo.Cerrar)
+		a.comp.WhatsApp = "evolution"
 	}
 	a.comp.Twilio = activo(d.Twilio.Activo())
 
@@ -178,6 +191,28 @@ func vinculado(cfg Config) *whatsmeow.Cliente {
 		return nil
 	}
 	log.Printf("whatsapp vinculado: sesión en %s · QR en %s · página /admin/whatsapp", db, qr)
+	return c
+}
+
+// evolucion abre el canal de Evolution API si WA_MODO=evolution (EVOLUTION_URL, EVOLUTION_APIKEY,
+// EVOLUTION_INSTANCE; QR en WA_QR_PNG o junto a DB_PATH). Ver docs/evolution.md.
+func evolucion(cfg Config) *evolution.Cliente {
+	if cfg.WAModo != "evolution" {
+		return nil
+	}
+	ec := evolution.ConfigDesdeEnv()
+	if ec.QRPath == "" {
+		ec.QRPath = filepath.Join(filepath.Dir(cfg.DBPath), "whatsapp-qr.png")
+	}
+	if ec.Webhook == "" {
+		ec.Webhook = baseLocal(cfg.Addr) + "/webhook/evolution"
+	}
+	c, err := evolution.Nuevo(ec)
+	if err != nil {
+		log.Printf("whatsapp evolution: %v → apagado", err)
+		return nil
+	}
+	log.Printf("whatsapp evolution: %s instancia %q · QR en %s · página /admin/whatsapp", ec.URL, ec.Instancia, ec.QRPath)
 	return c
 }
 

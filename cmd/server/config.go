@@ -22,7 +22,7 @@ type Config struct {
 	SchedulerHora string        // SCHEDULER_HORA: HH:MM hora de Guatemala (heredado; el scheduler ahora corre cada SCHEDULER_CADA)
 	SchedulerCada time.Duration // SCHEDULER_CADA: cada cuánto revisa el pronóstico de cada suscriptor (por defecto 3h)
 	// WhatsApp vinculado (whatsmeow, ver docs/whatsapp-vinculado.md)
-	WAModo   string // WA_MODO: "vinculado" lo enciende; vacío = solo Cloud/Twilio/simulador
+	WAModo   string // WA_MODO: "vinculado" (whatsmeow) o "evolution" (Evolution API); vacío = solo Cloud/Twilio/simulador
 	WANumero string // WA_NUMERO: número del bot (código de país + número) para el código de 8 letras
 	WADB     string // WA_DB: SQLite de la sesión (por defecto junto a DB_PATH: whatsapp.db)
 	WAQR     string // WA_QR_PNG: PNG del QR mientras no está vinculado

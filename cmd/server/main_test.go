@@ -180,3 +180,30 @@ func TestMotorYBotReales(t *testing.T) {
 		t.Fatalf("chat %d %.300s", rec.Code, rec.Body)
 	}
 }
+
+// WA_MODO=evolution: monta /webhook/evolution (con clave), /admin/whatsapp detrás del token y lo dice en /healthz.
+func TestEvolutionCableado(t *testing.T) {
+	evo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"instance":{"state":"connecting"}}`))
+	}))
+	defer evo.Close()
+	t.Setenv("EVOLUTION_URL", evo.URL)
+	t.Setenv("EVOLUTION_APIKEY", "k")
+	cfg := testConfig(t)
+	cfg.WAModo, cfg.Addr = "evolution", "127.0.0.1:8216"
+	h, a := newServer(cfg)
+	defer a.Close()
+	if a.comp.WhatsApp != "evolution" {
+		t.Fatalf("componente whatsapp = %q", a.comp.WhatsApp)
+	}
+	if rec := do(h, "POST", "/webhook/evolution", `{}`, nil); rec.Code != 401 {
+		t.Fatalf("webhook sin clave: %d", rec.Code)
+	}
+	if rec := do(h, "GET", "/admin/whatsapp/estado.json", "", nil); rec.Code == 200 {
+		t.Fatalf("admin sin token debería rechazar")
+	}
+	if rec := do(h, "GET", "/admin/whatsapp/estado.json?token=secreto", "", nil); rec.Code != 200 || !strings.Contains(rec.Body.String(), `"conectado":false`) {
+		t.Fatalf("estado: %d %s", rec.Code, rec.Body)
+	}
+}
