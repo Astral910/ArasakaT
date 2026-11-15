@@ -328,15 +328,26 @@ const rango = computed<[number, number]>(() => {
 })
 const pars = computed<Parada[]>(() => (tl.value ? paradas(tl.value, rango.value[0], rango.value[1]) : []))
 let paradaActual: Parada | null = null
+let abrirEnFin = route.query.fin === '1' && !rec
+let callarFin = false
 let raf = 0
 let prev = 0
 
 /** La guía arranca en la siembra y corre sola hasta después de la cosecha. */
 function empezarGuia() {
   if (!tl.value) return
+  paradaActual = null
+  // «Volver» desde el informe (fin=1): directo al resultado, sin repetir la animación (solo la primera vez)
+  if (abrirEnFin) {
+    abrirEnFin = false
+    dia.value = rango.value[1]
+    jugando.value = false
+    callarFin = true
+    finVisible.value = true
+    return
+  }
   dia.value = rango.value[0]
   finVisible.value = false
-  paradaActual = null
   jugando.value = autoplay || rec
 }
 
@@ -377,7 +388,7 @@ function tick(now: number) {
   if (dia.value >= tl.value.dias - 1e-2) jugando.value = false
 }
 watch(jugando, (j) => { if (j) audio.value?.play(); else audio.value?.pause() })
-watch(finVisible, (f) => { if (f) audio.value?.decir('fin') })
+watch(finVisible, (f) => { if (f && !callarFin) audio.value?.decir('fin'); callarFin = false })
 watch(lang, (l) => audio.value?.setIdioma(l === 'en' ? 'en' : 'es'))
 const fraccion = computed(() => (jugando.value ? dia.value % 1 : 0.5))
 const diaEntero = computed(() => Math.floor(dia.value))
@@ -504,7 +515,7 @@ const consulta = computed(() => {
   const q: Record<string, string> = {}
   // la geometría del terreno viaja al informe (forma/radio/poly), con los nombres del contrato
   Object.assign(q, consultaParcela(ruta.parcela))
-  for (const [k, v] of Object.entries(route.query)) if (typeof v === 'string' && !['rec', 'intro', 'auto', 'calidad', 'vertical'].includes(k)) q[k] = v
+  for (const [k, v] of Object.entries(route.query)) if (typeof v === 'string' && !['rec', 'intro', 'auto', 'fin', 'calidad', 'vertical'].includes(k)) q[k] = v
   Object.assign(q, {
     lat: lugar.lat.toFixed(5), lon: lugar.lon.toFixed(5), cultivo: a.cultivo, area: String(a.area_valor), unidad: a.area_unidad,
     riego: String(RIEGO[a.riego]), s: mostrada.value, esc: a.escenario,
