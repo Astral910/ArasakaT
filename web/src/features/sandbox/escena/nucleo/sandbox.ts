@@ -321,6 +321,7 @@ class SandboxImpl implements Sandbox {
       esAgua: sueloAgua || this.ciudad ? (x, z) => ocupacion.bloqueado(x, z) || esAgua(x, z) : undefined,
       cobertura: this.suelo?.cobertura?.bind(this.suelo),
       altura: datos.relieveReal ? datos.alturaMedia : undefined,
+      sinRancho: !!this.ciudad?.urbano,
     })
     quitarCercoCaja(this.props.grupo)
     cierra('casas')
