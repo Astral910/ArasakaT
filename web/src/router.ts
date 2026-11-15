@@ -11,7 +11,7 @@ function feature(nombre: 'mapa' | 'alertas' | 'how' | 'sandbox' | 'informe' | 'd
 
 export const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: Landing },
-  { path: '/plan', name: 'wizard', component: () => import('./views/Wizard.vue') },
+  { path: '/plan', redirect: '/' },
   { path: '/my-plan', name: 'plan', component: () => import('./views/PlanView.vue') },
   { path: '/demo', name: 'demo', component: () => import('./views/Demo.vue'), meta: { bare: true } },
   { path: '/map', name: 'map', component: feature('mapa'), meta: { feature: 'map' } },

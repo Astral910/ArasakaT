@@ -17,7 +17,6 @@ const icon = computed(() => ({ map: Map, alerts: BellRing, how: BookOpenCheck } 
       <h1>{{ t('nav.' + f) }}</h1>
       <p class="muted">{{ t('ph.' + f) }}</p>
       <div class="sk"><Skeleton h="14px" w="80%" /><Skeleton h="14px" w="60%" /><Skeleton h="160px" r="18px" /></div>
-      <FsButton to="/plan" variant="secondary">{{ t('nav.plan') }}</FsButton>
     </FsCard>
   </section>
 </template>

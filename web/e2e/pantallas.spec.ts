@@ -39,27 +39,6 @@ test('landing en español y modo oscuro', async ({ page }) => {
   await shot(page, 'landing-es-oscuro', false)
 })
 
-test('opciones avanzadas: asistente de 4 pasos con mapa 3D', async ({ page }) => {
-  const errs = errores(page)
-  await page.goto('/plan')
-  await page.getByRole('searchbox').fill('jocot')
-  await page.getByRole('option').first().click()
-  await page.waitForTimeout(8500)
-  await shot(page, 'asistente-1-donde', false)
-  await page.getByRole('button', { name: /Next/ }).click()
-  await page.waitForTimeout(500)
-  await shot(page, 'asistente-2-que', false)
-  await page.getByRole('button', { name: /Next/ }).click()
-  await page.waitForTimeout(500)
-  await shot(page, 'asistente-3-con-que', false)
-  await page.getByRole('button', { name: /Next/ }).click()
-  await page.waitForTimeout(500)
-  await shot(page, 'asistente-4-importa', false)
-  await page.getByRole('button', { name: /See my plan/ }).click()
-  await expect(page).toHaveURL(/my-plan/)
-  expect(errs).toEqual([])
-})
-
 test('mi plan: anillo, tarjetas, ficha, suelo, 2040', async ({ page }) => {
   const errs = errores(page)
   await page.goto('/my-plan?m=jocotan-chiquimula')

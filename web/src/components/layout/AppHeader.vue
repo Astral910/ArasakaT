@@ -24,7 +24,6 @@ watch(() => route.fullPath, () => { open.value = false; menuCuenta.value = false
 const sobreMapa = computed(() => route.name === 'home' && !scrolled.value && !open.value)
 
 const base = [
-  { to: '/plan', key: 'nav.plan' },
   { to: '/map', key: 'nav.map' },
   { to: '/alerts', key: 'nav.alerts' },
   { to: '/how', key: 'nav.how' },

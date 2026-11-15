@@ -497,7 +497,6 @@ defineExpose({ elegir })
           <button ref="boton" type="button" class="ver" :class="{ bloqueado: agua === 'agua' }" :aria-disabled="agua === 'agua'" data-testid="ver-temporada" @click="ver">
             <Play aria-hidden="true" /><span>{{ t('ini.go') }}</span>
           </button>
-          <RouterLink to="/plan" class="avanz"><SlidersHorizontal aria-hidden="true" />{{ t('ini.advanced') }}</RouterLink>
         </template>
 
         <p id="ini-aviso" class="aviso" :class="{ warn: ['vacio', 'gps', 'agua', 'none', 'aguaParcela'].includes(aviso), agua: aviso === 'aguaParcela' }" role="status" aria-live="polite" data-testid="aviso">

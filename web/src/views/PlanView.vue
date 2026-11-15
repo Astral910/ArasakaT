@@ -103,7 +103,7 @@ async function descargar() {
             <FsButton variant="whatsapp" :href="waHref"><template #icon><MessageCircle /></template>{{ t('plan.sendWa') }}</FsButton>
             <FsButton variant="secondary" :disabled="!plan || bajando" @click="descargar"><template #icon><Download /></template>{{ bajando ? t('plan.downloading') : t('plan.download') }}</FsButton>
             <FsButton variant="primary" :to="sandboxTo"><template #icon><Box /></template>{{ lang === 'es' ? 'Ver en 3D' : 'See it in 3D' }}</FsButton>
-            <FsButton variant="ghost" to="/plan"><template #icon><Pencil /></template>{{ t('plan.change') }}</FsButton>
+            <FsButton variant="ghost" to="/"><template #icon><Pencil /></template>{{ t('plan.change') }}</FsButton>
           </div>
         </div>
       </div>
