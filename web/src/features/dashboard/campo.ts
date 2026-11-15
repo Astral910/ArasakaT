@@ -12,7 +12,9 @@ export type TipoReporte = 'lluvia' | 'riego' | 'plaga' | 'enfermedad' | 'siembra
 export interface Aviso { nivel: Nivel; texto: string; fuente?: string }
 export interface Plaga { nombre: string; riesgo: Riesgo; porque: string; queHacer: string; fuente: string }
 export interface Etapa { nombre: string; desde: string; hasta: string }
-export interface Tarea { fecha: string; hora?: string; accion: string; mm?: number; litros?: number }
+export interface Tarea { fecha: string; hora?: string; accion: string; mm?: number; litros?: number; tipo?: 'riego' | 'labor' }
+/** pronóstico de un día (tira de próximos días) */
+export interface Dia { fecha: string; lluviaMm: number | null; tmax: number | null; tmin: number | null }
 export interface Punto { fecha: string; esperado: number; observado: number | null }
 /** acción que devuelve POST /api/chat (contrato ronda 5) */
 export interface AccionChat { tipo: 'abrir_simulacion' | 'registrar_reporte' | 'cambiar_siembra' | 'mostrar_filtro'; params?: Record<string, unknown> }
@@ -33,6 +35,8 @@ export interface Hoy {
   cosecha: string | null
   diasCosecha: number | null
   agenda: Tarea[]
+  /** hoy y los próximos días (lluvia y temperatura) */
+  pronostico: Dia[]
   comparativa: Punto[]
   reportes: Reporte[]
   fuentes: string[]
@@ -74,7 +78,8 @@ export function normalizarHoy(c: C, p: Parcela): Hoy {
     siembra,
     cosecha,
     diasCosecha: n(c.dias_cosecha ?? c.diasCosecha ?? c.dias_a_cosecha) ?? (cosecha ? diasEntre(fecha, cosecha) : null),
-    agenda: arr(c.agenda).map((t) => ({ fecha: s(t.fecha).slice(0, 10), hora: t.hora ? s(t.hora) : undefined, accion: s(t.accion ?? t.texto), mm: n(t.mm) ?? undefined, litros: n(t.litros) ?? undefined })),
+    agenda: arr(c.agenda).map((t) => ({ fecha: s(t.fecha).slice(0, 10), hora: t.hora ? s(t.hora) : undefined, accion: s(t.accion ?? t.texto), mm: n(t.mm) || undefined, litros: n(t.litros) || undefined, tipo: s(t.tipo) === 'riego' || (n(t.mm) ?? 0) > 0 ? 'riego' as const : 'labor' as const })),
+    pronostico: arr(c.proximos ?? c.pronostico).map((d) => ({ fecha: s(d.fecha).slice(0, 10), lluviaMm: n(d.lluvia_mm ?? d.lluviaMm ?? d.lluvia), tmax: n(d.tmax), tmin: n(d.tmin) })).filter((d) => d.fecha),
     comparativa: arr(c.comparativa ?? c.esperado_vs_observado).map((x) => ({ fecha: s(x.fecha).slice(0, 10), esperado: n(x.esperado_mm ?? x.esperado) ?? 0, observado: n(x.observado_mm ?? x.observado) })),
     reportes: arr(c.reportes).map((r) => ({ fecha: s(r.fecha).slice(0, 10), tipo: s(r.tipo, 'otro') as TipoReporte, valor: n(r.valor) ?? undefined, unidad: r.unidad ? s(r.unidad) : undefined, texto: r.texto ? s(r.texto) : undefined })),
     fuentes: arr(c.fuentes).map((f) => s(typeof f === 'object' ? (f as C).nombre ?? (f as C).texto : f)).filter(Boolean),
@@ -104,7 +109,7 @@ function paramsCampo(p: Parcela, idioma: 'es' | 'en'): string {
 export async function cargarHoy(p: Parcela, idioma: 'es' | 'en' = 'es'): Promise<Hoy> {
   try {
     const c = await pedir(`/api/parcelas/${encodeURIComponent(p.id)}/hoy?${paramsCampo(p, idioma)}`)
-    return normalizarHoy((c.hoy as C) ?? c, p)
+    return conPronostico(normalizarHoy((c.hoy as C) ?? c, p), p)
   } catch { /* stub */ }
   return hoyEstimado(p, leerReportes(p.id), await climaOpenMeteo(p.lat, p.lon), idioma)
 }
@@ -113,11 +118,24 @@ export async function enviarReporte(p: Parcela, r: Reporte, idioma: 'es' | 'en' 
   try {
     const c = await pedir(`/api/parcelas/${encodeURIComponent(p.id)}/reportes?${paramsCampo(p, idioma)}`, { method: 'POST', body: JSON.stringify(r) })
     const h = (c.hoy as C) ?? c
-    if (h && (h.riego !== undefined || h.fecha)) return normalizarHoy(h, p)
+    if (h && (h.riego !== undefined || h.fecha)) return conPronostico(normalizarHoy(h, p), p)
     return cargarHoy(p, idioma)
   } catch { /* stub */ }
   guardarReporte(p.id, r)
   return hoyEstimado(p, leerReportes(p.id), await climaOpenMeteo(p.lat, p.lon), idioma)
+}
+
+/** si el servidor no trae los próximos días, la lluvia sale de Open-Meteo (solo para la tira de días) */
+async function conPronostico(h: Hoy, p?: Parcela): Promise<Hoy> {
+  if (h.pronostico.length) return h
+  const c = p ? await climaOpenMeteo(p.lat, p.lon) : null
+  return { ...h, pronostico: pronosticoDe(c, h.fecha) }
+}
+export function pronosticoDe(c: Clima | null, hoyF: string): Dia[] {
+  if (!c) return []
+  const i0 = c.fechas.indexOf(hoyF)
+  const h0 = i0 >= 0 ? i0 : c.hoyIdx
+  return c.fechas.slice(h0, h0 + 7).map((f, k) => ({ fecha: f, lluviaMm: +c.lluvia[h0 + k].toFixed(1), tmax: Math.round(c.tmax[h0 + k]), tmin: Math.round(c.tmin[h0 + k]) }))
 }
 
 // ---------- reportes locales (stub) ----------
@@ -259,13 +277,13 @@ export function hoyEstimado(p: Parcela, reportes: Reporte[], clima: Clima | null
   if (!avisos.length) avisos.push({ nivel: 'ok', texto: es ? 'Sin alertas para los próximos 7 días.' : 'No alerts for the next 7 days.' })
 
   // agenda: riegos a las 6:00 (menos evaporación) y labores por etapa
-  const agenda: Tarea[] = plan.slice(0, 7).filter((x) => x.mm > 0).map((x) => ({ fecha: x.f, hora: '06:00', accion: es ? 'Regar' : 'Water', mm: x.mm, litros: Math.round(x.mm * m2) }))
+  const agenda: Tarea[] = plan.slice(0, 7).filter((x) => x.mm > 0).map((x) => ({ fecha: x.f, hora: '06:00', accion: es ? 'Regar' : 'Water', mm: x.mm, litros: Math.round(x.mm * m2), tipo: 'riego' }))
   for (let k = 0; k < 7; k++) {
     const f = sumarDias(hoyF, k), d = dds + k
-    if (['maiz', 'milpa', 'sorgo'].includes(p.cultivo) && d >= 10 && d <= 60 && d % 4 === 0) agenda.push({ fecha: f, hora: '07:00', accion: es ? 'Revisar cogollero en 20 plantas' : 'Scout fall armyworm on 20 plants' })
-    if (p.cultivo === 'frijol' && d >= 7 && d <= 50 && d % 5 === 0) agenda.push({ fecha: f, hora: '07:00', accion: es ? 'Revisar mosca blanca (envés de la hoja)' : 'Check whitefly (leaf underside)' })
-    if (d === 30) agenda.push({ fecha: f, hora: '08:00', accion: es ? 'Segunda abonada y calza' : 'Second fertilizer and hilling' })
-    if (d === total - 10) agenda.push({ fecha: f, hora: '08:00', accion: es ? 'Preparar cosecha y secado' : 'Prepare harvest and drying' })
+    if (['maiz', 'milpa', 'sorgo'].includes(p.cultivo) && d >= 10 && d <= 60 && d % 4 === 0) agenda.push({ fecha: f, hora: '07:00', accion: es ? 'Revisar cogollero en 20 plantas' : 'Scout fall armyworm on 20 plants', tipo: 'labor' })
+    if (p.cultivo === 'frijol' && d >= 7 && d <= 50 && d % 5 === 0) agenda.push({ fecha: f, hora: '07:00', accion: es ? 'Revisar mosca blanca (envés de la hoja)' : 'Check whitefly (leaf underside)', tipo: 'labor' })
+    if (d === 30) agenda.push({ fecha: f, hora: '08:00', accion: es ? 'Segunda abonada y calza' : 'Second fertilizer and hilling', tipo: 'labor' })
+    if (d === total - 10) agenda.push({ fecha: f, hora: '08:00', accion: es ? 'Preparar cosecha y secado' : 'Prepare harvest and drying', tipo: 'labor' })
   }
   agenda.sort((a, b) => (a.fecha + (a.hora ?? '')).localeCompare(b.fecha + (b.hora ?? '')))
 
@@ -287,6 +305,7 @@ export function hoyEstimado(p: Parcela, reportes: Reporte[], clima: Clima | null
     cosecha,
     diasCosecha: diasEntre(hoyF, cosecha),
     agenda,
+    pronostico: pronosticoDe(clima, hoyF),
     comparativa,
     reportes,
     fuentes: sin ? ['FAO-56 (Allen et al., 1998)'] : [es ? 'Open-Meteo (pronóstico y ET0 FAO)' : 'Open-Meteo (forecast and FAO ET0)', 'FAO-56 (Allen et al., 1998)'],
