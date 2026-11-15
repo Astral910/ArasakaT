@@ -66,11 +66,12 @@ export interface ModCiudad {
 }
 
 // Módulos opcionales: cada agente publica `nucleo/<modulo>/index.ts`. Sin la carpeta, glob no trae nada.
-const MODS = import.meta.glob(['./suelo/index.ts', './ciudad/index.ts', './casas/index.ts'])
+const MODS = import.meta.glob(['./suelo/index.ts', './ciudad/index.ts', './ciudad/ciudad.ts', './casas/index.ts'])
+const entrada = (n: string) => MODS[`./${n}/index.ts`] ?? MODS[`./${n}/${n}.ts`]
 
 /** Importa un módulo opcional (null si su carpeta no está o falla al cargar). */
 export async function importarModulo(nombre: 'suelo' | 'ciudad' | 'casas'): Promise<any | null> { // eslint-disable-line @typescript-eslint/no-explicit-any
-  const f = MODS[`./${nombre}/index.ts`]
+  const f = entrada(nombre)
   if (!f) return null
   try { return await f() } catch (e) { console.warn(`[escena] módulo ${nombre}:`, e); return null }
 }
@@ -88,7 +89,7 @@ export async function cargarModulo<T>(nombre: 'suelo' | 'ciudad' | 'casas', crea
     return null
   }
 }
-export function hayModulo(nombre: 'suelo' | 'ciudad' | 'casas') { return !!MODS[`./${nombre}/index.ts`] }
+export function hayModulo(nombre: 'suelo' | 'ciudad' | 'casas') { return !!entrada(nombre) }
 
 // ------------------------------------------------------------------ caché del relieve
 
@@ -191,4 +192,15 @@ export function calidadInicial(gl: WebGLRenderingContext | WebGL2RenderingContex
   if (/swiftshader|llvmpipe|softpipe|basic render/.test(r) || mem <= 2 || nucleos <= 2) return 'baja'
   if (mem >= 8 && /rtx|radeon rx|rx [5-9]\d{3}|apple m[1-9]|gtx 1[6-9]|arc\(tm\) a|arc a\d/.test(r)) return 'alta'
   return 'media'
+}
+
+/** Muestrea una función cara (x, z) → boolean en una rejilla de `paso` m sobre la maqueta y devuelve una búsqueda O(1). */
+export function rejillaDe(f: (x: number, z: number) => boolean, L: number, paso = Math.max(1.5, L / 300)): (x: number, z: number) => boolean {
+  const n = Math.ceil(L / paso) + 1
+  const g = new Uint8Array(n * n)
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) g[j * n + i] = f(-L / 2 + i * paso, -L / 2 + j * paso) ? 1 : 0
+  return (x, z) => {
+    const i = Math.round((x + L / 2) / paso), j = Math.round((z + L / 2) / paso)
+    return i >= 0 && j >= 0 && i < n && j < n && g[j * n + i] === 1
+  }
 }

@@ -146,7 +146,7 @@ export function construirCerco(U: UniformsGlobales, o: OpcionesCerco): Cerco {
         sc.set(s * 1.25, s * 0.85, s)
         m4.compose(new THREE.Vector3(p.x + (rnd() - 0.5) * 0.1, p.y + 0.12 + h * 0.42, p.z + (rnd() - 0.5) * 0.1), q, sc)
         ip.setMatrixAt(k * 2 + h, m4)
-        ip.setColorAt(k * 2 + h, c.setHSL(0.09, 0.08 + rnd() * 0.08, 0.42 + rnd() * 0.16))
+        ip.setColorAt(k * 2 + h, c.setHSL(0.08, 0.07 + rnd() * 0.07, 0.24 + rnd() * 0.12))
       }
     })
     ip.castShadow = o.calidad !== 'baja'

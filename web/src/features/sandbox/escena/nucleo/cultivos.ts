@@ -161,6 +161,8 @@ export interface OpcionesCultivos {
   alturaEn: (x: number, z: number) => number
   tope: number // máx. instancias por capa
   sombras: boolean
+  /** false = ahí no se siembra (agua, calle, edificio). */
+  libre?: (x: number, z: number) => boolean
 }
 
 export function crearCapa(cultivo: string, U: UniformsGlobales, o: OpcionesCultivos, semilla: number): Capa3D {
@@ -187,6 +189,7 @@ export function crearCapa(cultivo: string, U: UniformsGlobales, o: OpcionesCulti
     let x = x0 + i * entre + disp.offX * ESCALA_PLANTA + (r() - 0.5) * disp.jit * 2 * ESCALA_PLANTA
     let z = z0 + j * surco + disp.offZ * ESCALA_PLANTA + (r() - 0.5) * disp.jit * 2 * ESCALA_PLANTA
     if (distParcela(parcela, x, z) > -0.4) continue
+    if (o.libre && !o.libre(x, z)) continue
     // huecos naturales (resiembra, golpes fallidos)
     if (r() < 0.035) continue
     x = Math.round(x * 1000) / 1000; z = Math.round(z * 1000) / 1000

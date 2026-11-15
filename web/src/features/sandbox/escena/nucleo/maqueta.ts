@@ -14,8 +14,10 @@ export interface Parcela {
   surco: number // separación visual entre surcos (m)
   /** Forma real (ronda 4). Sin esto la parcela es la caja cx±hx, cz±hz. */
   forma?: FormaParcela
-  /** Polígono local cerrado x0,z0,x1,z1,… */
-  poli?: Float64Array
+  /** Polígono local cerrado [[x, z], …] (contrato ronda 4). */
+  poli?: Array<[number, number]>
+  /** El mismo polígono plano x0,z0,x1,z1,… */
+  poliPlano?: Float64Array
   /** Área real (m²). */
   area?: number
   campo?: CampoDist
