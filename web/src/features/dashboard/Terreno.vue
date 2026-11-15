@@ -41,8 +41,8 @@ async function cargar() {
   if (!(await revisarSesion())) { router.replace({ name: 'entrar', query: { volver: route.fullPath } }); return }
   p.value = await obtenerParcela(String(route.params.id))
   if (!p.value) { noHay.value = true; return }
-  cargarDec(p.value)
   h.value = await cargarHoy(p.value, lang.value)
+  cargarDec(p.value) // después de «Hoy»: no compite con el primer pedido al servidor
 }
 onMounted(cargar)
 
