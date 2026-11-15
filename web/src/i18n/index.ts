@@ -12,6 +12,7 @@ function initial(): Lang {
     const s = localStorage.getItem('fs-lang')
     if (s === 'es' || s === 'en') return s
   } catch { /* sin storage */ }
+  // sin elección previa: inglés (el jurado evalúa en inglés); el botón ES/EN cambia y se recuerda
   return 'en'
 }
 

@@ -46,7 +46,7 @@ func (c *Client) Power(lat, lon float64) (*data.Climate, error) {
 	end := time.Now().AddDate(0, 0, -1).Format("20060102")
 	url := fmt.Sprintf("%s?parameters=%s&community=AG&latitude=%.3f&longitude=%.3f&start=20010101&end=%s&format=JSON&time-standard=LST",
 		c.PowerURL, powerParams, clat, clon, end)
-	b, err := c.Get(url, 2)
+	b, err := c.Get(url, 3)
 	if err != nil {
 		if old != nil {
 			return old, nil

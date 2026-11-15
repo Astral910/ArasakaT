@@ -13,24 +13,10 @@ PLAYWRIGHT_DIR=<any repo node_modules/playwright> node submission/pitch/export.m
 ```
 Headless Chromium (muted, GPU) → `slides.pdf` (7 pages) + `png/slide-N.png`. Open `slides.html?marks` to see the images to replace outlined in red.
 
-## Images to replace with the final captures (round 3)
-Current images are from `estado/muestras` (round 2–3 work in progress). Overwrite the file in `img/` with the same name and aspect, then re-export.
-
-| Slide | `img/` file | Replace with |
-|---|---|---|
-| 1 | `diorama.jpg` | final diorama frame (ranch with more houses, realistic trees, no terrain peaks): escena3d3 / vuelo3 |
-| 2 | `map-guatemala.jpg` | OK as is (English risk map) |
-| 3 | `landing-form.jpg` | final English landing (round 3) |
-| 3 | `terrain.jpg` | flight frame with the pin centred (vuelo3) |
-| 3 | `storm.jpg` | final guided-video frame (storm or dry spell) |
-| 3, 7 | `report.jpg` | **English** technical report page 1 (`/informe?…&lang=en`) |
-| 3 | `nairobi.jpg` | global example in English |
-| 4 | `field-rain.jpg` | sandbox frame showing the confidence badge (vuelo3) |
-| 5 | `compare.jpg` | final S0 \| S2 split screen in English |
-| 6 | `timemachine.jpg` | OK as is |
-| 6 | `wa-bubble.jpg` | photo/screen recording of the real WhatsApp chat on the team phone (phone number masked) |
+## Images (final round-3 captures, 14 Nov 2026)
+All `img/` files were replaced by the integrator with frames of the final build (EN): landing card, centred flight, diorama with the ranch, guided season with narration subtitles, confidence badge, S0 | S2 split, technical report page 1, Managua (global engine, outside Guatemala) and the web phone answering **TEST ALERT**. Still to replace by the team: `wa-bubble.jpg` with a screenshot of the **real** linked WhatsApp number (masked) once it is paired; `map-guatemala.jpg` and `timemachine.jpg` are unchanged (still valid).
 
 ## Before submitting
 - Fill every `⟦…⟧` (`grep -rn "⟦" submission/`): team name, WhatsApp number, final forecast numbers.
-- Slides use the forecast run of 14 Nov 2026 (47 %, 8 of 24, 17–32 qq/mz). If the final build shows different numbers, update slide 4 and the video text together.
+- Slides use the forecast run of 14 Nov 2026 (40 %, 8 of 24, 17–32 qq/mz). If the final build shows different numbers, update slide 4 and the video text together.
 - Upload `slides.pdf` as a public link (Drive/GitHub) only if the team picks slides instead of the video for field 3 (the portal accepts one or the other).

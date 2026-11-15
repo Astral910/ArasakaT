@@ -329,6 +329,15 @@ func elegirAnalogo(s *sim.Site, crop string, pin *PronInput, oni func(string) (f
 		a.Peso[i] /= tot
 		a.ProbClase[ct.cls[y]] += a.Peso[i]
 	}
+	// honestidad: k análogos no alcanzan para decir 100 %. Se encoge hacia la frecuencia de la clase en
+	// los años base (Dirichlet con tantos años "virtuales" de clima como análogos → mitad y mitad).
+	var clim [3]float64
+	for _, y := range a.Base {
+		clim[ct.cls[y]]++
+	}
+	for c := range a.ProbClase {
+		a.ProbClase[c] = (a.ProbClase[c] + clim[c]/float64(len(a.Base))) / 2
+	}
 	a.Clase = 0
 	for c := 1; c < 3; c++ {
 		if a.ProbClase[c] > a.ProbClase[a.Clase]+1e-9 {
@@ -378,7 +387,9 @@ func pronSite(s *sim.Site, an *analogo, pin *PronInput) (*sim.Site, func(int) st
 	for _, d := range pin.Dias {
 		fc[d.Fecha] = d
 	}
-	end := s.Idx(an.Y, 12, 31)
+	// un año más de análogo: en clima frío (Países Bajos, altiplano) el ciclo por grados-día pasa del 31 de diciembre
+	// y sin datos RunCrop da NaN → /api/simulate salía vacío y la web caía al ejemplo ilustrativo
+	end := s.Idx(an.Y+1, 12, 31)
 	n := end - s.N + 1
 	if n < 0 {
 		n = 0
@@ -529,6 +540,21 @@ func buildConfianza(env SimEnv, s *sim.Site, def sim.StratDef, cfg sim.Config, c
 	if totW > 0 {
 		c.ProbPerdida = lossW / totW
 	}
+	// con análogos, la pérdida se encoge igual que la clase: mitad grupo, mitad frecuencia en los años base
+	if ca.an != nil && totW > 0 {
+		nl, nt := 0, 0
+		for _, y := range ct.years {
+			if yo := s.RunYear(def, y, 0, 1, cfg); !math.IsNaN(yo.FoodQQ) {
+				nt++
+				if yo.FoodQQ < sim.LossThreshold*def.Main.YmQQMz {
+					nl++
+				}
+			}
+		}
+		if nt > 0 {
+			c.ProbPerdida = (c.ProbPerdida + float64(nl)/float64(nt)) / 2
+		}
+	}
 	c.CosechaP10, c.CosechaP50, c.CosechaP90 = pctW(qq, w, 0.1), pctW(qq, w, 0.5), pctW(qq, w, 0.9)
 	r1 := func(x float64) float64 {
 		if math.IsNaN(x) {
@@ -620,7 +646,7 @@ func confTexto(c *contract.SimConfianza, ca confArgs) (string, string) {
 	clsEN := map[string]string{"perdida": "a lost season", "regular": "a fair season", "buena": "a good season"}[c.Clase]
 	nivES := map[string]string{"alta": "alta", "media": "media", "baja": "baja"}[c.Nivel]
 	nivEN := map[string]string{"alta": "high", "media": "medium", "baja": "low"}[c.Nivel]
-	rango := fmt.Sprintf("%.0f–%.0f qq/mz", c.CosechaP10, c.CosechaP90)
+	rango := fmt.Sprintf("%.0f–%.0f qq/mz", math.Round(c.CosechaP10), math.Round(c.CosechaP90)) // mismo redondeo que la web (Math.round)
 	switch c.Metodo {
 	case "analogo-pronostico", "remuestreo-enso":
 		if ca.an != nil {
@@ -709,8 +735,20 @@ func simulatePron(env SimEnv, r contract.SimRequest, req contract.PlanRequest, s
 	if err != nil {
 		return contract.SimTimeline{}, err
 	}
+	// fecha de siembra (ronda 5): la elegida o la recomendada; el ciclo sale de los grados-día
+	sa := &siembraArgs{s: s, xs: xs, Y: an.Y, labelY: an.Y, pool: an.Pool, peso: an.Peso, base: an.Base, def: def, cfg: cfg,
+		hoy: hoy, pin: &pin, nf: nf, idioma: req.Idioma, lugar: env.Name}
+	if an.Metodo == "remuestreo-enso" {
+		sa.nf = 0
+	}
+	elegida := r.FechaSiembra
+	if elegida == "" {
+		elegida = req.FechaSiembra
+	}
+	sb, sowDay := evalSiembra(sa, elegida)
+	cfg.SowFixed, cfg.SowDay = true, sowDay
 	from := xs.Idx(hoy.AddDate(0, 0, s.Shift).Year(), hoy.AddDate(0, 0, s.Shift).Month(), hoy.AddDate(0, 0, s.Shift).Day())
-	if on := xs.YearCal(an.Y).PrimeraOnset; on >= 0 && on-7 < from { // la siembra ya empezó: mostrarla (días observados)
+	if on := xs.Idx(an.Y, 1, 1) + sowDay; on-7 < from { // la siembra ya pasó: mostrarla (días observados)
 		from = on - 7
 	}
 	if from <= 0 {
@@ -724,6 +762,7 @@ func simulatePron(env SimEnv, r contract.SimRequest, req contract.PlanRequest, s
 	}
 	tl.Motor = Version
 	tl.Escenario = "pronostico"
+	tl.Siembra = sb
 	ca := confArgs{metodo: an.Metodo, shown: []int{A}, pool: an.Pool, peso: an.Peso, an: an, nf: nf, fecha: pin.Fecha, probEsc: an.ProbClase[an.Clase]}
 	if an.Metodo == "remuestreo-enso" {
 		ca.nf = 0

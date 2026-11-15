@@ -318,9 +318,9 @@ func Bioma(T Temporadas, lat, elev float64) string {
 		return "arido"
 	case alat < 25 && elev >= 1800:
 		return "altiplano"
-	case alat >= 30 || T.TMedia < 14:
+	case (alat >= 30 && T.TMedia < 20) || T.TMedia < 14: // Punjab (31°, 26 °C) no es templado
 		return "templado"
-	case T.LluviaAnual >= 1800 && T.MesesSecos <= 3:
+	case (T.LluviaAnual >= 1800 && T.MesesSecos <= 3) || (T.LluviaAnual >= 1650 && T.TMedia >= 24): // costa sur de Guatemala
 		return "tropical-humedo"
 	case T.Bimodal && T.LluviaAnual < 1500 && T.MesesSecos >= 4 && alat < 20:
 		return "corredor-seco"

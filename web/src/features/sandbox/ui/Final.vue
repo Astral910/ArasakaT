@@ -6,12 +6,15 @@ import type { Resultado } from './guia'
 import type { Insignia } from './confianza'
 import { t } from './textos'
 import { numero } from '../../mapa/comun/idioma'
+import { useRoute } from 'vue-router'
+import GuardarTerreno from '@/components/cuenta/GuardarTerreno.vue'
 
 const props = defineProps<{ res: Resultado; recomendada: string; informe: string; whatsapp: string; insignia: Insignia; movil?: boolean }>()
 const emit = defineEmits<{ otraVez: []; cerrar: [] }>()
 const mejor = computed(() => (isFinite(props.res.s0) ? props.res.recomendada - props.res.s0 : 0))
 // temporada perdida = menos del 70 % de lo normal (no cero): se muestra el número real y la marca
 const qq = (x: number) => numero(x, 1)
+const route = useRoute() // integrador5: "Guardar este terreno" (landing3) con la misma ruta del simulador
 </script>
 
 <template>
@@ -36,6 +39,7 @@ const qq = (x: number) => numero(x, 1)
       <slot />
       <button class="btn sec" type="button" @click="emit('otraVez')"><RotateCcw :size="16" />{{ t('otraVez') }}</button>
     </div>
+    <GuardarTerreno :query="route.query" :pista="!movil" />
   </section>
 </template>
 

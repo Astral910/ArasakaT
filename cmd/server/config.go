@@ -28,6 +28,18 @@ type Config struct {
 	WAQR     string // WA_QR_PNG: PNG del QR mientras no está vinculado
 	WADebug  bool   // WA_DEBUG=1
 	Geo      bool   // GEOCODER=off lo apaga (nombres de lugares del mundo)
+	// CUENTAS (internal/cuentas, docs/cuentas.md)
+	CuentasDB string // CUENTAS_DB: SQLite de cuentas y terrenos (por defecto cuentas.db junto a DB_PATH)
+	DemoPass  string // DEMO_PASS: contraseña de demo@fieldshift.app (vacío = sin cuenta demo)
+}
+
+// urlLocal base de los links cuando no hay PUBLIC_URL: el mismo ADDR (antes fijo a :8200, y con otro puerto
+// el bot mandaba links e imágenes a un servidor que no existía).
+func urlLocal(addr string) string {
+	if strings.HasPrefix(addr, ":") || strings.HasPrefix(addr, "0.0.0.0:") {
+		addr = "127.0.0.1:" + addr[strings.LastIndex(addr, ":")+1:]
+	}
+	return "http://" + addr
 }
 
 func loadConfig() Config {
@@ -45,7 +57,7 @@ func loadConfig() Config {
 		FixturePath:   env("FIXTURE_PATH", "contracts/fixtures/plan_jocotan.json"),
 		DBPath:        env("DB_PATH", "fieldshift.db"),
 		AdminToken:    os.Getenv("ADMIN_TOKEN"),
-		PublicURL:     env("PUBLIC_URL", "http://127.0.0.1:8200"),
+		PublicURL:     env("PUBLIC_URL", urlLocal(addr)),
 		SchedulerOn:   !strings.EqualFold(os.Getenv("SCHEDULER"), "off"),
 		SchedulerHora: env("SCHEDULER_HORA", "06:00"),
 		SchedulerCada: duracion(os.Getenv("SCHEDULER_CADA"), 3*time.Hour),
@@ -55,6 +67,8 @@ func loadConfig() Config {
 		WAQR:          os.Getenv("WA_QR_PNG"),
 		WADebug:       os.Getenv("WA_DEBUG") == "1",
 		Geo:           !strings.EqualFold(os.Getenv("GEOCODER"), "off"),
+		CuentasDB:     os.Getenv("CUENTAS_DB"),
+		DemoPass:      demoPass(), // integrador5: "demo1234" por defecto (cuenta pública del jurado); DEMO_PASS=off la apaga
 	}
 }
 
@@ -105,5 +119,17 @@ func loadDotEnv(path string) {
 		if _, exists := os.LookupEnv(k); !exists {
 			os.Setenv(k, v)
 		}
+	}
+}
+
+// demoPass: contraseña de la cuenta demo del jurado. Sin DEMO_PASS = "demo1234" (la que muestra la pantalla de entrar).
+func demoPass() string {
+	switch v := os.Getenv("DEMO_PASS"); strings.ToLower(v) {
+	case "":
+		return "demo1234"
+	case "off", "0", "no":
+		return ""
+	default:
+		return v
 	}
 }

@@ -2,6 +2,7 @@
 // alertas (GET /api/alerts/timeline). Si la API no responde, el plan cae al estático del motor y se dice.
 import { fetchPlan, pub } from '@/api/client'
 import type { PlanRequest } from '@/api/types'
+import { decodificarPolilinea } from './geometria'
 import type { Confianza, ConsultaInf, DatosInforme, PlanInf, SimInf, TimelineAlertas, OrigenInf } from './tipos'
 
 const API = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
@@ -44,7 +45,18 @@ export function consultaDesdeQuery(q: Record<string, unknown>): ConsultaInf {
     prioridad: (PRIORIDADES.includes(prioridad) ? prioridad : 'comida') as ConsultaInf['prioridad'],
     idioma: idioma === 'en' ? 'en' : 'es',
     print: q.print === '1',
+    ...geometriaDesdeQuery(q),
   }
+}
+
+/** forma=punto|circulo|poligono, radio=<m>, poly=<polilínea codificada, precisión 6>. Lo que no valida cae a punto. */
+export function geometriaDesdeQuery(q: Record<string, unknown>): Pick<ConsultaInf, 'forma' | 'radio' | 'poly'> {
+  const forma = str(q.forma)
+  const radio = num(q.radio)
+  const poly = str(q.poly)
+  if (forma === 'circulo' && radio != null && radio > 0 && radio <= 100_000) return { forma, radio }
+  if (forma === 'poligono' && poly && poly.length <= 6000 && /^[?-~]+$/.test(poly) && decodificarPolilinea(poly).length >= 3) return { forma, poly }
+  return { forma: 'punto' }
 }
 
 /** Query canónica (para el PDF, el link a la guía y el link de vuelta). */
@@ -59,6 +71,9 @@ export function queryDe(c: ConsultaInf): Record<string, string> {
   q.unidad = c.unidad
   q.riego = String(c.riego)
   if (c.prioridad !== 'comida') q.prioridad = c.prioridad
+  if (c.forma !== 'punto') q.forma = c.forma
+  if (c.forma === 'circulo' && c.radio) q.radio = String(c.radio)
+  if (c.forma === 'poligono' && c.poly) q.poly = c.poly
   q.idioma = c.idioma
   return q
 }
@@ -143,10 +158,14 @@ function conConfianza<T extends { confianza?: Confianza | null }>(x: T): T {
   return x
 }
 
-/** Solo lo que el informe usa de la línea de tiempo (la serie diaria se descarta para no cargar memoria). */
+/** Lo que el informe usa de la línea de tiempo: anual, confianza y las series de lluvia, riego, ET0 y agua del suelo. */
 function recortarSim(tl: Record<string, unknown>): SimInf {
+  const fuente = (tl.fuente as string[]) ?? []
+  const serie = (k: string) => (Array.isArray(tl[k]) ? (tl[k] as number[]) : undefined)
   const s: SimInf = {
-    inicio: tl.inicio as string, dias: tl.dias as number, fuente: [...new Set((tl.fuente as string[]) ?? [])],
+    inicio: tl.inicio as string, dias: tl.dias as number, fuente: [...new Set(fuente)],
+    lluvia_mm: serie('lluvia_mm'), riego_mm: serie('riego_mm'), agua_suelo: serie('agua_suelo'), et0_mm: serie('et0_mm'),
+    dias_pron: fuente.filter((f) => f === 'pronostico').length, fuente_dias: fuente,
     anual: (tl.anual as SimInf['anual']) ?? [], notas: (tl.notas as string[]) ?? [], motor: (tl.motor as string) ?? '', escenario: tl.escenario as string | undefined,
   }
   s.confianza = normalizarConfianza(tl.confianza ?? tl.Confianza)

@@ -40,6 +40,29 @@ func TestDesdeQueryValoresPorDefecto(t *testing.T) {
 	}
 }
 
+func TestGeometriaDeLaParcela(t *testing.T) {
+	// polígono de 3 puntos (14.79,-89.39) (14.7905,-89.3893) (14.7898,-89.3889), precisión 6
+	poly := "_vue[~y|niDg^wj@vj@_X"
+	c := DesdeQuery(url.Values{"forma": {"poligono"}, "poly": {poly}})
+	if c.Forma != "poligono" || c.Poly != poly || c.Query().Get("poly") != poly {
+		t.Fatalf("polígono: %+v", c)
+	}
+	c = DesdeQuery(url.Values{"forma": {"circulo"}, "radio": {"80"}, "poly": {poly}})
+	if c.Forma != "circulo" || c.RadioM != 80 || c.Poly != "" || c.Query().Get("radio") != "80" {
+		t.Fatalf("círculo: %+v", c)
+	}
+	for _, q := range []url.Values{{"forma": {"circulo"}}, {"forma": {"poligono"}, "poly": {"ab"}}, {"forma": {"poligono"}, "poly": {"a b"}}, {"forma": {"x"}}} {
+		if c := DesdeQuery(q); c.Forma != "punto" || c.Query().Get("forma") != "" {
+			t.Fatalf("%v → %+v", q, c)
+		}
+	}
+	a := DesdeQuery(url.Values{"forma": {"circulo"}, "radio": {"80"}}).Clave(time.Now())
+	b := DesdeQuery(url.Values{"forma": {"circulo"}, "radio": {"90"}}).Clave(time.Now())
+	if a == b {
+		t.Fatal("la geometría debe entrar en la clave de caché")
+	}
+}
+
 func TestNivelRiego(t *testing.T) {
 	for in, want := range map[float64]int{0: 0, 4: 0, 6: 10, 14: 10, 27: 20, 28: 35, 90: 35} {
 		if got := NivelRiego(in); got != want {

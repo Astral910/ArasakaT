@@ -322,7 +322,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
   function construirParcela(p: ParamsPlantilla) {
     for (const c of capas) { grupo.remove(c.mesh); c.mesh.geometry.dispose(); (c.mesh.material as THREE.Material).dispose() }
     capas = []
-    tl = p.timeline
+    tl = p.timeline!
     lado = Math.min(L * 0.42, Math.max(L * 0.16, Math.sqrt(Math.max(200, p.area_m2)) * 1.7))
     const tope = movil ? 1100 : 3200
     const n = Math.max(1, tl.capas.length)
@@ -507,7 +507,7 @@ export function createSandbox(canvas: HTMLCanvasElement, o: OpcionesSandbox): Sa
     setTimeScale() { /* el stub no tiene efectos con escala de tiempo */ },
     renderFrame(dt) { pintar(dt) },
     listo,
-    setTemplate(p) { construirParcela(p) },
+    setTemplate(p) { if (p.timeline) construirParcela(p) },
     setDay(i, f) {
       dia = i
       if (tl) {

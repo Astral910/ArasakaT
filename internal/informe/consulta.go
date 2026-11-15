@@ -16,7 +16,7 @@ import (
 )
 
 // Version del diseño del informe: entra en la clave de caché (cambiarla invalida los PDF viejos).
-const Version = "r3.1"
+const Version = "r4.0"
 
 // Consulta: los mismos parámetros que /sandbox (contrato de la ronda 3).
 //
@@ -32,6 +32,10 @@ type Consulta struct {
 	RiegoMM     int    // 0 | 10 | 20 | 35
 	Prioridad   string // comida | agua | suelo | ingreso
 	Idioma      string // es | en
+	// Geometría de la parcela (contrato ronda 4): punto | circulo (RadioM) | poligono (Poly: polilínea de Google, precisión 6).
+	Forma  string
+	RadioM float64
+	Poly   string
 }
 
 var cultivos = map[string]bool{"milpa": true, "maiz": true, "frijol": true, "sorgo": true, "otro": true}
@@ -84,6 +88,10 @@ func DesdeQuery(q url.Values) Consulta {
 	if v := numero(r); v != nil {
 		c.RiegoMM = NivelRiego(*v)
 	}
+	c.Forma, c.Poly = q.Get("forma"), q.Get("poly")
+	if v := numero(q.Get("radio")); v != nil {
+		c.RadioM = *v
+	}
 	return c.Normalizar()
 }
 
@@ -130,9 +138,40 @@ func (c Consulta) Normalizar() Consulta {
 		c.MunicipioID = "jocotan-chiquimula"
 	}
 	c.RiegoMM = NivelRiego(float64(c.RiegoMM))
+	c.normalizarForma()
 	c.Lugar = recortar(c.Lugar, 80)
 	c.Pais = strings.ToUpper(recortar(c.Pais, 3))
 	return c
+}
+
+// normalizarForma: lo que no valida cae a punto (como la web).
+func (c *Consulta) normalizarForma() {
+	switch {
+	case c.Forma == "circulo" && c.RadioM > 0 && c.RadioM <= 100000:
+		c.Poly = ""
+	case c.Forma == "poligono" && polilineaValida(c.Poly):
+		c.RadioM = 0
+	default:
+		c.Forma, c.RadioM, c.Poly = "punto", 0, ""
+	}
+}
+
+// polilineaValida: caracteres de la polilínea de Google (63–126), tope ~400 vértices y al menos 3 puntos.
+func polilineaValida(s string) bool {
+	if s == "" || len(s) > 6000 {
+		return false
+	}
+	n := 0
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if b < 63 || b > 126 {
+			return false
+		}
+		if b-63 < 0x20 { // fin de un número
+			n++
+		}
+	}
+	return n%2 == 0 && n/2 >= 3
 }
 
 func recortar(s string, n int) string {
@@ -166,6 +205,14 @@ func (c Consulta) Query() url.Values {
 	q.Set("riego", strconv.Itoa(c.RiegoMM))
 	if c.Prioridad != "comida" {
 		q.Set("prioridad", c.Prioridad)
+	}
+	switch c.Forma {
+	case "circulo":
+		q.Set("forma", c.Forma)
+		q.Set("radio", strconv.FormatFloat(c.RadioM, 'f', -1, 64))
+	case "poligono":
+		q.Set("forma", c.Forma)
+		q.Set("poly", c.Poly)
 	}
 	q.Set("idioma", c.Idioma)
 	return q

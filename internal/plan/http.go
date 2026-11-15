@@ -62,9 +62,12 @@ func (e *Engine) handlePlan(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "horizonte debe ser 2026, 2040-ssp245 o 2040-ssp585"})
 		return
 	}
+	if v := r.URL.Query().Get("siembra"); v != "" {
+		req.FechaSiembra = v
+	}
 	p, err := e.Plan(req)
 	if err != nil {
-		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+		writeErr(w, http.StatusUnprocessableEntity, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, p)

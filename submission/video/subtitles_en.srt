@@ -1,28 +1,64 @@
 1
-00:00:00,000 --> 00:00:04,000
-A farmer in Jocotán shares a location on WhatsApp
+00:00:00,120 --> 00:00:02,120
+Every season is a bet on the rain.
+NASA Space Apps 2026  ·  Guatemala
 
 2
-00:00:04,000 --> 00:00:07,500
-The plan card arrives in seconds
+00:00:02,320 --> 00:00:04,120
+Field Shift
+See your next season before you plant it.
 
 3
-00:00:07,500 --> 00:00:11,500
-NASA terrain and climate data for the area
+00:00:04,320 --> 00:00:06,720
+Search any neighbourhood on Earth
+Village, farm, residential estate or city
 
 4
-00:00:11,500 --> 00:00:17,400
-Real NASA weather, day by day: dry spells and storms
+00:00:06,920 --> 00:00:08,920
+Draw your exact plot
+Point, circle or polygon
 
 5
-00:00:17,400 --> 00:00:20,300
-Same season: today's milpa vs a cover crop
+00:00:09,120 --> 00:00:11,520
+From satellites to your field
+Forecast + 25 years of NASA climate data
 
 6
-00:00:20,300 --> 00:00:25,000
-In 2026 it warned up to 7 days ahead of a real dry spell
+00:00:11,720 --> 00:00:13,920
+Your real plot, in 3D
+Terrain, soil and the houses next door, built in your browser
 
 7
-00:00:25,000 --> 00:00:29,900
-Free · on WhatsApp · for 3.4 million people facing hunger
-(IPC/SESAN 2025)
+00:00:14,120 --> 00:00:15,920
+Storms...
+62 mm of rain in one day
+
+8
+00:00:16,120 --> 00:00:18,120
+...and the midsummer drought
+7 days without rain, day by day
+
+9
+00:00:18,320 --> 00:00:20,120
+It tells you how sure it is
+Every result says its odds and how often it happened
+
+10
+00:00:20,320 --> 00:00:22,320
+One clear answer
+Harvest for each way to farm, and which one protects the soil
+
+11
+00:00:22,520 --> 00:00:24,520
+Every number in a technical report
+Web + PDF  ·  exportable charts  ·  sources and limits
+
+12
+00:00:24,720 --> 00:00:27,120
+Real alerts on WhatsApp
+Live forecast for your place  ·  text or voice note
+
+13
+00:00:27,300 --> 00:00:29,550
+Field Shift · See your next season before you plant it.
+Free · WhatsApp + web · anywhere on Earth

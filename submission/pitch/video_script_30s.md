@@ -7,58 +7,51 @@ On-screen text: Figtree 600, white on a dark glass pill, bottom third; key numbe
 
 | Time | Shot (picture) | On-screen text (EN) | Source |
 |---|---|---|---|
-| 0:00–0:02 | Black → woven stripe slides in; team logo | **⟦Team name⟧ · NASA Space Apps 2026 · Guatemala** | title card |
-| 0:02–0:05 | Risk map of Guatemala, slow push-in to the Dry Corridor (red municipalities) | **One long dry spell can wipe out a rain-fed season.** | `/sandbox` intro, map shot |
-| 0:05–0:08 | Landing: a finger types "Jocotán", taps *Milpa* → *No irrigation* → **See my season** | **Field Shift** · *See your next season before you plant it.* | `/` landing (EN), 2 taps |
-| 0:08–0:11 | Camera flies to the pin, centred, down to the real SRTM + Sentinel-2 hillside; the diorama rises (ranch, trees) | **Your place, from NASA satellites: anywhere on Earth** | `/sandbox?…&auto=1` flight |
-| 0:11–0:16 | Season timelapse: forecast rain, then the canícula dries the soil, a storm flashes, maize grows | **Next 16 days: forecast. Then the past year that best matches the seasonal outlook.** | sandbox, scenario `pronostico` |
-| 0:16–0:19 | Confidence badge fades in over the field | **47 % chance of a lost season · happened in 8 of 24 years · confidence: medium** ⟦CHECK final run⟧ | sandbox confidence badge |
-| 0:19–0:22 | Split screen S0 \| S2: bare soil vs mucuna cover, same day | **Same rain. Cover crop: erosion 61 → 4 t/ha/yr** | sandbox compare |
-| 0:22–0:26 | Phone (real WhatsApp): dry-spell alert lands; cut to the technical report PDF page | **Real WhatsApp alerts · 2026 test: 5 of 6 dry-spell alerts confirmed** | team phone + `/informe` |
-| 0:26–0:30 | Closing card over the diorama: logo, URL, WhatsApp QR | **Free · on WhatsApp · NASA POWER · IMERG · MODIS · CMIP6 · SRTM** · ⟦URL⟧ | title card |
+| 0:00–0:02 | Title card on dark earth | **Field Shift** · NASA Space Apps 2026 · Guatemala | ffmpeg title card |
+| 0:02–0:07 | Landing (EN): type "Jocotán", tap the place, tap **See my season** (×1.5) | Type your place. Two taps. The guide starts on its own. | `/?lang=en`, one take |
+| 0:07–0:11 | Globe → camera centred on the pin → municipality outline on SRTM + Sentinel-2 → diorama rises (×3.5) | Your place, from NASA satellites: anywhere on Earth | `/sandbox?…&auto=1`, same take |
+| 0:11–0:19 | Guided season (×6): forecast rain, maize grows, midsummer drought, harvest; narration subtitles and the confidence badge on screen | Next 16 days: forecast. Then the past year that best matches the seasonal outlook. → 40 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence | same take (scenario `pronostico`, run of 14 Nov 2026) |
+| 0:19–0:21.5 | Split screen S0 \| S2, same day, both animated | Same rain: what you do today vs. maize + velvet bean cover | `/sandbox?…&comparar=1` |
+| 0:21.5–0:24 | Season result card (both numbers, "lost season" mark, confidence line) | One clear result at the end of the season | same take |
+| 0:24–0:26.5 | Technical report page 1 (EN) | Every number in a technical report (web + PDF), with sources and limits | same take → `/informe?…` |
+| 0:26.5–0:28.5 | Web phone simulator: **TEST ALERT** answered with today's real forecast | Real WhatsApp bot · 2026 replay: 5 of 6 dry-spell alerts confirmed | live bot on `/`, EN |
+| 0:28.5–0:30 | Closing card | Field Shift · Free · WhatsApp + web · anywhere on Earth · NASA POWER · GPM IMERG · MODIS · SRTM · NEX-GDDP-CMIP6 | ffmpeg title card |
 
-## Shot list for the recording
-1. `/?lang=en` landing, viewport 1920×1080, type "Jocotán" with 60 ms/char, 2 taps, click. Hide the cursor.
-2. Let `auto=1` run the guide; take 0:08–0:22 from that single take (no cuts inside the flight).
-3. Phone: screen-record the real chat after sending **PRUEBA ALERTA** (portrait; place it on the right third, landscape canvas, blurred field behind). Mask the phone number.
-4. `/informe?…` page 1, 1-second slow scroll.
-5. Assemble with FFmpeg (`h264_nvenc`), burn the captions, export `submission/video/fieldshift-demo-30s.mp4`; update `subtitles_en.srt` with the same lines.
+Rendered file: `submission/video/fieldshift-demo-30s.mp4` (1920×1080, 30 fps, H.264 NVENC, 29.97 s, captions burned at the top; no audio track). Captions also in `submission/video/subtitles_en.srt`.
+Re-record: `cd e2e && node record-flujo.mjs http://127.0.0.1:8200 "Jocotán" <dir>` (one continuous headless take + `marcas.json`), then the ffmpeg cut described in `docs/video.md` (section "Video de la entrega").
+⟦Team name⟧ is not on the title card yet: add it when the team confirms the name.
 
 ## Captions file (SRT, same lines)
 ```
 1
-00:00:00,000 --> 00:00:02,000
-⟦Team name⟧ · NASA Space Apps 2026 · Guatemala
+00:00:02,000 --> 00:00:07,000
+Type your place. Two taps. The guide starts on its own.
 
 2
-00:00:02,000 --> 00:00:05,000
-One long dry spell can wipe out a rain-fed season.
-
-3
-00:00:05,000 --> 00:00:08,000
-Field Shift · See your next season before you plant it.
-
-4
-00:00:08,000 --> 00:00:11,000
+00:00:07,000 --> 00:00:11,000
 Your place, from NASA satellites: anywhere on Earth
 
-5
-00:00:11,000 --> 00:00:16,000
+3
+00:00:11,000 --> 00:00:15,000
 Next 16 days: forecast. Then the past year that best matches the seasonal outlook.
 
+4
+00:00:15,000 --> 00:00:19,000
+40 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence
+
+5
+00:00:19,000 --> 00:00:21,500
+Same rain: what you do today vs. maize + velvet bean cover
+
 6
-00:00:16,000 --> 00:00:19,000
-47 % chance of a lost season · happened in 8 of 24 years · confidence: medium
+00:00:21,500 --> 00:00:24,000
+One clear result at the end of the season
 
 7
-00:00:19,000 --> 00:00:22,000
-Same rain. Cover crop: erosion 61 → 4 t/ha/yr
+00:00:24,000 --> 00:00:26,500
+Every number in a technical report (web + PDF), with sources and limits
 
 8
-00:00:22,000 --> 00:00:26,000
-Real WhatsApp alerts · 2026 test: 5 of 6 dry-spell alerts confirmed
-
-9
-00:00:26,000 --> 00:00:30,000
-Free · on WhatsApp · NASA POWER · IMERG · MODIS · CMIP6 · SRTM
+00:00:26,500 --> 00:00:28,500
+Real WhatsApp bot · 2026 replay: 5 of 6 dry-spell alerts confirmed
 ```

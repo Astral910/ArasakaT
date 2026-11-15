@@ -17,13 +17,17 @@ import (
 
 	"fieldshift/internal/alerts"
 	"fieldshift/internal/bot"
+	"fieldshift/internal/campo"
 	"fieldshift/internal/channels"
 	"fieldshift/internal/channels/evolution"
 	"fieldshift/internal/channels/whatsmeow"
+	"fieldshift/internal/chat"
 	"fieldshift/internal/contract"
+	"fieldshift/internal/cuentas"
 	"fieldshift/internal/geo"
 	"fieldshift/internal/informe"
 	"fieldshift/internal/plan"
+	"fieldshift/internal/sensores"
 	"fieldshift/internal/voz"
 )
 
@@ -39,6 +43,8 @@ type Componentes struct {
 	Alertas  string `json:"alertas"`
 	WhatsApp string `json:"whatsapp"`
 	Twilio   string `json:"twilio"`
+	Cuentas  string `json:"cuentas"`
+	Chat     string `json:"chat"` // claude:<modelo> | respaldo (internal/chat)
 }
 
 type app struct {
@@ -47,7 +53,10 @@ type app struct {
 	alertador Alertador
 	comp      Componentes
 	cerrar    []func()
-	waAdmin   http.Handler // página de vinculación de WhatsApp (solo con WA_MODO=vinculado)
+	waAdmin   http.Handler       // página de vinculación de WhatsApp (solo con WA_MODO=vinculado)
+	cuentas   *cuentas.Servicio  // cuentas y terrenos; chatbot/campo: a.cuentas.UsuarioPorTelefono, a.cuentas.Requiere
+	campo     *campo.Servicio    // estado de hoy de las parcelas (nil con el motor falso); lo pueden usar chat y bot
+	sensores  *sensores.Servicio // SENSOR: estación de campo (UltimoEstado para campo)
 }
 
 func montar(mux *http.ServeMux, cfg Config) *app {
@@ -55,8 +64,10 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 
 	// MOTOR (internal/plan)
 	var muni *geo.Index
+	var simulador chat.Simulador // para el asistente (riego estimado, simular)
+	var motor *plan.Engine       // SENSOR: textura del suelo para la estación
 	if eng, err := plan.Routes(mux, cfg.DataDir, cfg.StaticDir); err == nil {
-		a.planner, muni = eng, eng.Muni
+		a.planner, muni, simulador, motor = eng, eng.Muni, eng, eng
 		a.comp.Motor = "real"
 	} else {
 		log.Printf("motor: %v → uso el fixture", err)
@@ -64,6 +75,11 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		a.comp.Motor = "falso:fixture"
 		planRoutes(mux, cfg, a.planner)
 	}
+
+	// SENSOR (internal/sensores): estación de campo, cmd/server/sensores.go
+	var cerrarSens func()
+	a.sensores, cerrarSens = montarSensores(mux, cfg, motor, parcelasCuentas{a}, a.sesionSensores) // integrador5: terrenos de cuentas
+	a.cerrar = append(a.cerrar, cerrarSens)
 
 	// ALERTAS (internal/alerts, internal/forecast, internal/store). Se arma antes que el bot:
 	// el bot guarda suscripciones en su store y las alertas envían por los canales del bot
@@ -87,6 +103,19 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		alertasFalsas(mux, cfg)
 		a.alertador = alertadorFalso{}
 		a.comp.Alertas = "falso"
+	}
+
+	// CAMPO (internal/campo, cmd/server/campo.go): estado de hoy y reportes de cada parcela.
+	// integrador5: la parcela sale de la cuenta (cookie o WhatsApp vinculado); si no, de los parámetros.
+	// Con sesión, las escrituras piden CSRF. La estación de campo (sensores) entra al balance de hoy.
+	campoMux := http.NewServeMux()
+	a.campo = montarCampo(campoMux, cfg, a.planner, alSvc, a.resolverCampo())
+	if a.campo != nil {
+		a.montarCampoRutas(mux, campoMux)
+		a.campo.Observador = a.observadorSensores()
+	}
+	if a.campo != nil && a.campo.Store != nil {
+		a.cerrar = append(a.cerrar, func() { a.campo.Store.Close() })
 	}
 
 	// BOT (internal/bot, internal/channels, internal/cards)
@@ -133,6 +162,11 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		d.WebURL = cfg.PublicURL
 	}
 	svc := channels.Routes(mux, d)
+	// CHAT: POST /api/chat/asistente + el texto libre del bot (WhatsApp y simulador) va al asistente.
+	chatSvc, chatEstado := montarChat(mux, cfg, a.planner, simulador)
+	svc.Bot.Asistente = chat.ParaBot{S: chatSvc, WebURL: d.WebURL}
+	svc.Bot.Vinculador = vinculadorCuentas{a} // integrador5: VINCULAR 123456
+	a.comp.Chat = chatEstado
 	a.mensajero = svc.Mensajero
 	diferido.set(svc.Mensajero)
 	a.comp.Bot = "real"
@@ -152,6 +186,24 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		a.comp.WhatsApp = "evolution"
 	}
 	a.comp.Twilio = activo(d.Twilio.Activo())
+
+	// CUENTAS (internal/cuentas): /api/auth/* y /api/parcelas. Los códigos de WhatsApp salen por el
+	// mensajero del bot. Si la base no abre, el resto del servidor sigue sin cuentas.
+	cdb := cfg.CuentasDB
+	if cdb == "" {
+		cdb = filepath.Join(filepath.Dir(cfg.DBPath), "cuentas.db")
+	}
+	if cs, err := cuentas.Abrir(cuentas.Config{DBPath: cdb, Mensajero: diferido, Correo: cuentas.CorreoDesdeEnv(), DemoPass: cfg.DemoPass}); err == nil {
+		cuentasMux := http.NewServeMux()
+		cuentas.Routes(cuentasMux, cs)
+		a.cuentas = cs
+		a.montarCuentasRutas(mux, cuentasMux) // integrador5: + lectura del asistente de WhatsApp
+		a.comp.Cuentas = "real"
+		a.cerrar = append(a.cerrar, func() { cs.Close() })
+	} else {
+		log.Printf("cuentas: %v → apagado", err)
+		a.comp.Cuentas = "apagado"
+	}
 
 	return a
 }

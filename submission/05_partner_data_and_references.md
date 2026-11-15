@@ -2,13 +2,20 @@
 
 ## Space agency partner data
 - **Copernicus Sentinel-2** (ESA) through *Sentinel-2 cloudless 2020 by EOX IT Services GmbH* (contains modified Copernicus Sentinel data 2020), CC BY-NC-SA 4.0, base imagery of the map. https://s2maps.eu/
+- **ESA WorldCover 2021** 10 m land cover (Sentinel-1/2), CC BY 4.0, Zanaga et al. (2022), https://esa-worldcover.org/ — first choice for the ground materials of the 3D diorama. When the Terrascope service does not answer, the diorama uses **Esri / Impact Observatory 10 m Land Use/Land Cover** (Sentinel-2, 2024), CC BY 4.0, https://livingatlas.arcgis.com/landcover/.
 
 ## Other data
+- **Copernicus Sentinel-2 L2A** (ESA), latest low-cloud scene, through the AWS Open Data Registry (`sentinel-cogs`) and the Element84 Earth Search STAC API (https://earth-search.aws.element84.com/v1), CC BY-SA 3.0 IGO terms of Copernicus data: real NDVI "greenness" layer on the farmer's field (round 5), cloud-masked with the SCL band.
+- **Pest and crop-management references (round 5 dashboard)**: FAO (2018) *Integrated management of the fall armyworm on maize: a guide for farmer field schools*; Prasanna et al. (2018) *Fall Armyworm in Africa: a guide for IPM*, CIMMYT; Hogg, Pitre & Anderson (1982) *Environmental Entomology* 11; Ortega C. (1987) *Insectos nocivos del maíz*, CIMMYT; King & Saunders (1984) *Las plagas invertebradas de cultivos anuales alimenticios en América Central*, CATIE; Hock, Kranz & Renfro (1995) *Plant Pathology* 44; CIMMYT (2004) *Enfermedades del maíz*; ICTA and MAGA Guatemala crop guides. Irrigation efficiency: Brouwer et al. (1989), FAO Irrigation Water Management Training Manual 4. Soil water from sensors: Saxton & Rawls (2006) *Soil Sci. Soc. Am. J.* 70.
 - **Open-Meteo**: 16-day forecast, ensemble forecast (ECMWF IFS ENS, NOAA GFS ENS) and Historical Forecast API (archived forecasts for the 2026 backtest). https://open-meteo.com/ (CC BY 4.0). Forecast models: ECMWF, NOAA NCEP GFS.
 - **NOAA CPC Oceanic Niño Index (ONI)**: ENSO state per season, used to condition the Monte Carlo and the seasonal outlook. https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_v5.php
 - **geoBoundaries** Guatemala ADM2 (342 municipalities; source CONRED/OCHA), CC BY 3.0 IGO. Runfola et al. (2020), *geoBoundaries: A global database of political administrative boundaries*, PLOS ONE 15(4): e0231866. https://www.geoboundaries.org/
 - **ISRIC SoilGrids** 250 m (texture, organic carbon), CC BY 4.0, https://soilgrids.org/. Where the service returned no data, typical values from the Guatemalan soil classification (Simmons et al. 1959; MAGA 2000) were used and flagged for local soil analysis.
 - **FAO GAEZ** (reference for crop suitability context). https://gaez.fao.org/
+- **Esri World Imagery** (satellite base imagery of the maps, the flight and the diorama) and **Esri World Geocoder** (place search). Sources: Esri, Maxar, Earthstar Geographics and the GIS user community. https://www.arcgis.com/
+- **Terrain Tiles (Terrarium) on AWS Open Data** (SRTM-based elevation for the 3D relief). https://registry.opendata.aws/terrain-tiles/
+- **Overture Maps Foundation** buildings (OpenStreetMap, Google Open Buildings, Microsoft Global ML Building Footprints), ODbL / CDLA Permissive 2.0, footprints of the neighbouring houses in the diorama. https://overturemaps.org/
+- **OpenStreetMap** contributors (ODbL): streets, street trees, rivers and lakes via Overpass API and OpenFreeMap vector tiles; place search via Photon (komoot) and Nominatim. https://www.openstreetmap.org/copyright
 
 ## Methods
 - Allen, R.G., Pereira, L.S., Raes, D., Smith, M. (1998). *Crop evapotranspiration: Guidelines for computing crop water requirements*. FAO Irrigation and Drainage Paper 56.
@@ -32,6 +39,7 @@
 ## Software and libraries
 - Go 1.26 standard library · `github.com/fogleman/gg` (MIT) and `github.com/golang/freetype` (FreeType/BSD) for PNG cards · `modernc.org/sqlite` (BSD-3) · `golang.org/x/image`, `golang.org/x/text` (BSD-3) · `github.com/google/uuid` (BSD-3).
 - Vue 3, Vite, TypeScript, Pinia, Vue Router (MIT) · MapLibre GL JS (BSD-3) · GSAP (GreenSock standard license, free) · Lucide icons (ISC) · Vitest, Playwright (MIT / Apache-2.0).
+- WhatsApp: Evolution API v2 (Apache-2.0, self-hosted, Baileys) · whatsmeow (MPL-2.0).
 - 3D sandbox: three.js (MIT) · `mp4-muxer` (MIT) + WebCodecs for in-browser video · Go compiled to WebAssembly (engine offline) · `github.com/chromedp/chromedp` (MIT) + ffmpeg (LGPL/GPL, NVENC) for server-rendered videos.
 - Messaging: Meta WhatsApp Cloud API · Twilio WhatsApp Sandbox.
 - Fonts: Fraunces (Undercase Type) and Figtree (Erik Kennedy), both SIL Open Font License 1.1, self-hosted via Fontsource.
@@ -39,5 +47,5 @@
 
 ## Images, music, video
 - All illustrations are original SVG drawn for this project. ⟦TBD: list any AI-generated image (must carry a visible watermark) or third-party image⟧.
-- The demo video is a screen recording of our own app (headless browser, `/demo` route); no music and no audio.
+- The demo video is a screen recording of our own app (headless browser, real takes of the live tool; `tools/demo-video/`). Sound: an ambient bed synthesised with FFmpeg (low chord, wind, rain during the storm shot); no third-party music, samples or voice.
 - No NASA logos are used in any generated content.

@@ -57,7 +57,7 @@ export function lineaDia(tl: SimTimeline, dia: number, estacion: Estacion, idiom
       ? {
           racha_seca: `${estacion === 'canicula' ? 'Mid-summer drought' : 'Dry spell'}: ${Math.round(e.dias || e.valor)} days without rain`,
           tormenta: `Storm: ${v(e.valor)} mm in one day`,
-          siembra: `Planting · ${cul.toLowerCase()} goes in`,
+          siembra: `Planting · ${cul.toLowerCase()} ${/s$/i.test(cul) ? 'go' : 'goes'} in`,
           cosecha: `Harvest: ${v(e.valor, 1)} qq/mz`,
           perdida: 'The harvest is lost',
           calor: `Heat: ${v(e.valor, 1)} °C`,
@@ -88,8 +88,10 @@ export function lineaDia(tl: SimTimeline, dia: number, estacion: Estacion, idiom
   const cap = tl.capas[k]
   const et = cap.etapa[d]
   const cul = cultivoDe(cap.cultivo, en)
+  // concordancia en inglés: "The beans grow", "The maize grows"
+  const pl = en && /s$/i.test(cul)
   const fase = en
-    ? et < 0.15 ? `${cul} sprouts` : et < 0.45 ? `${cul} grows` : et < 0.65 ? `${cul} flowers` : et < 0.9 ? 'Grain filling' : 'Ready to harvest'
+    ? et < 0.15 ? `${cul} ${pl ? 'sprout' : 'sprouts'}` : et < 0.45 ? `${cul} ${pl ? 'grow' : 'grows'}` : et < 0.65 ? `${cul} ${pl ? 'flower' : 'flowers'}` : et < 0.9 ? 'Grain filling' : 'Ready to harvest'
     : et < 0.15 ? `${cul} nace` : et < 0.45 ? `${cul} crece` : et < 0.65 ? `${cul} en floración` : et < 0.9 ? 'Llenado del grano' : 'Lista para cosechar'
   const extra = ll >= 5 ? (en ? ` · ${numero(ll, 0)} mm of rain` : ` · llueve ${numero(ll, 0)} mm`)
     : agua < 0.25 ? (en ? ' · dry soil' : ' · suelo seco')
@@ -130,7 +132,7 @@ export function resultado(rec: SimAnio | undefined, s0: SimAnio | undefined, nom
   let frase: string
   if (mismaEstrategia || !s0) frase = en ? `With ${nombreRec} you'd harvest about ${n(r)} qq/mz this season.` : `Con ${nombreRec} cosecharías cerca de ${n(r)} qq/mz esta temporada.`
   else if (s0.perdida && !rec.perdida) frase = en ? `Doing what you do today the harvest would be lost; with ${nombreRec} you'd get ${n(r)} qq/mz.` : `Como lo hacés hoy se perdería la cosecha; con ${nombreRec} salen ${n(r)} qq/mz.`
-  else if (s0.perdida && rec.perdida) frase = en ? `A poor season either way (under 70 % of a normal harvest); ${nombreRec} protects the soil better.` : `Temporada mala de todos modos (menos del 70 % de una cosecha normal); ${nombreRec} cuida mejor el suelo.`
+  else if (s0.perdida && rec.perdida) frase = en ? `A poor season either way (under 70 % of a normal harvest); ${nombreRec} protects the soil better.` : `Temporada mala de todos modos (menos del 70 % de una cosecha normal); ${nombreRec} cuida mejor el suelo.`
   else if (r - b >= 0.5) frase = en ? `With ${nombreRec} you'd harvest ${n(r - b)} qq/mz more than today.` : `Con ${nombreRec} cosecharías ${n(r - b)} qq/mz más que como lo hacés hoy.`
   else if (b - r >= 0.5) frase = en ? `This season ${nombreRec} yields ${n(b - r)} qq/mz less, but protects the soil for the next ones.` : `Esta temporada ${nombreRec} rinde ${n(b - r)} qq/mz menos, pero cuida el suelo para las siguientes.`
   else frase = en ? `Both yield about the same this season; ${nombreRec} protects the soil better.` : `Las dos rinden parecido esta temporada; ${nombreRec} cuida mejor el suelo.`

@@ -14,10 +14,17 @@
 import type { Estrategia, SimEvento, SimTimeline } from './tipos'
 import { crearSandbox } from './nucleo/sandbox'
 import type { Bioma } from './nucleo/biomas'
+import type { ParcelaGeo } from './nucleo/ubicacion'
+import type { Filtro, LeyendaFiltro } from './nucleo/filtros/index'
+import type { Marcador, TipoMarcador } from './nucleo/siembra'
 
 export type * from './tipos'
 export type { Bioma }
 export { BIOMAS, sugerirBioma } from './nucleo/biomas'
+export type { ParcelaGeo, FormaParcela } from './nucleo/ubicacion'
+export { decodificarPolilinea, codificarPolilinea } from './nucleo/ubicacion'
+export type { Filtro, LeyendaFiltro, Marcador, TipoMarcador }
+export { FILTROS } from './nucleo/filtros/capas'
 
 /** Parámetros de la plantilla (una sola escena procedural para cualquier coordenada). */
 export interface TemplateParams {
@@ -33,7 +40,7 @@ export interface TemplateParams {
   pendientePct?: number
   /** Exageración vertical del relieve (default 1.35). */
   exageracion?: number
-  /** Lado de la maqueta en metros (default 280). La parcela se dibuja con 28–64 m de lado (ilustrativo) aunque el área sea mayor. */
+  /** Lado mínimo de la maqueta en metros (default 280; crece con la parcela hasta 1100 m). La parcela va a escala real. */
   ladoM?: number
   /** true = relieve de plantilla sin descargar tiles (offline / pruebas). */
   sinRed?: boolean
@@ -42,7 +49,14 @@ export interface TemplateParams {
    * latitud/longitud/altura (`sugerirBioma`). El relieve sigue saliendo de Terrarium; si falla, parche del bioma.
    */
   bioma?: Bioma
+  /**
+   * Forma real de la parcela (ronda 4). punto = cuadrado del área centrado en `centro`; circulo = `radioM`;
+   * poligono = vértices [lat, lon] (máx. ~200). Escala real en metros. Si falta: punto en (lat, lon) con el área.
+   */
+  parcela?: ParcelaGeo
 }
+
+export type EtapaCarga = 'relieve' | 'suelo' | 'ciudad' | 'casas' | 'vegetacion' | 'listo'
 
 export type CameraPreset =
   | 'general' // baja-isométrica 2.5D, parcela + alrededores (default)
@@ -90,14 +104,32 @@ export interface ClimaVisual {
 
 export interface SandboxEvents {
   /** rumboCamara: hacia dónde mira la cámara general (grados desde el norte; la maqueta se orienta para que la ladera baje hacia la cámara). */
-  ready: { ms: number; relieveReal: boolean; satelite: boolean; rumboCamara: number; bioma: Bioma; casas: number; picosCorregidos: number }
+  ready: {
+    ms: number; relieveReal: boolean; satelite: boolean; rumboCamara: number; bioma: Bioma; casas: number; picosCorregidos: number
+    /** Ronda 4: forma dibujada, área real (m²), escala (1 = real; <1 si la parcela no entraba), fracción en agua, ms por etapa. */
+    forma: 'punto' | 'circulo' | 'poligono'; areaM2: number; escalaParcela: number; aguaEnParcela: number
+    /** quitados = árboles/props sacados del agua, calles o la parcela; casasQuitadas = edificios dentro de la parcela que se quitaron. */
+    tiempos: Record<string, number>; quitados: number; edificios: number; casasQuitadas: number
+  }
   progress: { fase: string; p: number }
+  /** Carga por etapas (ronda 4): p = avance total 0..1, texto listo para la pantalla de carga. */
+  progreso: { etapa: EtapaCarga; /** avance de la etapa 0..1 */ u: number; /** avance global 0..1 */ p: number; texto: string }
+  /** La parcela cae (más del 20 %) en agua de río/lago: vuelo4 lo avisa y pide mover el punto. */
+  parcelaEnAgua: { fraccion: number; lat: number; lon: number; tipo?: 'rio' | 'lago' | 'mar' }
   dia: { indice: number; fecha: string; clima: ClimaVisual }
   evento: SimEvento
   rayo: { indice: number }
   fps: { fps: number; calidad: Exclude<Quality, 'auto'> }
   calidad: { calidad: Exclude<Quality, 'auto'> }
   error: { mensaje: string }
+  /** Ronda 5: leyenda del filtro activo (capa null = apagado). Se reemite al cambiar de día (≤ 4 por segundo). */
+  filtro: LeyendaFiltro
+  /** Ronda 5: al pasar la línea de tiempo por un marcador de siembra, cosecha o fecha recomendada. */
+  marcador: Marcador
+  /** Ronda 5: fechas fijadas (setSiembra o timeline.siembra). */
+  siembra: { elegida: string | null; cosecha: string | null; recomendada: string | null; iSiembra: number | null; iCosecha: number | null; marcadores: Marcador[] }
+  /** Ronda 5: rango activo de la línea de tiempo (índices absolutos del timeline). */
+  rango: { desde: string | null; hasta: string | null; i0: number; i1: number }
 }
 
 export interface SandboxState {
@@ -111,11 +143,15 @@ export interface SandboxState {
   listo: boolean
   rumboCamara: number
   bioma: Bioma
+  /** Ronda 5. */
+  filtro: Filtro | null
+  siembra: { elegida: string | null; marcadores: Marcador[] }
+  rango: { desde: string | null; hasta: string | null; i0: number; i1: number }
 }
 
 export interface Sandbox {
   readonly canvas: HTMLCanvasElement
-  /** Arma (o rearma) terreno, maqueta, parcela y cultivos. Resuelve cuando está lista (< 4 s). */
+  /** Arma (o rearma) terreno, suelo, ciudad, casas, vegetación y cultivos, por etapas (evento `progreso`). Todo en el navegador. */
   setTemplate(params: TemplateParams): Promise<void>
   /** Línea de tiempo del motor: define cultivos (capas), clima y suelo por día. */
   setTimeline(tl: SimTimeline): void
@@ -129,6 +165,16 @@ export interface Sandbox {
   setWeatherOverride(c: Partial<ClimaVisual> | null): void
   /** Fuerza un rayo ahora (p. ej. al saltar a un marcador de tormenta). */
   rayo(): void
+  /**
+   * Ronda 5: mapa de color sobre el terreno y la parcela (fundido suave; leyenda por evento `filtro`).
+   * temperatura = estimado por zona (+ LST MODIS de referencia); humedad, estrés y erosión = motor + relieve;
+   * verdor = NDVI Sentinel-2 real (si falla, estimado y se dice). null apaga.
+   */
+  setFiltro(capa: Filtro | null, opts?: { opacidad?: number }): Promise<void>
+  /** Ronda 5: fecha de siembra elegida (AAAA-MM-DD; null = la del timeline). Marcadores 3D y animaciones. */
+  setSiembra(fecha: string | null): void
+  /** Ronda 5: limita la línea de tiempo (setDay) al rango; null = sin límite de ese lado. */
+  setRango(desde: string | null, hasta: string | null): void
   on<K extends keyof SandboxEvents>(ev: K, cb: (d: SandboxEvents[K]) => void): () => void
   /** Imagen del cuadro actual. */
   snapshot(opts?: { type?: string; quality?: number }): Promise<Blob>

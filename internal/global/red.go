@@ -20,6 +20,7 @@ import (
 type Client struct {
 	HTTP     *http.Client
 	Fast     *http.Client // pronóstico (Open-Meteo forecast/seasonal): si tarda, mejor caer a remuestreo-enso
+	Slow     *http.Client // NASA POWER: 26 años diarios, a veces tarda más de 25 s con el servicio cargado
 	CacheDir string
 	// URLs base (se pueden cambiar en los tests para simular "sin red").
 	PowerURL, SoilURL, TerrainURL, ForecastURL, SeasonalURL, ClimateURL, GeocodeURL string
@@ -31,7 +32,8 @@ type Client struct {
 
 // New cliente con las URLs públicas.
 func New(cacheDir string) *Client {
-	return &Client{HTTP: &http.Client{Timeout: 25 * time.Second}, Fast: &http.Client{Timeout: 8 * time.Second}, CacheDir: cacheDir,
+	return &Client{HTTP: &http.Client{Timeout: 25 * time.Second}, Fast: &http.Client{Timeout: 8 * time.Second},
+		Slow: &http.Client{Timeout: 75 * time.Second}, CacheDir: cacheDir,
 		PowerURL:    "https://power.larc.nasa.gov/api/temporal/daily/point",
 		SoilURL:     "https://rest.isric.org/soilgrids/v2.0/properties/query",
 		TerrainURL:  "https://s3.amazonaws.com/elevation-tiles-prod/terrarium",
@@ -48,7 +50,7 @@ func Offline(cacheDir string) *Client {
 	c := New(cacheDir)
 	bad := "http://127.0.0.1:1"
 	c.PowerURL, c.SoilURL, c.TerrainURL, c.ForecastURL, c.SeasonalURL, c.ClimateURL, c.GeocodeURL = bad, bad, bad, bad, bad, bad, bad
-	c.HTTP.Timeout, c.Fast.Timeout = 2*time.Second, 2*time.Second
+	c.HTTP.Timeout, c.Fast.Timeout, c.Slow.Timeout = 2*time.Second, 2*time.Second, 2*time.Second
 	return c
 }
 
@@ -107,6 +109,9 @@ func (c *Client) Get(url string, tries int) ([]byte, error) {
 		hc := c.HTTP
 		if c.Fast != nil && (strings.Contains(url, "seasonal") || strings.Contains(url, "/v1/forecast")) {
 			hc = c.Fast
+		}
+		if c.Slow != nil && c.PowerURL != "" && strings.HasPrefix(url, c.PowerURL) {
+			hc = c.Slow
 		}
 		resp, err := hc.Do(req)
 		if err != nil {

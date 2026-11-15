@@ -345,7 +345,9 @@ func (s *Service) runAlerts(w http.ResponseWriter, r *http.Request) {
 		d = t
 	}
 	force := r.URL.Query().Get("force") == "1"
-	res, err := s.Engine.Run(d, force)
+	// corrida a mano con fecha (máquina del tiempo) o forzada: no espera el horario decente
+	manual := force || r.URL.Query().Get("date") != ""
+	res, err := s.Engine.correr(d, force, manual)
 	if err != nil {
 		fail(w, 500, err.Error())
 		return

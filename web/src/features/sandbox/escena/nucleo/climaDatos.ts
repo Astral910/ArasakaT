@@ -41,7 +41,11 @@ export function precalcularClima(tl: SimTimeline): ClimaPre {
     let cob = 0
     for (const c of tl.capas ?? []) cob = Math.max(cob, g(c.cobertura, d, 0) * (g(c.etapa, d, -1) >= 0 ? 1 : 0))
     const desnudo = tl.suelo_desnudo?.[d] != null ? (tl.suelo_desnudo[d] ? 1 : 0) : cob < 0.15 && res < 0.2 ? 1 : 0
-    const lluvia = mm > 0.3 ? cl(Math.log1p(mm) / Math.log1p(45)) : 0
+    // NASA POWER (reanálisis) trae llovizna casi todos los días de la temporada (sesgo conocido:
+    // en Jocotán 267 de 365 días > 0.3 mm). Se dibuja lluvia solo desde 4 mm (≈ días de lluvia
+    // reales); por debajo queda nublado. Los números del HUD siguen siendo los del motor.
+    const lluvia = mm >= 4 ? cl(0.15 + 0.85 * (Math.log1p(mm - 4) / Math.log1p(41))) : 0
+    const llovizna = mm >= 1 && mm < 4 ? ss(1, 4, mm) : 0
     const tormenta = Math.max(ss(0.8, 1.15, mm / p95), tormentas[d] ? Math.max(0.75, ss(0.5, 1.0, mm / p95)) : 0)
     acc = acc * 0.5 + mm
     accWet = accWet * 0.3 + mm
@@ -51,7 +55,7 @@ export function precalcularClima(tl: SimTimeline): ClimaPre {
     const viento = Math.max(cl(v / 11), tormenta * 0.95)
     out.lluvia[d] = Math.max(lluvia, tormenta * 0.9)
     out.tormenta[d] = tormenta
-    out.nubes[d] = Math.max(cl(g(tl.nubes, d, lluvia)), lluvia * 0.85, tormenta)
+    out.nubes[d] = Math.max(cl(g(tl.nubes, d, lluvia)) * 0.8, lluvia * 0.85, llovizna * 0.55, tormenta)
     out.viento[d] = viento
     out.calor[d] = ss(33, 38, tmax)
     out.sequia[d] = sequia

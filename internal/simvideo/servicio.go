@@ -246,6 +246,7 @@ func (s *Servicio) aproximado(c Consulta) string {
 				for _, mm := range []float64{c.RiegoMM, 0} {
 					d := c
 					d.MunicipioID, d.Estrategia, d.Escenario, d.RiegoMM, d.Calidad, d.Vertical = m, est, esc, mm, "720p", false
+					d.Desde, d.Hasta, d.Siembra = "", "", "" // aproximado: la temporada entera
 					if p := s.precalc(d.NombrePrecalc()); p != "" {
 						return p
 					}

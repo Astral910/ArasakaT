@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // Página de prueba de la escena 3D (sin router): /src/features/sandbox/escena/preview.html
 // Parámetros: ?est=S2&dia=150&clima=tormenta&cam=general&q=media&play=1&vel=1&sinRed=1&hud=0&lat=..&lon=..&area=8&unidad=cuerda&tl=<url>
+// Ronda 4: &forma=punto|circulo|poligono&radio=<m>&poly=<polilínea Google, precisión 6>
+// Ronda 5: &filtro=temperatura|humedad|estres|erosion|verdor&siembra=AAAA-MM-DD&desde=AAAA-MM-DD&hasta=AAAA-MM-DD
 import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
-import { createSandbox, generarTimelineSintetico, type Bioma, type CameraPreset, type ClimaVisual, type Quality, type Sandbox, type SimTimeline } from './api'
+import { createSandbox, decodificarPolilinea, generarTimelineSintetico, type Bioma, type ParcelaGeo, type CameraPreset, type ClimaVisual, type Quality, type Sandbox, type SimTimeline, type Filtro, type LeyendaFiltro, type Marcador, FILTROS } from './api'
 import '@fontsource-variable/figtree'
 
 const q = new URLSearchParams(location.search)
@@ -23,6 +25,19 @@ const fecha = ref('')
 const tl = shallowRef<SimTimeline>()
 const eventos = ref<string[]>([])
 const fuenteTl = ref('')
+const carga = ref({ p: 0, texto: 'Relieve del terreno…' })
+const aguaAviso = ref('')
+const filtro = ref<Filtro | null>((q.get('filtro') as Filtro | null) ?? null)
+const leyenda = ref<LeyendaFiltro | null>(null)
+const marcadorAviso = ref<Marcador | null>(null)
+function ponerFiltro(f: Filtro | null) { filtro.value = f; sb.value?.setFiltro(f) }
+const degradado = (l: LeyendaFiltro) => `linear-gradient(90deg, ${l.colores.join(', ')})`
+const posMarca = (l: LeyendaFiltro, v: number) => {
+  let t = (v - l.min) / Math.max(1e-6, l.max - l.min)
+  t = Math.min(1, Math.max(0, t))
+  if (l.capa === 'erosion') t = Math.sqrt(t)
+  return `${t * 100}%`
+}
 
 const CLIMAS: Record<string, Partial<ClimaVisual> | null> = {
   auto: null,
@@ -55,7 +70,9 @@ function bucle(t: number) {
   if (!sb.value || !tl.value) return
   if (jugando.value) {
     dia.value += dt * vel.value
-    if (dia.value >= tl.value.dias - 1) dia.value = 0
+    const r = sb.value.getState().rango
+    if (dia.value >= Math.min(tl.value.dias - 1, r.i1)) dia.value = r.i0
+    if (dia.value < r.i0) dia.value = r.i0
   }
   const i = Math.floor(dia.value)
   sb.value.setDay(i, dia.value - i)
@@ -74,12 +91,22 @@ onMounted(async () => {
   const s = createSandbox(lienzo.value!, { quality: calidad.value, preserveDrawingBuffer: true })
   sb.value = s
   ;(window as unknown as Record<string, unknown>).__sb = s
+  // pruebas: mover el día de la página (el bucle llama setDay con este valor)
+  ;(window as unknown as Record<string, unknown>).__dia = (v: number, play = false, velocidad = 1) => { dia.value = v; jugando.value = play; vel.value = velocidad }
   s.on('fps', (d) => { fps.value = d.fps; ;(window as unknown as Record<string, unknown>).__fps = d.fps })
   s.on('dia', (d) => { fecha.value = d.fecha })
   s.on('evento', (e) => { eventos.value = [e.texto, ...eventos.value].slice(0, 4) })
-  s.on('ready', (d) => { ;(window as unknown as Record<string, unknown>).__readyMs = d.ms; (window as unknown as Record<string, unknown>).__ready = d; info.value = `lista en ${d.ms} ms · relieve ${d.relieveReal ? 'SRTM real' : 'plantilla'} · ${d.satelite ? 'satélite Esri' : 'textura de plantilla'} · ${d.bioma} · ${d.casas} casas · ${d.picosCorregidos} picos corregidos` })
+  s.on('ready', (d) => { ;(window as unknown as Record<string, unknown>).__readyMs = d.ms; (window as unknown as Record<string, unknown>).__ready = d; info.value = `lista en ${d.ms} ms · ${d.forma} ${(d.areaM2 / 10000).toFixed(2)} ha · relieve ${d.relieveReal ? 'SRTM real' : 'plantilla'} · ${d.satelite ? 'satélite Esri' : 'textura de plantilla'} · ${d.bioma} · ${d.casas} casas · ${d.edificios} edificios · ${d.quitados} quitados · ${Object.entries(d.tiempos).map(([k, v]) => `${k} ${v}`).join(' / ')} ms` })
+  s.on('progreso', (d) => { carga.value = { p: d.p, texto: d.texto } })
+  s.on('filtro', (l) => { leyenda.value = l.capa ? l : null; (window as unknown as Record<string, unknown>).__filtro = l })
+  s.on('marcador', (m) => { marcadorAviso.value = m; (window as unknown as Record<string, unknown>).__marcador = m; setTimeout(() => { if (marcadorAviso.value === m) marcadorAviso.value = null }, 2500) })
+  s.on('siembra', (d) => { (window as unknown as Record<string, unknown>).__siembra = d })
+  s.on('parcelaEnAgua', (d) => { aguaAviso.value = `La parcela cae en agua (${Math.round(d.fraccion * 100)} %)`; (window as unknown as Record<string, unknown>).__agua = d })
   tl.value = await cargarTimeline()
   s.setTimeline(tl.value)
+  if (q.get('siembra')) s.setSiembra(q.get('siembra'))
+  if (q.get('desde') || q.get('hasta')) s.setRango(q.get('desde'), q.get('hasta'))
+  if (filtro.value) s.setFiltro(filtro.value)
   s.setDay(Math.floor(dia.value), dia.value % 1)
   s.setCamera(cam.value, { duracion: 0 })
   if (clima.value !== 'auto') s.setWeatherOverride(CLIMAS[clima.value] ?? null)
@@ -88,12 +115,21 @@ onMounted(async () => {
     areaValor: Number(q.get('area') ?? 8), areaUnidad: (q.get('unidad') as 'cuerda') ?? 'cuerda',
     cultivo: 'milpa', estrategia: est.value, sinRed: q.get('sinRed') === '1',
     bioma: (q.get('bioma') as Bioma | null) ?? undefined,
+    parcela: parcelaDeUrl(),
   })
   listo.value = true
   ;(window as unknown as Record<string, unknown>).__listo = true
   raf = requestAnimationFrame(bucle)
 })
 onBeforeUnmount(() => { cancelAnimationFrame(raf); sb.value?.dispose() })
+
+function parcelaDeUrl(): ParcelaGeo | undefined {
+  const forma = q.get('forma') as ParcelaGeo['forma'] | null
+  if (!forma) return undefined
+  const centro: [number, number] = [Number(q.get('lat') ?? 14.8121), Number(q.get('lon') ?? -89.3778)]
+  const poly = q.get('poly')
+  return { forma, centro, radioM: q.get('radio') ? Number(q.get('radio')) : undefined, poligono: poly ? decodificarPolilinea(poly, 6) : undefined }
+}
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
 function estadoHud() {
@@ -141,7 +177,28 @@ function estadoHud() {
         <button v-for="c in ['auto', 'alta', 'media', 'baja']" :key="c" :class="{ on: calidad === c }" @click="ponerCalidad(c as Quality)">{{ c }}</button>
       </div>
     </div>
-    <div v-if="!listo" class="carga">Armando la maqueta…</div>
+    <div v-if="hud" class="filtros">
+      <button :class="{ on: !filtro }" @click="ponerFiltro(null)">sin filtro</button>
+      <button v-for="f in FILTROS" :key="f" :class="{ on: filtro === f }" @click="ponerFiltro(f)">{{ f }}</button>
+    </div>
+    <div v-if="leyenda" class="leyenda" data-testid="leyenda">
+      <div class="lt">{{ leyenda.titulo }} <span class="badge" :class="leyenda.dato">{{ leyenda.dato === 'real' ? 'dato real' : leyenda.dato === 'modelo' ? 'modelo' : 'estimado' }}</span></div>
+      <div class="barra-l" :style="{ background: degradado(leyenda) }" />
+      <div class="marcas"><span v-for="m in leyenda.marcas" :key="m.v" :style="{ left: posMarca(leyenda, m.v) }">{{ m.texto }}</span></div>
+      <div v-if="leyenda.parcela" class="lp">Tu parcela: <b>{{ leyenda.parcela.media }}</b> {{ leyenda.unidad }} ({{ leyenda.parcela.min }}–{{ leyenda.parcela.max }})</div>
+      <div v-if="leyenda.referencia" class="lr">{{ leyenda.referencia.texto }}: <b>{{ leyenda.referencia.valor }} {{ leyenda.referencia.unidad }}</b></div>
+      <div class="ln">{{ leyenda.nota }}</div>
+      <div class="lf">Fuente: {{ leyenda.fuente }}</div>
+    </div>
+    <div v-if="marcadorAviso" class="aviso-m">{{ marcadorAviso.tipo === 'cosecha' ? '🌽' : marcadorAviso.tipo === 'recomendada' ? '⭐' : '🌱' }} {{ marcadorAviso.texto }}</div>
+    <div v-if="aguaAviso" class="agua">{{ aguaAviso }}</div>
+    <div v-if="!listo" class="carga">
+      <div class="caja">
+        <div class="titulo">Armando tu terreno</div>
+        <div class="txt">{{ carga.texto }}</div>
+        <div class="pista"><div class="lleno" :style="{ width: Math.round(carga.p * 100) + '%' }" /></div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -162,5 +219,25 @@ button.on { background: #e3b23c; color: #2a2118; border-color: #e3b23c; }
 .barra { flex: 1; min-width: 200px; accent-color: #e3b23c; }
 .info { font-size: 11px; opacity: 0.7; }
 .ev { font-size: 12px; background: rgba(179, 38, 58, 0.6); padding: 3px 8px; border-radius: 8px; width: fit-content; }
-.carga { position: absolute; inset: 0; display: grid; place-items: center; font-size: 18px; background: #0e1013; }
+.carga { position: absolute; inset: 0; display: grid; place-items: center; background: #0e1013; }
+.caja { width: min(320px, 80vw); display: flex; flex-direction: column; gap: 10px; }
+.titulo { font-size: 20px; }
+.txt { font-size: 14px; opacity: 0.75; }
+.pista { height: 4px; border-radius: 4px; background: #ffffff1c; overflow: hidden; }
+.lleno { height: 100%; background: #e3b23c; transition: width 0.3s ease; }
+.filtros { position: absolute; right: 16px; top: 64px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.leyenda { position: absolute; right: 16px; bottom: 120px; width: min(330px, 80vw); background: rgba(20, 16, 12, 0.62); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; padding: 12px 14px 10px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+.lt { font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; background: #e3b23c; color: #2a2118; text-transform: uppercase; letter-spacing: 0.04em; }
+.badge.real { background: #3fae5a; color: #fff; }
+.badge.modelo { background: #5b8cd6; color: #fff; }
+.barra-l { height: 10px; border-radius: 6px; opacity: 0.92; }
+.marcas { position: relative; height: 14px; font-size: 10px; opacity: 0.85; }
+.marcas span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.marcas span:first-child { transform: none; }
+.marcas span:last-child { transform: translateX(-100%); }
+.lp { font-size: 13px; } .lr { font-size: 12px; color: #ffd88a; }
+.ln { opacity: 0.78; line-height: 1.35; } .lf { opacity: 0.55; font-size: 10px; line-height: 1.3; }
+.aviso-m { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); background: rgba(255, 255, 255, 0.92); color: #1f2a1f; padding: 8px 16px; border-radius: 99px; font-size: 15px; font-weight: 600; box-shadow: 0 4px 20px #0004; }
+.agua { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(30, 90, 160, 0.78); padding: 10px 16px; border-radius: 12px; font-size: 15px; }
 </style>

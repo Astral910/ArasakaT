@@ -2,6 +2,7 @@
 //   /sandbox?lat=14.79&lon=-89.39&lugar=Jocotán&pais=GT&cultivo=milpa&area=2&unidad=manzana&riego=0&auto=1
 import { api } from '@/api/client'
 import type { Municipio } from '@/api/types'
+import { leerParcela, areaM2, type Parcela } from './parcela'
 import { RIEGO, type Ajustes, type Escenario, type Estrategia, type NivelRiego, type Percentil } from './tipos'
 
 export interface Ruta {
@@ -17,7 +18,18 @@ export interface Ruta {
   intro: boolean
   rec: boolean
   idioma?: 'es' | 'en'
+  /** terreno exacto (forma/radio/poly); lat/lon pasan a ser su centro */
+  parcela: Parcela | null
+  /** ronda 5: fecha de siembra elegida (AAAA-MM-DD); sin ella, la recomendada */
+  siembra?: string
+  /** ronda 5: rango a reproducir (AAAA-MM-DD; los números de desde/hasta son del video) */
+  desde?: string
+  hasta?: string
+  /** ronda 5: terreno guardado en la cuenta */
+  parcelaId?: string
 }
+const ISO = /^\d{4}-\d{2}-\d{2}$/
+const fechaOk = (s?: string) => (s && ISO.test(s) && isFinite(Date.parse(s)) ? s : undefined)
 
 const num = (s?: string) => (s != null && s !== '' && isFinite(Number(s)) ? Number(s) : undefined)
 const ESC: Escenario[] = ['pronostico', 'tipico', 'nino', 'real-2026', 'secuencia', '2040-ssp245', '2040-ssp585']
@@ -38,8 +50,13 @@ export function leerRuta(query: Record<string, unknown>): Ruta {
   const esc = q.esc ?? q.escenario
   const p = q.p ?? q.percentil
   const unidad = q.unidad ?? q.area_unidad
+  const parcela = leerParcela(q, num(q.lat), num(q.lon))
+  // sin `area` en la URL, el área sale de la geometría (contrato ronda 4)
+  const aGeo = parcela ? areaM2(parcela) : null
+  const uni = (['cuerda', 'manzana', 'ha'].includes(unidad ?? '') ? unidad : 'manzana') as Ajustes['area_unidad']
+  const areaGeo = aGeo != null && aGeo > 0 ? Math.round((aGeo / { cuerda: 436.7, manzana: 6987, ha: 10000 }[uni]) * 100) / 100 : undefined
   return {
-    lat: num(q.lat), lon: num(q.lon),
+    lat: parcela?.centro[0] ?? num(q.lat), lon: parcela?.centro[1] ?? num(q.lon), parcela,
     lugar: q.lugar || undefined, pais: q.pais?.toUpperCase() || undefined,
     municipio_id: q.m ?? q.municipio_id,
     ajustes: {
@@ -50,13 +67,14 @@ export function leerRuta(query: Record<string, unknown>): Ruta {
       anios: Math.max(2, Math.min(10, num(q.anios) ?? 5)),
       comparar: q.comparar === '1',
       cultivo: (CULT.includes(q.cultivo ?? '') ? q.cultivo : 'milpa') as Ajustes['cultivo'],
-      area_valor: Math.max(0.05, num(q.area ?? q.area_valor) ?? 1),
-      area_unidad: (['cuerda', 'manzana', 'ha'].includes(unidad ?? '') ? unidad : 'manzana') as Ajustes['area_unidad'],
+      area_valor: Math.max(0.05, num(q.area ?? q.area_valor) ?? areaGeo ?? 1),
+      area_unidad: uni,
     },
     estrategiaFija: ['S0', 'S1', 'S2'].includes(s ?? ''),
     auto: q.auto === '1',
     intro: q.intro !== '0',
     rec: q.rec === '1',
+    siembra: fechaOk(q.siembra), desde: fechaOk(q.desde), hasta: fechaOk(q.hasta), parcelaId: q.parcela || undefined,
     idioma: q.idioma === 'es' || q.idioma === 'en' ? q.idioma : q.lang === 'es' || q.lang === 'en' ? q.lang : undefined,
   }
 }
@@ -65,7 +83,9 @@ export function leerRuta(query: Record<string, unknown>): Ruta {
 export function consultaCompartible(query: Record<string, unknown>): string {
   const u = new URLSearchParams()
   for (const [k, v] of Object.entries(query)) {
-    if (v == null || ['rec', 'intro', 'calidad', 'vertical', 'fps', 'dur', 'desde', 'hasta'].includes(k)) continue
+    if (v == null || ['rec', 'intro', 'calidad', 'vertical', 'fps', 'dur'].includes(k)) continue
+    // desde/hasta en fecha = rango de la temporada (se comparte); en número = segundos del video (no)
+    if ((k === 'desde' || k === 'hasta') && !fechaOk(String(Array.isArray(v) ? v[0] : v))) continue
     u.set(k, String(Array.isArray(v) ? v[0] : v))
   }
   return u.toString()

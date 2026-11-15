@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 880" width="1400" height="880" font-family="Figtree, system-ui, sans-serif">
+<rect width="100%" height="100%" fill="#f5efe4"/>
+<text x="40" y="52" font-family="Fraunces, Georgia, serif" font-size="30" font-weight="600" fill="#2a2118">Estación de campo FieldShift · cableado del nodo ESP32-C3</text>
+<text x="40" y="80" font-size="15" fill="#7d6a58">Sensores alimentados solo al medir (P-MOSFET) · deep sleep 15 min · el reed del pluviómetro despierta al chip · analógicos solo en ADC1</text>
+<rect x="40" y="120" width="200" height="92" rx="12" fill="#e8eef7" stroke="#57473a" stroke-width="1.6"/>
+<text x="140.0" y="144" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">Panel solar 6 V</text>
+<text x="140.0" y="164" text-anchor="middle" font-size="12.5" fill="#57473a">1–2 W · inclinado ≈ latitud (≥ 15°)</text>
+<text x="140.0" y="181" text-anchor="middle" font-size="12.5" fill="#57473a">mirando al ecuador</text>
+<rect x="40" y="290" width="200" height="110" rx="12" fill="#fffaf2" stroke="#57473a" stroke-width="1.6"/>
+<text x="140.0" y="314" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">Cargador CN3065</text>
+<text x="140.0" y="334" text-anchor="middle" font-size="12.5" fill="#57473a">(o TP4056 con DW01)</text>
+<text x="140.0" y="351" text-anchor="middle" font-size="12.5" fill="#57473a">IN+/IN− ← panel</text>
+<text x="140.0" y="368" text-anchor="middle" font-size="12.5" fill="#57473a">BAT+/BAT− → 18650</text>
+<rect x="40" y="480" width="200" height="92" rx="12" fill="#fffaf2" stroke="#57473a" stroke-width="1.6"/>
+<text x="140.0" y="504" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">Batería 18650</text>
+<text x="140.0" y="524" text-anchor="middle" font-size="12.5" fill="#57473a">3,0–4,2 V · con protección</text>
+<text x="140.0" y="541" text-anchor="middle" font-size="12.5" fill="#57473a">2 500–3 500 mAh</text>
+<rect x="320" y="290" width="180" height="110" rx="12" fill="#fffaf2" stroke="#57473a" stroke-width="1.6"/>
+<text x="410.0" y="314" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">LDO 3,3 V</text>
+<text x="410.0" y="334" text-anchor="middle" font-size="12.5" fill="#57473a">RT9080-33 (Iq ≈ 2 µA)</text>
+<text x="410.0" y="351" text-anchor="middle" font-size="12.5" fill="#57473a">o HT7333 + 470 µF</text>
+<text x="410.0" y="368" text-anchor="middle" font-size="12.5" fill="#57473a">VIN ← BAT+ · VOUT → 3V3</text>
+<path d="M150,212 L150,290" fill="none" stroke="#ff6b35" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="160" y="255" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">IN+ (naranja)</text>
+<path d="M110,212 L110,290" fill="none" stroke="#1d1d1b" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M110,400 L110,480" fill="none" stroke="#1d1d1b" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M170,400 L170,480" fill="none" stroke="#d7263d" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="180" y="445" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">BAT+</text>
+<path d="M240,320 L320,320" fill="none" stroke="#d7263d" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="250" y="312" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">BAT+ (rojo)</text>
+<path d="M240,380 L320,380" fill="none" stroke="#1d1d1b" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="250" y="372" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">GND (negro)</text>
+<rect x="600" y="190" width="250" height="400" rx="12" fill="#fffaf2" stroke="#2a2118" stroke-width="1.6"/>
+<text x="725.0" y="214" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">ESP32-C3</text>
+<text x="725.0" y="234" text-anchor="middle" font-size="12.5" fill="#57473a">SuperMini / DevKitM-1</text>
+<rect x="842" y="223" width="16" height="14" rx="3" fill="#f18f01"/>
+<text x="832" y="234" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">3V3</text>
+<rect x="842" y="255" width="16" height="14" rx="3" fill="#1d1d1b"/>
+<text x="832" y="266" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">GND</text>
+<rect x="842" y="293" width="16" height="14" rx="3" fill="#d4a000"/>
+<text x="832" y="304" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">GPIO0 · ADC1_CH0</text>
+<rect x="842" y="328" width="16" height="14" rx="3" fill="#d4a000"/>
+<text x="832" y="339" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">GPIO1 · ADC1_CH1</text>
+<rect x="842" y="363" width="16" height="14" rx="3" fill="#d4a000"/>
+<text x="832" y="374" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">GPIO3 · ADC1_CH3</text>
+<rect x="842" y="398" width="16" height="14" rx="3" fill="#7b4fc9"/>
+<text x="832" y="409" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">GPIO4 · despierta</text>
+<rect x="842" y="433" width="16" height="14" rx="3" fill="#8a5a3b"/>
+<text x="832" y="444" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">GPIO5 · MOSFET</text>
+<rect x="842" y="468" width="16" height="14" rx="3" fill="#2e6fd8"/>
+<text x="832" y="479" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">GPIO6 · SDA</text>
+<rect x="842" y="503" width="16" height="14" rx="3" fill="#2a9d5c"/>
+<text x="832" y="514" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">GPIO7 · SCL</text>
+<rect x="842" y="538" width="16" height="14" rx="3" fill="#8d8d8d"/>
+<text x="832" y="549" text-anchor="end" font-size="13" font-weight="600" fill="#2a2118">GPIO10 · 1-Wire</text>
+<text x="725" y="575" text-anchor="middle" font-size="11.5" font-weight="700" fill="#b5343c">Quitá el LED rojo de encendido: gasta ~1 mA</text>
+<path d="M500,320 L560,320 L560,230 L842,230" fill="none" stroke="#f18f01" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="505" y="312" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">3V3 fijo (naranja)</text>
+<path d="M500,380 L575,380 L575,262 L842,262" fill="none" stroke="#1d1d1b" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M280,320 L280,620 L432,620" fill="none" stroke="#d7263d" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="432" y="613" width="36" height="14" rx="3" fill="#e9d8b8" stroke="#57473a"/>
+<text x="450" y="608" text-anchor="middle" font-size="12" font-weight="700" fill="#57473a">220 kΩ</text>
+<path d="M468,620 L532,620" fill="none" stroke="#d7263d" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="532" y="613" width="36" height="14" rx="3" fill="#e9d8b8" stroke="#57473a"/>
+<text x="550" y="608" text-anchor="middle" font-size="12" font-weight="700" fill="#57473a">220 kΩ</text>
+<path d="M568,620 L590,620 L590,660" fill="none" stroke="#1d1d1b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="500" cy="620" r="4.5" fill="#d4a000"/>
+<path d="M500,620 L500,690 L905,690 L905,370 L858,370" fill="none" stroke="#d4a000" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="488" y="645" width="24" height="10" fill="#cfd8dc" stroke="#57473a"/>
+<text x="518" y="654" text-anchor="start" font-size="11" font-weight="600" fill="#57473a">100 nF</text>
+<text x="300" y="720" text-anchor="start" font-size="12" font-weight="600" fill="#7d6a58">Vbat = Vadc × 2 (divisor 220k/220k + 100 nF, ≈ 9,5 µA)</text>
+<rect x="960" y="140" width="200" height="96" rx="12" fill="#f3e6ef" stroke="#57473a" stroke-width="1.6"/>
+<text x="1060.0" y="164" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">P-MOSFET AO3401</text>
+<text x="1060.0" y="184" text-anchor="middle" font-size="12.5" fill="#57473a">S ← 3V3 fijo · D → 3V3 sens.</text>
+<text x="1060.0" y="201" text-anchor="middle" font-size="12.5" fill="#57473a">G ← GPIO5 · 100 kΩ de G a S</text>
+<path d="M858,440 L930,440 L930,205 L960,205" fill="none" stroke="#8a5a3b" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="866" y="432" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">compuerta (marrón)</text>
+<path d="M560,230 L560,165 L960,165" fill="none" stroke="#f18f01" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1160,190 L1210,190 L1210,640" fill="none" stroke="#c2187a" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1166" y="260" text-anchor="start" font-size="13" font-weight="700" fill="#c2187a">3V3 sensores</text>
+<text x="1166" y="276" text-anchor="start" font-size="12" font-weight="600" fill="#c2187a">(solo al medir)</text>
+<path d="M575,262 L575,810 L1330,810 L1330,300" fill="none" stroke="#1d1d1b" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="600" y="830" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">GND común (negro)</text>
+<rect x="1240" y="290" width="150" height="70" rx="12" fill="#eef5ea" stroke="#57473a" stroke-width="1.6"/>
+<text x="1315.0" y="314" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">Capacitivo 10 cm</text>
+<text x="1315.0" y="334" text-anchor="middle" font-size="12.5" fill="#57473a">VCC · GND · AOUT</text>
+<rect x="1240" y="380" width="150" height="70" rx="12" fill="#eef5ea" stroke="#57473a" stroke-width="1.6"/>
+<text x="1315.0" y="404" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">Capacitivo 30 cm</text>
+<text x="1315.0" y="424" text-anchor="middle" font-size="12.5" fill="#57473a">VCC · GND · AOUT</text>
+<rect x="1240" y="470" width="150" height="70" rx="12" fill="#eef5ea" stroke="#57473a" stroke-width="1.6"/>
+<text x="1315.0" y="494" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">SHT31 (abrigo)</text>
+<text x="1315.0" y="514" text-anchor="middle" font-size="12.5" fill="#57473a">VIN GND SDA SCL · 0x44</text>
+<rect x="1240" y="560" width="150" height="84" rx="12" fill="#eef5ea" stroke="#57473a" stroke-width="1.6"/>
+<text x="1315.0" y="584" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">DS18B20</text>
+<text x="1315.0" y="604" text-anchor="middle" font-size="12.5" fill="#57473a">sumergible · suelo</text>
+<text x="1315.0" y="621" text-anchor="middle" font-size="12.5" fill="#57473a">rojo VDD · negro GND</text>
+<text x="1315.0" y="638" text-anchor="middle" font-size="12.5" fill="#57473a">amarillo DATA</text>
+<rect x="1240" y="680" width="150" height="84" rx="12" fill="#ede7f6" stroke="#57473a" stroke-width="1.6"/>
+<text x="1315.0" y="704" text-anchor="middle" font-size="16" font-weight="700" fill="#2a2118">Reed pluviómetro</text>
+<text x="1315.0" y="724" text-anchor="middle" font-size="12.5" fill="#57473a">normal abierto · a GND</text>
+<text x="1315.0" y="741" text-anchor="middle" font-size="12.5" fill="#57473a">imán 6×3 mm</text>
+<text x="1315.0" y="758" text-anchor="middle" font-size="12.5" fill="#57473a">en el balancín</text>
+<path d="M1210,304 L1240,304" fill="none" stroke="#c2187a" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1210,394 L1240,394" fill="none" stroke="#c2187a" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1210,484 L1240,484" fill="none" stroke="#c2187a" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1210,574 L1240,574" fill="none" stroke="#c2187a" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1330,318 L1390,318" fill="none" stroke="#1d1d1b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1330,408 L1390,408" fill="none" stroke="#1d1d1b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1330,498 L1390,498" fill="none" stroke="#1d1d1b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1330,590 L1390,590" fill="none" stroke="#1d1d1b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1330,750 L1390,750" fill="none" stroke="#1d1d1b" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M858,300 L1000,300 L1000,340 L1240,340" fill="none" stroke="#d4a000" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1008" y="334" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">AOUT 10 cm (amarillo)</text>
+<path d="M858,335 L985,335 L985,430 L1240,430" fill="none" stroke="#d4a000" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1008" y="424" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">AOUT 30 cm (amarillo)</text>
+<path d="M858,475 L1080,475 L1080,515 L1240,515" fill="none" stroke="#2e6fd8" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1088" y="509" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">SDA (azul)</text>
+<path d="M858,510 L1065,510 L1065,530 L1240,530" fill="none" stroke="#2a9d5c" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1088" y="548" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">SCL (verde)</text>
+<path d="M858,545 L1050,545 L1050,615 L1240,615" fill="none" stroke="#8d8d8d" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1058" y="608" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">DATA (gris)</text>
+<rect x="1143" y="572" width="14" height="36" rx="3" fill="#e9d8b8" stroke="#57473a"/>
+<text x="1162" y="594" text-anchor="start" font-size="12" font-weight="700" fill="#57473a">4,7 kΩ</text>
+<path d="M1150,572 L1150,560 L1210,560" fill="none" stroke="#c2187a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1150,608 L1150,615" fill="none" stroke="#8d8d8d" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M858,405 L945,405 L945,725 L1240,725" fill="none" stroke="#7b4fc9" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="953" y="718" text-anchor="start" font-size="12.5" font-weight="600" fill="#2a2118">reed (violeta)</text>
+<circle cx="945" cy="760" r="4.5" fill="#7b4fc9"/>
+<path d="M945,725 L945,760" fill="none" stroke="#7b4fc9" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="982" y="753" width="36" height="14" rx="3" fill="#e9d8b8" stroke="#57473a"/>
+<text x="1000" y="748" text-anchor="middle" font-size="12" font-weight="700" fill="#57473a">100 kΩ</text>
+<path d="M945,760 L982,760" fill="none" stroke="#7b4fc9" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M1018,760 L1060,760 L1060,785 L545,785 L545,320 L560,320" fill="none" stroke="#f18f01" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="1068" y="778" text-anchor="start" font-size="11" font-weight="600" fill="#57473a">pull-up al 3V3 fijo</text>
+<rect x="888" y="755" width="24" height="10" fill="#cfd8dc" stroke="#57473a"/>
+<text x="882" y="764" text-anchor="end" font-size="11" font-weight="600" fill="#57473a">100 nF a GND</text>
+<rect x="40" y="600" width="230" height="230" rx="12" fill="#fffaf2" stroke="#57473a" stroke-width="1"/>
+<text x="56" y="626" text-anchor="start" font-size="15" font-weight="700" fill="#2a2118">Colores de cable</text>
+<line x1="56" y1="650" x2="78" y2="650" stroke="#d7263d" stroke-width="5" stroke-linecap="round"/>
+<text x="84" y="654" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">Batería +</text>
+<line x1="56" y1="679" x2="78" y2="679" stroke="#f18f01" stroke-width="5" stroke-linecap="round"/>
+<text x="84" y="683" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">3,3 V fijo</text>
+<line x1="56" y1="708" x2="78" y2="708" stroke="#c2187a" stroke-width="5" stroke-linecap="round"/>
+<text x="84" y="712" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">3,3 V sensores</text>
+<line x1="56" y1="737" x2="78" y2="737" stroke="#1d1d1b" stroke-width="5" stroke-linecap="round"/>
+<text x="84" y="741" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">GND</text>
+<line x1="56" y1="766" x2="78" y2="766" stroke="#d4a000" stroke-width="5" stroke-linecap="round"/>
+<text x="84" y="770" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">Analógico (ADC1)</text>
+<line x1="56" y1="795" x2="78" y2="795" stroke="#2e6fd8" stroke-width="5" stroke-linecap="round"/>
+<text x="84" y="799" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">I²C SDA</text>
+<line x1="166" y1="650" x2="188" y2="650" stroke="#2a9d5c" stroke-width="5" stroke-linecap="round"/>
+<text x="194" y="654" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">I²C SCL</text>
+<line x1="166" y1="679" x2="188" y2="679" stroke="#8d8d8d" stroke-width="5" stroke-linecap="round"/>
+<text x="194" y="683" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">1-Wire</text>
+<line x1="166" y1="708" x2="188" y2="708" stroke="#7b4fc9" stroke-width="5" stroke-linecap="round"/>
+<text x="194" y="712" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">Reed</text>
+<line x1="166" y1="737" x2="188" y2="737" stroke="#8a5a3b" stroke-width="5" stroke-linecap="round"/>
+<text x="194" y="741" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">Compuerta</text>
+<line x1="166" y1="766" x2="188" y2="766" stroke="#ff6b35" stroke-width="5" stroke-linecap="round"/>
+<text x="194" y="770" text-anchor="start" font-size="11.5" font-weight="600" fill="#2a2118">Panel +</text>
+</svg>

@@ -170,6 +170,9 @@ type Plan struct {
 	// Agregados por el motor (ronda 3, 14-nov):
 	Confianza *SimConfianza `json:"confianza,omitempty"` // de dónde sale la temporada que viene y cuánto confiar
 	Sitio     *SitioInfo    `json:"sitio,omitempty"`     // temporadas, bioma y fuentes del punto (sobre todo fuera de Guatemala)
+
+	// Agregado por el motor (ronda 5, 14-nov): fecha de siembra elegida (Request.FechaSiembra) vs recomendada.
+	Siembra *SimSiembra `json:"siembra,omitempty"`
 }
 
 // Planner lo implementa el motor (internal/plan).
@@ -246,6 +249,10 @@ type SimRequest struct {
 	Percentil     string      `json:"percentil"`       // p10 | p50 | p90 (para secuencia/típico)
 	Anios         int         `json:"anios"`           // 1..10
 	Semilla       int64       `json:"semilla"`
+	// Agregados por el motor (ronda 5, 14-nov):
+	FechaSiembra string `json:"fecha_siembra,omitempty"` // YYYY-MM-DD elegida por el usuario; vacío = la recomendada (si no, Plan.FechaSiembra)
+	Desde        string `json:"desde,omitempty"`         // YYYY-MM-DD: recorta la línea de tiempo (vacío = desde el inicio)
+	Hasta        string `json:"hasta,omitempty"`         // YYYY-MM-DD: recorta la línea de tiempo (vacío = hasta el fin)
 }
 
 // SimCapa estado diario de un cultivo (la milpa trae varias capas: maíz + frijol; S2 agrega mucuna).
@@ -301,6 +308,9 @@ type SimTimeline struct {
 	// Agregados por el motor (ronda 3, 14-nov):
 	Escenario string        `json:"escenario,omitempty"` // escenario efectivo (pronostico cae a remuestreo-enso sin red)
 	Confianza *SimConfianza `json:"confianza,omitempty"`
+	// Agregados por el motor (ronda 5, 14-nov):
+	Siembra *SimSiembra `json:"siembra,omitempty"` // fecha elegida vs recomendada, cosechas y razones
+	Rango   *SimRango   `json:"rango,omitempty"`   // si se pidió Desde/Hasta: qué se recortó
 }
 
 // ---------- Ronda 3: confianza de la predicción y motor global ----------
@@ -372,4 +382,56 @@ type SitioInfo struct {
 	} `json:"suelo"`
 	Fuentes []string `json:"fuentes"`
 	Motor   string   `json:"motor"`
+}
+
+// ---------- Ronda 5: fecha de siembra elegida vs recomendada ----------
+
+// SimSiembra compara la fecha de siembra elegida con la recomendada por el motor
+// (escenario pronostico, menor probabilidad de pérdida y mejor cosecha P50 dentro de la ventana).
+type SimSiembra struct {
+	Elegida            string         `json:"elegida"`             // YYYY-MM-DD (si el usuario no eligió = Recomendada)
+	Recomendada        string         `json:"recomendada"`         // YYYY-MM-DD
+	VentanaIni         string         `json:"ventana_ini"`         // YYYY-MM-DD: primer día evaluado de la temporada
+	VentanaFin         string         `json:"ventana_fin"`         // YYYY-MM-DD: último día evaluado
+	CosechaElegida     string         `json:"cosecha_elegida"`     // YYYY-MM-DD: madurez por grados-día con la temperatura del lugar
+	CosechaRecomendada string         `json:"cosecha_recomendada"` // YYYY-MM-DD
+	DiasCicloElegida   int            `json:"dias_ciclo_elegida"`  // días de siembra a cosecha
+	DiasCicloRecom     int            `json:"dias_ciclo_recomendada"`
+	Recomendable       bool           `json:"recomendable"` // la elegida está cerca de la mejor (mismo riesgo ±5 pts y cosecha ≥ 90 %)
+	Veredicto          string         `json:"veredicto"`    // ok | ojo | mala
+	Texto              string         `json:"texto"`        // "Si sembrás el 12 may, cosechás el 28 ago…"
+	TextoEN            string         `json:"texto_en"`
+	Razones            []RazonSiembra `json:"razones"`
+	RiesgoPorFecha     []RiesgoFecha  `json:"riesgo_por_fecha"` // cada 7 días en la ventana
+	Cultivo            string         `json:"cultivo"`          // cultivo usado para el ciclo (maiz en la milpa)
+	GDDCiclo           float64        `json:"gdd_ciclo"`        // grados-día (base 10 °C) a madurez
+	Escenarios         bool           `json:"escenarios"`       // true si la fecha cae más allá del pronóstico estacional (son escenarios, no pronóstico)
+	Fuentes            []string       `json:"fuentes"`
+}
+
+// RazonSiembra una razón concreta (con fuente) a favor o en contra de una fecha.
+type RazonSiembra struct {
+	Codigo    string `json:"codigo"`    // falso_inicio | canicula_floracion | frio_helada | sequia | exceso_cosecha | pronostico_16d | ventana | ciclo
+	Severidad string `json:"severidad"` // ok | ojo | mala
+	Texto     string `json:"texto"`
+	TextoEN   string `json:"texto_en"`
+	Fuente    string `json:"fuente"`
+}
+
+// RiesgoFecha riesgo de sembrar en una fecha (para graficar).
+type RiesgoFecha struct {
+	Fecha       string  `json:"fecha"`        // YYYY-MM-DD
+	ProbPerdida float64 `json:"prob_perdida"` // 0–1
+	CosechaP50  float64 `json:"cosecha_p50"`  // qq/mz
+	Cosecha     string  `json:"cosecha"`      // YYYY-MM-DD de cosecha por grados-día
+}
+
+// SimRango qué parte de la línea de tiempo se devolvió (Desde/Hasta).
+type SimRango struct {
+	Desde      string `json:"desde"`
+	Hasta      string `json:"hasta"`
+	DiaInicial int    `json:"dia_inicial"` // índice del día Desde en la línea completa
+	Escenarios bool   `json:"escenarios"`  // el rango cae más allá del pronóstico: son escenarios
+	Nota       string `json:"nota"`
+	NotaEN     string `json:"nota_en"`
 }

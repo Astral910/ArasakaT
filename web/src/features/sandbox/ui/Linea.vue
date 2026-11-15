@@ -7,7 +7,7 @@ import { ICONO, TONO, TONO_ESTACION } from './iconos'
 import { t } from './textos'
 import { fechaCorta, numero } from '../../mapa/comun/idioma'
 
-const props = defineProps<{ tl: SimTimeline; bandas: Banda[]; dia: number; compacto?: boolean; textosMotor?: boolean }>()
+const props = defineProps<{ tl: SimTimeline; bandas: Banda[]; dia: number; compacto?: boolean; textosMotor?: boolean; rango?: [number, number] | null }>()
 const emit = defineEmits<{ ir: [dia: number]; evento: [e: SimEvento] }>()
 
 const pista = ref<HTMLDivElement | null>(null)
@@ -124,7 +124,13 @@ const fechaHoy = computed(() => fechaDia(props.tl, props.dia).toISOString().slic
         <path :d="aguaPath" fill="rgba(127,178,217,.30)" stroke="none" />
         <path :d="lluviaPath" stroke="#cfe3f2" :stroke-width="Math.max(1, N / 700)" opacity=".85" fill="none" />
         <rect :width="dia" height="100" fill="rgba(255,250,240,.10)" />
+        <!-- rango pedido (ruta o chat): lo de afuera queda en sombra -->
+        <template v-if="rango">
+          <rect x="0" :width="rango[0]" y="0" height="100" fill="rgba(10,8,6,.62)" />
+          <rect :x="rango[1]" :width="Math.max(0, N - rango[1])" y="0" height="100" fill="rgba(10,8,6,.62)" />
+        </template>
       </svg>
+      <span v-if="rango" class="tramo" :style="{ left: pct(rango[0]), width: `calc(${pct(rango[1])} - ${pct(rango[0])})` }" aria-hidden="true" />
       <span v-for="a in anios" :key="a.dia" class="anio" :style="{ left: pct(a.dia) }">
         <b>{{ a.anio }}</b><small v-if="a.real && a.real !== a.anio">· {{ a.real }}</small><small v-if="a.nino" class="nino">{{ t('nino') }}</small>
       </span>
@@ -149,4 +155,5 @@ const fechaHoy = computed(() => fechaDia(props.tl, props.dia).toISOString().slic
 .anio small { display: none; }
 .cabeza { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #ffe7a8; box-shadow: 0 0 10px 2px rgba(255,214,120,.7); pointer-events: none; }
 .compacto .pista { height: 22px; }
+.tramo { position: absolute; top: 0; bottom: 0; border: 1.5px solid #ffe7a8; border-radius: 6px; pointer-events: none; }
 </style>

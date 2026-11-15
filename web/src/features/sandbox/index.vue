@@ -4,17 +4,27 @@
 // Ruta de LANDING: /sandbox?lat&lon&lugar&pais&cultivo&area&unidad&riego&auto=1 (ver ui/ruta.ts).
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, SkipForward, SlidersHorizontal } from 'lucide-vue-next'
+import { ArrowLeft, SkipForward, SlidersHorizontal, Layers, MessageCircle, X, Sprout, RefreshCw } from 'lucide-vue-next'
 import Vuelo from './vuelo/Vuelo.vue'
 import Escena from './ui/Escena.vue'
 import Hud from './ui/Hud.vue'
 import Guia from './ui/Guia.vue'
 import Ajustar from './ui/Ajustar.vue'
 import Final from './ui/Final.vue'
+import Carga, { type Etapa } from './ui/Carga.vue'
+import Capas from './ui/Capas.vue'
+import Siembra from './ui/Siembra.vue'
+import ChatStub from './ui/ChatStub.vue'
+import { type Filtro } from './ui/filtros'
+import { infoSiembra, rangoDias, razonCorta } from './ui/siembra'
+import { interpretarAccion, type AccionChat } from './ui/acciones'
+import { fechaCorta } from '../mapa/comun/idioma'
+import { consultaParcela, extensionM } from './ui/parcela'
+import type { EtapaEscena } from './vuelo/escena'
 import { ladoMaqueta } from './vuelo/trayecto'
 import type { CamaraMapa } from './vuelo/escena'
 import { crearGrabable, type Grabable } from './vuelo/grabable'
-import { cargarSim } from './ui/datos'
+import { cargarSim, type MotivoEjemplo } from './ui/datos'
 import { estaciones, estadoDia, estacionDe, fuenteDia, isoDia, presetEvento, avanzar, LENTO } from './ui/tiempo'
 import { GUIA_S, GUIA_S_MOVIL, lineaDia, paradas, resultado, tramo, velocidadGuia, type Parada } from './ui/guia'
 import { insignia as armarInsignia } from './ui/confianza'
@@ -48,10 +58,14 @@ const lugar = reactive({
 })
 const hayLugar = computed(() => isFinite(lugar.lon) && isFinite(lugar.lat))
 const sitioListo = ref(false)
-const lado = ladoMaqueta(typeof window !== 'undefined' ? window.innerWidth : 1280)
 const ajustes = ref({ ...ruta.ajustes })
 const recomendada = ref<Estrategia>('S2')
 const M2 = { cuerda: 436.7, manzana: 6987, ha: 10000 }
+// el encuadre final deja el terreno entero con aire alrededor (un terreno grande agranda la toma)
+const lado = Math.max(
+  ladoMaqueta(typeof window !== 'undefined' ? window.innerWidth : 1280),
+  ruta.parcela ? Math.ceil(extensionM(ruta.parcela, ruta.ajustes.area_valor * M2[ruta.ajustes.area_unidad]) * 2.2) : 0,
+)
 const area_m2 = computed(() => ajustes.value.area_valor * M2[ajustes.value.area_unidad])
 
 // ---------- fases de la toma ----------
@@ -74,6 +88,7 @@ const alineable = ref(true) // stub: maqueta alineada al mapa; escena real: fund
 const rumbo = ref<number | null>(null)
 const escala = computed(() => (lento.value ? 0.3 : 1))
 function alListo(info: { alineable: boolean; rumbo?: number }) {
+  if (import.meta.env.DEV) console.info(`[vuelo] escena lista a los ${Math.round(performance.now())} ms`)
   alineable.value = info.alineable
   if (info.rumbo != null) rumbo.value = info.rumbo
   escenaLista.value = true
@@ -87,7 +102,7 @@ const region = computed(() => lugar.depto || nombrePais(lugar.pais, lang.value))
 const enGT = computed(() => (lugar.pais ? lugar.pais === 'GT' : enGuatemala(lugar.lon, lugar.lat)))
 const captura = computed(() => {
   const u = progreso.value
-  if (fase.value !== 'vuelo') return null
+  if (fase.value !== 'vuelo' || cargaVisible.value) return null
   if (u < 0.3) return { t: t('cap0'), s: t('cap0b'), k: 0 }
   if (u < 0.6) {
     if (enGT.value) return { t: t('cap1'), s: t('cap1b'), k: 1 }
@@ -136,6 +151,52 @@ async function alFinal(c: CamaraMapa) {
   setTimeout(() => { if (preset.value === 'iso') { durCam.value = 4200; preset.value = 'cerca'; presetSeq.value++ } }, 900)
 }
 
+// ---------- pantalla de carga: satélite de la ruta + escena armándose en el navegador ----------
+const cargaMapa = ref({ hechas: 0, total: 0 })
+const despego = ref(false)
+const etapasEscena = ref<EtapaEscena[]>([])
+const agua = ref<{ tipo?: string } | null>(null)
+const seguirAgua = ref(false)
+const topeCarga = ref(false)
+const cargaVisible = computed(() => !rec && fase.value === 'vuelo' && mapaVivo.value && !despego.value && !sinWebgl.value)
+const avisoAgua = computed(() => (agua.value && !seguirAgua.value ? agua.value : null))
+// la toma espera a que la escena esté armada (tope 20 s) y, si el terreno cae al agua, a que el usuario decida
+const esperaEscena = computed(() => (!escenaLista.value && !topeCarga.value) || !!avisoAgua.value)
+const NOMBRE_ETAPA: Record<string, string> = { relieve: 'cgRelieve', suelo: 'cgSuelo', ciudad: 'cgCiudad', casas: 'cgCasas', vegetacion: 'cgVegetacion', arboles: 'cgVegetacion', cultivo: 'cgCultivo', agua: 'cgAgua' }
+function alEtapa(e: EtapaEscena) {
+  const k = e.etapa.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+  const l = etapasEscena.value.filter((x) => x.etapa !== k)
+  // al llegar una etapa nueva, las anteriores quedan terminadas
+  const i = etapasEscena.value.findIndex((x) => x.etapa === k)
+  const previas = i < 0 ? l.map((x) => ({ ...x, u: 1 })) : l
+  const nueva = { etapa: k, u: e.u, texto: e.texto }
+  etapasEscena.value = i < 0 ? [...previas, nueva] : etapasEscena.value.map((x) => (x.etapa === k ? nueva : x))
+}
+function alAgua(d: { tipo?: string }) { agua.value = d ?? {} }
+const etapas = computed<Etapa[]>(() => {
+  const m = cargaMapa.value
+  const mapaListo = despego.value || (m.total > 0 && m.hechas >= m.total)
+  const out: Etapa[] = [{ clave: 'mapa', nombre: t('cgMapa'), u: m.total ? m.hechas / m.total : 0, lista: mapaListo }]
+  out.push({ clave: 'sim', nombre: t('cgClima'), u: null, lista: !!tl.value })
+  if (!etapasEscena.value.length) out.push({ clave: 'escena', nombre: t('cgEscena'), u: null, lista: escenaLista.value })
+  for (const e of etapasEscena.value) {
+    out.push({ clave: e.etapa, nombre: NOMBRE_ETAPA[e.etapa] ? t(NOMBRE_ETAPA[e.etapa]) : e.texto || e.etapa, u: e.u ?? null, lista: escenaLista.value || (e.u ?? 0) >= 1 })
+  }
+  return out
+})
+const terreno = computed(() => {
+  const p = ruta.parcela
+  if (!p || p.forma === 'punto') return ''
+  return t('cgTerreno', { f: p.forma === 'circulo' ? t('fCirculo', { r: Math.round(p.radioM ?? 0) }) : t('fPoligono', { n: p.poligono?.length ?? 0 }) })
+})
+function elegirOtro() {
+  router.push({ path: '/', query: { lat: lugar.lat.toFixed(5), lon: lugar.lon.toFixed(5), ...(lugar.nombre ? { lugar: lugar.nombre } : {}), elegir: '1' } })
+}
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  // pruebas: simular eventos de la escena mientras escena4 no los emita (capturas de vuelo4)
+  ;(window as any).__fsCarga = { etapa: alEtapa, agua: alAgua }
+}
+
 function saltar() {
   if (fase.value === 'vuelo') vuelo.value?.saltar()
 }
@@ -145,6 +206,25 @@ const tl = shallowRef<SimTimeline | null>(null)
 const tlB = shallowRef<SimTimeline | null>(null) // S2 en modo comparar (tl = S0)
 const tlS0 = shallowRef<SimTimeline | null>(null) // S0 para la tarjeta final
 const origen = ref<OrigenSim>('ejemplo')
+const motivoEj = ref<MotivoEjemplo | undefined>()
+// ronda 5: fecha de siembra elegida (null = la recomendada), rango a reproducir, capa y chat
+const siembraElegida = ref<string | null>(ruta.siembra ?? null)
+const rangoFechas = ref<[string | undefined, string | undefined] | null>(ruta.desde || ruta.hasta ? [ruta.desde, ruta.hasta] : null)
+const filtro = ref<Filtro | null>(null)
+const capasAbierto = ref(false)
+const leyendaEscena = ref<any>(null)
+const chatAbierto = ref(false)
+const franjaCerrada = ref(false)
+let reiniciar = false
+/** inicio y largo de la última temporada completa (sin desde/hasta) */
+let base: { inicio: string; dias: number } | null = null
+let pedidoConRango = false
+/** true = el rango no entra en la temporada calculada: hay que pedírselo al motor */
+function rangoPedido() {
+  const r = rangoFechas.value
+  if (!r || !base) return false
+  return !rangoDias(base, r[0], r[1])
+}
 const escenarioReal = ref<Escenario>('pronostico')
 const cargando = ref(false)
 let seq = 0
@@ -155,11 +235,16 @@ function planRequest(): PlanRequest {
     ...store.request, ...requestFromQuery(route.query as any),
     municipio_id: lugar.id, cultivo: a.cultivo, area_valor: a.area_valor, area_unidad: a.area_unidad,
     riego: a.riego !== 'nada', lat: lugar.lat, lon: lugar.lon, idioma: lang.value, horizonte: '2026',
-  }
+    ...(siembraElegida.value ? { fecha_siembra: siembraElegida.value } : {}),
+  } as PlanRequest
 }
 function simReq(estrategia: Estrategia): SimRequest {
   const a = ajustes.value
-  return { plan: planRequest(), estrategia, riego_mm_semana: RIEGO[a.riego], escenario: a.escenario, percentil: a.percentil, anios: a.escenario === 'secuencia' ? a.anios : 1, semilla: 2026 }
+  const [desde, hasta] = rangoPedido() ? rangoFechas.value! : []
+  return {
+    plan: planRequest(), estrategia, riego_mm_semana: RIEGO[a.riego], escenario: a.escenario, percentil: a.percentil, anios: a.escenario === 'secuencia' ? a.anios : 1, semilla: 2026,
+    ...(siembraElegida.value ? { fecha_siembra: siembraElegida.value } : {}), ...(desde ? { desde } : {}), ...(hasta ? { hasta } : {}),
+  }
 }
 
 async function recalcular() {
@@ -174,24 +259,47 @@ async function recalcular() {
   ])
   if (my !== seq) return
   const nuevo = r1.tl
+  pedidoConRango = rangoPedido()
+  if (!pedidoConRango) base = { inicio: nuevo.inicio, dias: nuevo.dias }
   if (!tl.value || nuevo.dias !== tl.value.dias) dia.value = Math.min(dia.value, nuevo.dias - 1)
   const primera = !tl.value
   tl.value = nuevo
   ponerAudio(nuevo)
   tlB.value = r2?.tl ?? null
   origen.value = r1.origen
+  motivoEj.value = r1.motivo
   escenarioReal.value = r1.escenario
   cargando.value = false
-  if (primera && fase.value === 'sandbox') empezarGuia()
+  if ((primera || reiniciar) && fase.value === 'sandbox') { empezarGuia(); if (reiniciar) jugando.value = true }
+  reiniciar = false
   // S0 de referencia para la tarjeta final (mismo escenario y riego)
   tlS0.value = principal === 'S0' ? nuevo : null
   if (principal !== 'S0') cargarSim(simReq('S0'), store.plan).then((r) => { if (my === seq) tlS0.value = r.tl }).catch(() => {})
+  // rango de la ruta fuera de la temporada calculada (p. ej. meses pasados): se le pide al motor
+  if (!pedidoConRango && rangoPedido()) { reiniciar = true; recalcular() }
 }
 let deb: ReturnType<typeof setTimeout> | null = null
 watch(ajustes, (a, b) => {
   if (deb) clearTimeout(deb)
   deb = setTimeout(recalcular, 180)
   if (a.comparar !== b?.comparar) { preset.value = 'cerca'; durCam.value = 1200; presetSeq.value++ }
+}, { deep: true })
+// otra fecha de siembra o rango (Ajustar, franja, chat, ruta) → recalcula y la guía arranca de nuevo
+watch(siembraElegida, () => {
+  reiniciar = true
+  franjaCerrada.value = false
+  if (deb) clearTimeout(deb)
+  deb = setTimeout(recalcular, 180)
+})
+// el rango se reproduce sobre la temporada ya calculada; solo si cae fuera se le pide al motor (desde/hasta)
+watch(rangoFechas, () => {
+  if (!rangoPedido() && !pedidoConRango) {
+    if (tl.value && fase.value === 'sandbox') { empezarGuia(); jugando.value = true; preset.value = 'cerca'; durCam.value = 1600; presetSeq.value++ }
+    return
+  }
+  reiniciar = true
+  if (deb) clearTimeout(deb)
+  deb = setTimeout(recalcular, 180)
 }, { deep: true })
 
 // ---------- sonido y narración (arranca en silencio; subtítulos aunque esté muteado) ----------
@@ -212,7 +320,11 @@ const ritmo = ref<(typeof RITMOS)[number]>(1)
 const lento = ref<{ hasta: number } | null>(null)
 const finVisible = ref(false)
 const ajustarAbierto = ref(false)
-const rango = computed<[number, number]>(() => (tl.value ? tramo(tl.value) : [0, 364]))
+const rango = computed<[number, number]>(() => {
+  if (!tl.value) return [0, 364]
+  const r = rangoFechas.value ? rangoDias(tl.value, rangoFechas.value[0], rangoFechas.value[1]) : null
+  return r ?? tramo(tl.value)
+})
 const pars = computed<Parada[]>(() => (tl.value ? paradas(tl.value, rango.value[0], rango.value[1]) : []))
 let paradaActual: Parada | null = null
 let raf = 0
@@ -248,6 +360,8 @@ function tick(now: number) {
   const p = pars.value.find((x) => dia.value >= x.dia - 0.5 && dia.value < x.hasta) ?? null
   if (p !== paradaActual) {
     paradaActual = p
+    // siembra y cosecha: cámara lenta con el marcador 3D de la escena
+    if (p && ['siembra', 'cosecha', 'perdida'].includes(p.tipo) && !lento.value) lento.value = { hasta: p.hasta + 1 }
     if (!ajustes.value.comparar) {
       preset.value = p ? p.preset : 'cerca'
       durCam.value = p ? 1600 : 2200
@@ -317,7 +431,46 @@ const fecha = computed(() => (tl.value ? isoDia(tl.value, dia.value) : '2026-01-
 const fuente = computed(() => (tl.value ? fuenteDia(tl.value, dia.value, origen.value === 'ejemplo') : { tipo: 'ejemplo' as const }))
 const estacion = computed(() => estacionDe(bandas.value, dia.value))
 const linea = computed(() => (tl.value ? lineaDia(tl.value, dia.value, estacion.value, lang.value) : { texto: '', tipo: '', clave: '' }))
-const insignia = computed(() => (tl.value ? armarInsignia(tl.value, origen.value, lang.value) : null))
+const insignia = computed(() => (tl.value ? armarInsignia(tl.value, origen.value, lang.value, motivoEj.value) : null))
+
+// ---------- siembra → cosecha (ronda 5) ----------
+const sie = computed(() => (tl.value ? infoSiembra(tl.value, bandas.value, siembraElegida.value, lang.value) : null))
+const fc = (iso: string) => fechaCorta(iso, lang.value)
+const siembraTxt = computed(() => (sie.value ? t('sembrasCosechas', { s: fc(sie.value.elegida), c: fc(sie.value.cosechaElegida) }) : ''))
+/** marcador 3D: la fecha que el motor simuló (si todavía no honra la elegida, la de su timeline) */
+const siembraEscena = computed(() => (sie.value ? (sie.value.estimado ? sie.value.recomendada : sie.value.elegida) : null))
+const franja = computed(() => {
+  const s = sie.value
+  if (!s || s.esRecomendada || franjaCerrada.value || fase.value !== 'sandbox' || finVisible.value || ajustes.value.comparar) return null
+  if (s.sirve) return t('recomendamosSirve', { f: fc(s.recomendada) })
+  return s.motivo ? t('recomendamos', { f: fc(s.recomendada), por: razonCorta(s.motivo, lang.value) }) : t('recomendamosSin', { f: fc(s.recomendada) })
+})
+const canicula = computed<[string, string] | null>(() => {
+  const b = bandas.value.find((x) => x.tipo === 'canicula' && x.fin > rango.value[0])
+  return b && tl.value ? [isoDia(tl.value, b.ini), isoDia(tl.value, b.fin)] : null
+})
+function elegirSiembra(iso: string) { siembraElegida.value = iso }
+const rangoISO = computed<[string, string] | null>(() => (rangoFechas.value && tl.value ? [isoDia(tl.value, rango.value[0]), isoDia(tl.value, rango.value[1])] : null))
+const rangoTxt = computed(() => (rangoISO.value ? t('rangoTxt', { a: fc(rangoISO.value[0]), b: fc(rangoISO.value[1]) }) : ''))
+
+// ---------- capas y chat ----------
+function elegirFiltro(f: Filtro | null) { filtro.value = f; leyendaEscena.value = null; capasAbierto.value = false }
+const contextoChat = computed(() => ({
+  pantalla: 'simulador', fecha: fecha.value, siembra: sie.value?.elegida ?? null, lat: lugar.lat, lon: lugar.lon, lugar: lugar.nombre,
+  idioma: lang.value, cultivo: ajustes.value.cultivo, estrategia: mostrada.value, desde: rangoISO.value?.[0] ?? null, hasta: rangoISO.value?.[1] ?? null, filtro: filtro.value,
+}))
+function alAccion(a: AccionChat) {
+  const c = interpretarAccion(a)
+  if (!c) return
+  if (c.tipo === 'filtro') return elegirFiltro(c.filtro)
+  if (c.tipo === 'siembra') { siembraElegida.value = c.fecha; return }
+  if (c.siembra) siembraElegida.value = c.siembra
+  if (c.desde || c.hasta) rangoFechas.value = [c.desde, c.hasta]
+  if (movil.value) chatAbierto.value = false
+}
+const chats = import.meta.glob('../chat/ChatFieldShift.vue')
+const ChatFS = chats['../chat/ChatFieldShift.vue'] ? defineAsyncComponent(chats['../chat/ChatFieldShift.vue'] as any) : ChatStub
+if (import.meta.env.DEV && typeof window !== 'undefined') (window as any).__fsAccion = alAccion
 const avisoPronostico = computed(() => (ajustes.value.escenario === 'pronostico' && escenarioReal.value !== 'pronostico' ? t('avisoPronostico') : ''))
 
 /** Cielo detrás de la maqueta según el día del motor (promediado, no parpadea). */
@@ -346,6 +499,8 @@ const res = computed(() => {
 const consulta = computed(() => {
   const a = ajustes.value
   const q: Record<string, string> = {}
+  // la geometría del terreno viaja al informe (forma/radio/poly), con los nombres del contrato
+  Object.assign(q, consultaParcela(ruta.parcela))
   for (const [k, v] of Object.entries(route.query)) if (typeof v === 'string' && !['rec', 'intro', 'auto', 'calidad', 'vertical'].includes(k)) q[k] = v
   Object.assign(q, {
     lat: lugar.lat.toFixed(5), lon: lugar.lon.toFixed(5), cultivo: a.cultivo, area: String(a.area_valor), unidad: a.area_unidad,
@@ -355,6 +510,9 @@ const consulta = computed(() => {
   if (lugar.pais) q.pais = lugar.pais
   if (lugar.id) q.m = lugar.id
   if (ruta.idioma || lang.value === 'en') q.idioma = lang.value
+  if (siembraElegida.value) q.siembra = siembraElegida.value
+  if (rangoISO.value) { q.desde = rangoISO.value[0]; q.hasta = rangoISO.value[1] }
+  if (ruta.parcelaId) q.parcela = ruta.parcelaId
   return q
 })
 const informe = computed(() => router.resolve({ path: '/informe', query: consulta.value }).href)
@@ -450,6 +608,7 @@ onMounted(async () => {
   window.addEventListener('resize', onResize)
   raf = requestAnimationFrame(tick)
   await resolverSitio()
+  setTimeout(() => (topeCarga.value = true), 20000)
   // plan del lugar (calendario, estrategia recomendada); con el motor global sirve para cualquier coordenada
   const p = store.plan
   if (!p || p.municipio.id !== lugar.id || !lugar.id) {
@@ -500,6 +659,7 @@ onBeforeUnmount(() => roPie?.disconnect())
       v-if="mapaVivo && hayLugar && sitioListo" ref="vuelo" class="capa-mapa"
       :style="{ filter: `blur(${mapaFx * 7}px) saturate(${1 - mapaFx * 0.45}) brightness(${1 - mapaFx * 0.35})`, opacity: 1 - mapaFx * 0.15, transform: alineable ? 'none' : `scale(${1 + mapaFx * 0.35})` }"
       :lon="lugar.lon" :lat="lugar.lat" :municipio-id="lugar.id" :riesgo="lugar.riesgo" :lado="lado" :duracion="duracion" :rumbo="rumbo"
+      :parcela="ruta.parcela" :area-m2="area_m2" :espera="esperaEscena" @carga="cargaMapa = $event" @despegue="despego = true"
       :manual="rec" @preparado="vueloListo = true"
       @progreso="progreso = $event" @final="alFinal" @error="sinWebgl = true; mapaVivo = false; fase = 'sandbox'; subida = 1; escenaVisible = true; preset = 'iso'; presetSeq++; empezarGuia()"
     />
@@ -509,9 +669,10 @@ onBeforeUnmount(() => roPie?.disconnect())
       <div class="panel-escena">
         <Escena
           ref="escena1" :auto-render="!rec"
-          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tl" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" :estrategia="ajustes.comparar ? 'S0' : ajustes.estrategia" :bioma="lugar.bioma"
+          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tl" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" :estrategia="ajustes.comparar ? 'S0' : ajustes.estrategia" :bioma="lugar.bioma" :parcela="ruta.parcela"
           :dia="diaEntero" :fraccion="fraccion" :preset="preset" :seq="presetSeq" :duracion="durCam" :mapa="camMapa" :subida="subida" :calidad="calidad"
-          @listo="alListo"
+          :siembra="siembraEscena" :filtro="filtro" :rango="rangoISO"
+          @listo="alListo" @etapa="alEtapa" @agua="alAgua" @filtro="leyendaEscena = $event"
         />
         <div v-if="ajustes.comparar && fase === 'sandbox' && estado" class="vidrio hud-mitad">
           <Hud :estado="estado" :fecha="fecha" :fuente="fuente" :estacion="estacion" :origen="origen" :titulo="estrNombre('S0')" compacto />
@@ -519,8 +680,9 @@ onBeforeUnmount(() => roPie?.disconnect())
       </div>
       <div v-if="ajustes.comparar && tlB" class="panel-escena">
         <Escena
-          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tlB" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" estrategia="S2" :bioma="lugar.bioma"
+          :lon="lugar.lon" :lat="lugar.lat" :lado="lado" :tl="tlB" :cultivo="ajustes.cultivo" :area_m2="area_m2" :area_valor="ajustes.area_valor" :area_unidad="ajustes.area_unidad" :escala="escala" :idioma="lang" estrategia="S2" :bioma="lugar.bioma" :parcela="ruta.parcela"
           :dia="diaEntero" :fraccion="fraccion" :preset="preset === 'llegada' ? 'iso' : preset" :seq="presetSeq" :duracion="0" :subida="1" :calidad="'baja'"
+          :siembra="siembraEscena" :filtro="filtro" :rango="rangoISO"
         />
         <div v-if="fase === 'sandbox' && estadoB" class="vidrio hud-mitad b">
           <Hud :estado="estadoB" :fecha="fecha" :fuente="fuente" :estacion="estacion" :origen="origen" :titulo="estrNombre('S2')" compacto />
@@ -539,7 +701,11 @@ onBeforeUnmount(() => roPie?.disconnect())
         <p class="cap-s">{{ captura.s }}</p>
       </div>
     </Transition>
-    <div v-if="fase === 'vuelo'" class="progreso" aria-hidden="true"><b :style="{ width: progreso * 100 + '%' }" /></div>
+    <Carga
+      :oculta="!cargaVisible && !avisoAgua" :lugar="lugar.nombre || t('titulo')" :region="region" :terreno="terreno" :etapas="etapas"
+      :agua="avisoAgua" :movil="movil" @elegir="elegirOtro" @seguir="seguirAgua = true"
+    />
+    <div v-if="fase === 'vuelo' && !cargaVisible" class="progreso" aria-hidden="true"><b :style="{ width: progreso * 100 + '%' }" /></div>
 
     <!-- barra superior -->
     <header class="top">
@@ -548,6 +714,12 @@ onBeforeUnmount(() => roPie?.disconnect())
       <div class="der">
         <BotonSonido v-if="audio" :audio="audio" :idioma="lang === 'en' ? 'en' : 'es'" class="chip sonido" />
         <button class="chip idioma" type="button" :aria-label="lang === 'es' ? 'English' : 'Español'" @click="setLang(lang === 'es' ? 'en' : 'es')">{{ lang === 'es' ? 'EN' : 'ES' }}</button>
+        <button v-if="fase === 'sandbox' && tl" class="chip capas" :class="{ on: capasAbierto || !!filtro }" type="button" :aria-expanded="capasAbierto" aria-controls="menu-capas" @click="capasAbierto = !capasAbierto; chatAbierto = false">
+          <Layers :size="16" /><span>{{ t('capas') }}</span>
+        </button>
+        <button v-if="fase === 'sandbox' && tl && !rec" class="chip chat" :class="{ on: chatAbierto }" type="button" :aria-expanded="chatAbierto" aria-controls="panel-chat" @click="chatAbierto = !chatAbierto; capasAbierto = false">
+          <MessageCircle :size="16" /><span>{{ t('chat') }}</span>
+        </button>
         <button v-if="fase === 'sandbox' && tl" class="chip ajustar" :class="{ on: ajustarAbierto }" type="button" :aria-expanded="ajustarAbierto" aria-controls="panel-ajustar" @click="ajustarAbierto = !ajustarAbierto">
           <SlidersHorizontal :size="16" /><span>{{ t('ajustar') }}</span>
         </button>
@@ -559,14 +731,31 @@ onBeforeUnmount(() => roPie?.disconnect())
 
     <!-- 3 · la guía -->
     <Ajustar v-if="fase === 'sandbox' && tl" v-model="ajustes" :abierto="ajustarAbierto" :cargando="cargando" :movil="movil" :recomendada="recomendada" :origen="origen" :aviso="avisoPronostico" @cerrar="ajustarAbierto = false">
+      <template #arriba><Siembra v-if="sie" :info="sie" :idioma="lang" :canicula="canicula" @elegir="elegirSiembra" /></template>
       <BotonExportar v-if="BotonExportar && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" class="exp" />
     </Ajustar>
+    <Capas v-if="fase === 'sandbox' && tl" :filtro="filtro" :abierto="capasAbierto" :idioma="lang" :de-escena="leyendaEscena" :movil="movil" @elegir="elegirFiltro" @cerrar="capasAbierto = false" />
+    <Transition name="sube-chat">
+      <aside v-if="chatAbierto && fase === 'sandbox'" id="panel-chat" class="panel-chat" role="dialog" :aria-label="t('chat')">
+        <header><MessageCircle :size="15" /><b>{{ t('chat') }}</b><button type="button" class="x" :aria-label="t('cerrar')" @click="chatAbierto = false"><X :size="16" /></button></header>
+        <component :is="ChatFS" :parcela-id="ruta.parcelaId" :contexto="contextoChat" :flotante="false" class="chat-cuerpo" @accion="alAccion" />
+      </aside>
+    </Transition>
+    <!-- franjas discretas bajo la barra superior: rango del chat/ruta, fecha no recomendada, ejemplo sin red -->
+    <div v-if="fase === 'sandbox' && tl" class="franjas">
+      <p v-if="rangoTxt" class="franja rango"><span>{{ rangoTxt }}</span><button type="button" @click="rangoFechas = null">{{ t('rangoQuitar') }}</button></p>
+      <p v-if="franja" class="franja sug"><Sprout :size="14" aria-hidden="true" /><span>{{ franja }}</span>
+        <button type="button" @click="sie && elegirSiembra(sie.recomendada)">{{ t('probarFecha') }}</button>
+        <button type="button" class="x" :aria-label="t('cerrar')" @click="franjaCerrada = true"><X :size="14" /></button></p>
+      <p v-if="origen === 'ejemplo' && motivoEj" class="franja ej"><span>{{ motivoEj === 'sin-red' ? t('motorSinRed') : t('honestoEj') }}</span>
+        <button type="button" :disabled="cargando" @click="recalcular"><RefreshCw :size="13" />{{ t('motorReintentar') }}</button></p>
+    </div>
     <Subtitulos v-if="audio && fase === 'sandbox'" :audio="audio" class="subtitulos" :style="{ bottom: pieAlto + 22 + 'px' }" />
     <Transition name="sube">
       <footer v-if="fase === 'sandbox' && tl && insignia" ref="pie" class="vidrio abajo-ui">
         <Guia
           :tl="tl" :bandas="bandas" :dia="dia" :fecha="fecha" :jugando="jugando" :ritmo="ritmo" :fin="finVisible || dia >= rango[1] - 0.5"
-          :linea="linea" :insignia="insignia" :compacto="movil" :textos-motor="origen !== 'ejemplo'"
+          :linea="linea" :insignia="insignia" :compacto="movil" :textos-motor="origen !== 'ejemplo'" :siembra="siembraTxt" :rango="rangoFechas ? rango : null"
           @ir="ir" @evento="alEvento" @play="toggle" @ritmo="cambiarRitmo"
         />
       </footer>
@@ -579,7 +768,9 @@ onBeforeUnmount(() => roPie?.disconnect())
         <BotonExportar v-if="BotonExportar && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" />
       </Final>
     </Transition>
-    <div v-if="fase === 'sandbox' && !tl" class="cargando">{{ t('cargando') }}</div>
+    <div v-if="fase === 'sandbox' && !tl" class="cargando" role="status">
+      <div class="vidrio espera"><i class="pulso" aria-hidden="true" /><p><b>{{ t('motorEspera') }}</b><span>{{ t('motorEsperaS') }}</span></p></div>
+    </div>
   </div>
 </template>
 
@@ -645,7 +836,33 @@ onBeforeUnmount(() => roPie?.disconnect())
 .ajustar :deep(.exp), :deep(.exp) .fsx-btn { width: 100%; }
 :deep(.exp .fsx-btn) { justify-content: center; background: rgba(255,250,240,.08); color: #f4ebdb; border-color: rgba(255,250,240,.25); }
 :deep(.exp .fsx-panel) { top: auto; bottom: calc(100% + 8px); right: 0; }
-.cargando { position: absolute; inset: 0; display: grid; place-items: center; z-index: 9; font-weight: 700; }
+.cargando { position: absolute; inset: 0; display: grid; place-items: center; z-index: 9; pointer-events: none; }
+.espera { display: flex; gap: 14px; align-items: center; max-width: min(420px, calc(100% - 32px)); padding: 16px 20px; }
+.espera p { display: grid; gap: 3px; }
+.espera b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; }
+.espera span { font-size: .82rem; color: #e6d8bf; }
+.pulso { flex: none; width: 14px; height: 14px; border-radius: 50%; background: #ffe7a8; box-shadow: 0 0 0 0 rgba(255,231,168,.6); animation: pulso 1.6s infinite; }
+@keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(255,231,168,.55) } 70% { box-shadow: 0 0 0 14px rgba(255,231,168,0) } 100% { box-shadow: 0 0 0 0 rgba(255,231,168,0) } }
+.chip.capas.on, .chip.chat.on { background: #f4ebdb; color: #2a2118; }
+.franjas { position: absolute; z-index: 9; top: 66px; left: 50%; transform: translateX(-50%); width: min(720px, calc(100% - 420px)); display: grid; gap: 6px; justify-items: center; pointer-events: none; }
+.franja { pointer-events: auto; display: flex; align-items: center; gap: 8px; max-width: 100%; font-size: .8rem; line-height: 1.3; padding: 6px 8px 6px 12px; border-radius: 999px;
+  background: rgba(22,17,12,.66); border: 1px solid rgba(255,250,240,.16); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); color: #f4ebdb; }
+.franja svg { flex: none; color: #9fdc7c; }
+.franja span { min-width: 0; }
+.franja button { flex: none; display: inline-flex; gap: 5px; align-items: center; border: 1px solid rgba(255,231,168,.7); background: rgba(255,231,168,.12); color: #ffe7a8; border-radius: 999px; padding: 4px 10px; font: inherit; font-size: .74rem; font-weight: 700; cursor: pointer; }
+.franja button.x { border: 0; background: rgba(255,250,240,.1); color: #f4ebdb; width: 24px; height: 24px; padding: 0; justify-content: center; }
+.franja button:focus-visible { outline: 3px solid #e0a526; outline-offset: 2px; }
+.franja.sug { border-color: rgba(224,165,38,.5); }
+.franja.ej { border-style: dashed; }
+.panel-chat { position: absolute; z-index: 12; right: 16px; bottom: calc(var(--pie-h, 130px) + 26px); width: min(360px, calc(100% - 32px)); height: min(380px, calc(100% - var(--pie-h, 130px) - 110px));
+  display: grid; grid-template-rows: auto 1fr; gap: 8px; padding: 12px 14px; border-radius: 18px; background: rgba(22,17,12,.82); border: 1px solid rgba(255,250,240,.16);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 22px 60px rgba(0,0,0,.45); color: #f4ebdb; }
+.panel-chat header { display: flex; align-items: center; gap: 7px; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: #ffe7a8; }
+.panel-chat .x { margin-left: auto; border: 0; background: rgba(255,250,240,.1); color: inherit; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
+.chat-cuerpo { min-height: 0; }
+.sube-chat-enter-active, .sube-chat-leave-active { transition: opacity .2s ease, transform .25s var(--ease); }
+.sube-chat-enter-from, .sube-chat-leave-to { opacity: 0; transform: translateY(10px); }
+.rec .franjas, .rec .capas, .rec .chat { display: none !important; }
 .aviso-webgl { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); z-index: 9; background: rgba(20,16,12,.85); padding: 14px 18px; border-radius: 14px; max-width: 420px; text-align: center; }
 .sube-enter-active { transition: opacity .7s ease, transform .9s var(--ease); }
 .sube-enter-from { opacity: 0; transform: translate(-50%, 24px); }
@@ -663,6 +880,9 @@ onBeforeUnmount(() => roPie?.disconnect())
 .movil .captura { left: 6vw; right: 6vw; max-width: none; bottom: calc(7vh + 30px); }
 .movil.comparar .escenas { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
 .movil.comparar .panel-escena + .panel-escena { border-left: 0; border-top: 2px solid rgba(255,231,168,.6); }
+.movil .franjas { top: 56px; width: calc(100% - 16px); }
+.movil .franja { border-radius: 14px; font-size: .74rem; flex-wrap: wrap; }
+.movil .panel-chat { right: 8px; left: 8px; width: auto; bottom: calc(var(--pie-h, 130px) + 14px); height: min(360px, 55vh); }
 .movil .hud-mitad { top: 52px; width: calc(100% - 20px); padding: 6px 10px; }
 .movil .panel-escena + .panel-escena .hud-mitad { top: 8px; }
 .movil .final.sube-enter-from { transform: translate(-50%, 24px); }
