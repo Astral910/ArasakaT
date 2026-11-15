@@ -27,6 +27,7 @@ type Herramientas struct {
 	Planner   contract.Planner
 	Simulador Simulador
 	Campo     Campo            // parcelas, "hoy" y reportes (internal/campo + internal/cuentas); nil = estimado propio
+	Clima     Clima            // lluvia_fecha: historia NASA POWER y pronóstico de 16 días (ClimaMotor)
 	Ahora     func() time.Time // reloj (tests)
 
 	mu       sync.Mutex
@@ -94,6 +95,10 @@ func Definiciones() []Definicion {
 		{"mostrar_filtro", "Muestra una capa sobre el terreno en el simulador 3D.", obj(map[string]any{
 			"filtro": map[string]any{"type": "string", "enum": []string{"temperatura", "humedad", "estres", "erosion", "verdor", "ninguno"}},
 		}, "filtro")},
+		{"lluvia_fecha", "¿Llueve en esa fecha? Si cae dentro de los próximos 16 días: probabilidad y mm del pronóstico (Open-Meteo). Si no: frecuencia histórica de días con lluvia ≥ 1 mm en esa fecha ±3 días en 2001–2025 (NASA POWER), ajustada al escenario ENSO de la temporada. Devuelve sí/no, probabilidad, mm típicos, fuente y qué hacer.", obj(map[string]any{
+			"fecha": pstr("AAAA-MM-DD (si no dicen el año: la próxima vez que llega esa fecha)"), "parcela": parcela,
+			"lat": pnum("latitud (opcional; vacío = terreno o lugar del contexto)"), "lon": pnum("longitud (opcional)"),
+		}, "fecha")},
 		{"mis_parcelas", "Terrenos guardados de la cuenta (id, nombre, cultivo, área, siembra).", obj(map[string]any{})},
 	}
 }
@@ -114,6 +119,8 @@ func (h *Herramientas) Ejecutar(ctx context.Context, t *Turno, nombre string, ar
 		return h.riegoHoy(ctx, t, parcelaDe(t, args))
 	case "registrar_reporte":
 		return h.registrar(ctx, t, args)
+	case "lluvia_fecha":
+		return h.lluviaFecha(ctx, t, args)
 	case "plagas":
 		return h.plagas(ctx, t, parcelaDe(t, args), str(args, "texto"))
 	case "abrir_simulacion":
@@ -141,6 +148,7 @@ func (h *Herramientas) Ejecutar(ctx context.Context, t *Turno, nombre string, ar
 			return nil, errors.New("fecha en AAAA-MM-DD")
 		}
 		t.Accion(Accion{Tipo: "cambiar_siembra", Params: map[string]any{"fecha": f}})
+		t.Recordar(h.ahora().Format("2006-01-02"), "cambió la siembra al "+f)
 		return map[string]any{"ok": true, "fecha": f}, nil
 	case "mostrar_filtro":
 		f := strings.ToLower(str(args, "filtro"))
@@ -582,6 +590,14 @@ func (h *Herramientas) registrar(ctx context.Context, t *Turno, args map[string]
 		params["parcelaId"] = parcela
 	}
 	t.Accion(Accion{Tipo: "registrar_reporte", Params: params})
+	hecho := "reporte " + r.Tipo
+	if r.Valor > 0 {
+		hecho += " " + strconv.FormatFloat(r.Valor, 'f', -1, 64) + " " + map[bool]string{true: "mm", false: r.Unidad}[r.Unidad == ""]
+	}
+	if r.Texto != "" {
+		hecho += ": " + r.Texto
+	}
+	t.Recordar(r.Fecha, hecho)
 	out := map[string]any{"registrado": true, "reporte": r}
 	if parcela != "" && h.Campo != nil {
 		hoyNuevo, err := h.Campo.Reportar(ctx, t.Usuario, parcela, r)

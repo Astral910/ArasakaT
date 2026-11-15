@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -108,12 +109,17 @@ func claudeFalso(args []string) int {
 		texto = "Riego: " + llamar("riego_hoy", nil)
 	case strings.Contains(msg, "julio"):
 		texto = "Abrí: " + llamar("abrir_simulacion", map[string]any{"desde": "2026-07-01", "hasta": "2026-08-01"})
+	case strings.Contains(msg, "llover"):
+		texto = "Lluvia: " + llamar("lluvia_fecha", map[string]any{"fecha": "2026-10-20"})
 	case strings.Contains(msg, "llovió"):
 		texto = "Reporte: " + llamar("registrar_reporte", map[string]any{"tipo": "lluvia", "texto": "llovió mucho"})
 	}
 	sid := resume
 	if sid == "" {
 		sid = "ses-nueva"
+		if m := regexp.MustCompile(`· parcela (\S+)`).FindStringSubmatch(msg); m != nil {
+			sid += "-" + m[1]
+		}
 	}
 	out, _ := json.Marshal(map[string]any{"type": "result", "subtype": "success", "is_error": false, "session_id": sid,
 		"result": texto + "\nFuentes: FAO-56 https://www.fao.org/3/x0490s/x0490s00.htm | Motor Field Shift"})
@@ -172,6 +178,10 @@ func hoyFijo() time.Time { return time.Date(2026, 7, 15, 9, 0, 0, 0, time.UTC) }
 
 // servidor: el servicio con claude falso y el puente MCP de verdad, en un puerto local.
 func servidor(t *testing.T, timeout time.Duration) (*Servicio, string, string) {
+	return servidorCon(t, timeout, &Herramientas{Simulador: simFalso{}, Ahora: hoyFijo})
+}
+
+func servidorCon(t *testing.T, timeout time.Duration, h *Herramientas) (*Servicio, string, string) {
 	t.Helper()
 	self, _ := os.Executable()
 	args := filepath.Join(t.TempDir(), "args.json")
@@ -182,14 +192,13 @@ func servidor(t *testing.T, timeout time.Duration) (*Servicio, string, string) {
 		t.Fatal(err)
 	}
 	api := "http://" + ln.Addr().String()
-	h := &Herramientas{Simulador: simFalso{}, Ahora: hoyFijo}
 	m := &ClaudeCLI{Bin: self, Modelo: "sonnet", MCPBin: construirMCP(t), API: api, Dir: t.TempDir()}
 	s := Nuevo(Config{Timeout: timeout, Dir: t.TempDir()}, m, h)
 	mux := http.NewServeMux()
 	Routes(mux, s)
 	srv := &http.Server{Handler: mux}
 	go srv.Serve(ln)
-	t.Cleanup(func() { srv.Close() })
+	t.Cleanup(func() { srv.Close(); s.mem.Cerrar() })
 	return s, api, args
 }
 

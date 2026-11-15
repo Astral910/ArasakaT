@@ -13,12 +13,20 @@ func Sistema(idioma string) string {
 	s := `Sos "Field Shift", un asistente de extensión agrícola para pequeños productores (milpa, maíz, frijol, sorgo), sobre todo del Corredor Seco de Guatemala, pero también de cualquier lugar del mundo.
 
 Cómo respondés:
-- Idioma: el del usuario (español centroamericano con voseo, o inglés si escribe en inglés). Breve: máximo 70 palabras (sin contar la línea de Fuentes), 2 a 4 frases o viñetas cortas, palabras simples. Sin preguntas de cierre largas. Nada de relleno.
+- Idioma: el del usuario (español centroamericano con voseo, o inglés si escribe en inglés). Corto y sintético: máximo 4 líneas (unas 60 palabras) más la línea de Fuentes; palabras simples; el dato primero. Sin preguntas de cierre largas. Nada de relleno.
 - Honesto: si un número no sale de una herramienta o de una fuente que leíste, decí "estimado" o que no lo sabés. Nunca inventes cifras, plagas, productos ni dosis. Si una herramienta devuelve "estimado", decilo.
 - Apoyás, no reemplazás: para plaguicidas o decisiones caras recomendá confirmar con el extensionista del MAGA, ICTA o la cooperativa.
 - No recomiendes plaguicidas prohibidos ni dosis exactas de químicos; preferí manejo integrado (monitoreo, control cultural/biológico) y citá la fuente.
 
+Sos el asistente de UN terreno (abajo, "Tu terreno"): usá sus datos, su memoria y sus reportes; no mezcles con otros terrenos.
+
+Lluvia en una fecha ("¿va a llover el 20 de octubre?", "¿llueve mañana?", "will it rain on…"):
+- Llamá SIEMPRE lluvia_fecha. NUNCA respondas "no tengo pronóstico", "no puedo saberlo" ni mandes a otro servicio.
+- Respondé en este orden: sí/no + probabilidad en % (y mm típicos); de dónde sale (pronóstico de 16 días de Open-Meteo, o frecuencia histórica 2001–2025 de NASA POWER en años como esta temporada); qué hacer.
+- Si la fecha está a más de 16 días, aclará en pocas palabras que es la probabilidad del clima de esa fecha, no un pronóstico.
+
 Herramientas (úsalas en vez de adivinar):
+- lluvia_fecha(fecha, parcela|lat,lon): sí/no, probabilidad, mm y fuente de lluvia para cualquier fecha.
 - riego_hoy(parcela): cuánto regar hoy en mm y litros, mañana y avisos. Si dice "estimado" o "año típico", decilo: no es lluvia medida ni pronóstico.
 - registrar_reporte(parcela, tipo, valor, texto): cuando el agricultor cuenta algo que pasó (llovió, regó, plaga, enfermedad, sembró, cosechó). Registralo SIEMPRE y respondé con el riego nuevo de hoy y qué hacer.
 - plagas(parcela): plagas y enfermedades a vigilar con fuente.
@@ -36,6 +44,99 @@ Formato:
 		s += "\n\nThe user prefers English: answer in English and end with a line \"Sources: …\"."
 	}
 	return s
+}
+
+// Ficha: los datos del terreno (o del lugar actual, sin terreno) y su memoria, para el prompt de sistema.
+func Ficha(t *Turno, hechos []Hecho, hoy time.Time) string {
+	var b strings.Builder
+	c := t.Pedido.Contexto
+	linea := func(k string, v any) {
+		if s := strings.TrimSpace(fmt.Sprint(v)); s != "" && s != "0" && s != "<nil>" {
+			fmt.Fprintf(&b, "- %s: %s\n", k, s)
+		}
+	}
+	if t.Pedido.ParcelaID != "" && strings.HasPrefix(t.Clave, "parcela:") {
+		b.WriteString("Tu terreno (sos su asistente; hoy " + hoy.Format("2006-01-02") + "):\n")
+		linea("id", t.Pedido.ParcelaID)
+		h := t.Hoy
+		pa, _ := h["parcela"].(map[string]any)
+		linea("nombre", t.nombre)
+		if pa != nil {
+			if la, ok1 := num(pa, "lat"); ok1 {
+				lo, _ := num(pa, "lon")
+				linea("lugar (lat,lon)", fmt.Sprintf("%.4f,%.4f", la, lo))
+			}
+			linea("cultivo", str(pa, "cultivo"))
+			if a, ok := num(pa, "area_m2"); ok && a > 0 {
+				linea("área", fmt.Sprintf("%.0f m² (%.2f manzanas)", a, a/6987))
+			}
+			linea("riego", str(pa, "riego"))
+		} else {
+			linea("lugar", c.Lugar)
+			linea("cultivo", c.Cultivo)
+			if c.AreaM2 > 0 {
+				linea("área", fmt.Sprintf("%.0f m²", c.AreaM2))
+			}
+		}
+		if h != nil {
+			linea("siembra", strings.TrimSpace(str(h, "siembra")+" "+paren(str(h, "siembra_fuente"))))
+			linea("estado hoy", strings.TrimSpace(str(h, "estado")+" · etapa "+str(h, "etapa")))
+			if d, ok := num(h, "dias_siembra"); ok {
+				linea("días desde la siembra", d)
+			}
+			linea("cosecha estimada", str(h, "cosecha"))
+			if a, ok := num(h, "agua_suelo_pct"); ok {
+				linea("agua del suelo", fmt.Sprintf("%.0f %%", a))
+			}
+			if r, ok := h["riego"].(map[string]any); ok {
+				if mm, ok := num(r, "mm"); ok {
+					linea("riego de hoy", fmt.Sprintf("%.1f mm (%s L)", mm, str(r, "litros")))
+				}
+			}
+			if av, ok := h["avisos"].([]any); ok {
+				for i, x := range av {
+					if m, ok := x.(map[string]any); ok && i < 3 {
+						linea("aviso", str(m, "texto"))
+					}
+				}
+			}
+			if rs, ok := h["reportes"].([]any); ok {
+				for i := max(0, len(rs)-5); i < len(rs); i++ {
+					if m, ok := rs[i].(map[string]any); ok {
+						linea("reporte "+str(m, "fecha"), strings.TrimSpace(str(m, "tipo")+" "+str(m, "valor")+" "+str(m, "texto")))
+					}
+				}
+			}
+		} else {
+			linea("siembra", c.Siembra)
+		}
+	} else {
+		b.WriteString("Sin terreno guardado: respondé para el lugar actual (hoy " + hoy.Format("2006-01-02") + "):\n")
+		linea("lugar", c.Lugar)
+		linea("municipio", c.MunicipioID)
+		if c.Lat != nil && c.Lon != nil {
+			linea("lat,lon", fmt.Sprintf("%.4f,%.4f", *c.Lat, *c.Lon))
+		}
+		linea("cultivo", c.Cultivo)
+		linea("siembra", c.Siembra)
+		if c.AreaM2 > 0 {
+			linea("área", fmt.Sprintf("%.0f m²", c.AreaM2))
+		}
+	}
+	if len(hechos) > 0 {
+		b.WriteString("Memoria de este terreno (lo que ya contó o se decidió):\n")
+		for _, x := range hechos {
+			fmt.Fprintf(&b, "- %s %s\n", x.Fecha, x.Texto)
+		}
+	}
+	return strings.TrimSpace(b.String())
+}
+
+func paren(s string) string {
+	if s == "" {
+		return ""
+	}
+	return "(" + s + ")"
 }
 
 // MensajeConContexto: el mensaje del usuario con el contexto de la pantalla delante (una línea compacta).

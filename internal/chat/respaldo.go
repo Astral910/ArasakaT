@@ -54,6 +54,17 @@ func (s *Servicio) respaldo(ctx context.Context, t *Turno) Respuesta {
 		}
 	}
 	switch {
+	case rePreguntaLluvia.MatchString(m) && (FechaEnTexto(m, h.ahora()) != "" || strings.Contains(m, "?")):
+		f := FechaEnTexto(m, h.ahora())
+		if f == "" {
+			f = h.ahora().AddDate(0, 0, 1).Format("2006-01-02")
+		}
+		if v, err := h.Ejecutar(ctx, t, "lluvia_fecha", map[string]any{"fecha": f}); err == nil {
+			r, _ := v.(map[string]any)
+			partes = append(partes, textoLluvia(r, L))
+		} else {
+			partes = append(partes, tr("No pude calcular la lluvia de esa fecha: ", "I couldn't compute rain for that date: ")+err.Error())
+		}
 	case reLluvia.MatchString(m) && rePasado.MatchString(m):
 		args := map[string]any{"tipo": "lluvia", "texto": m}
 		if x := reMM.FindStringSubmatch(m); x != nil {

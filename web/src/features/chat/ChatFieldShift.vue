@@ -1,16 +1,19 @@
 <script setup lang="ts">
 // Asistente de Field Shift (ronda 5): flotante, ES/EN, con sugerencias, fuentes y acciones.
+// Ronda 6: un asistente por terreno (memoria en el servidor por parcelaId); el encabezado dice «Asistente de …».
 // POST /api/chat/asistente → {respuesta, fuentes, acciones}. Las acciones se emiten (`accion`) para que la
 // pantalla las ejecute (dashboard, simulador); si nadie escucha, el botón de la acción navega al /sandbox.
 import { computed, getCurrentInstance, nextTick, ref, watch } from 'vue'
 import { MessageCircle, X, ArrowUp, Play, CloudRain, Droplets, Bug, NotebookPen, Sprout, Layers, RotateCcw, ExternalLink } from 'lucide-vue-next'
 import { lang } from '@/i18n'
-import { conversacionId, dominio, fechaCorta, preguntar } from './chatApi'
+import { conversacionId, dominio, fechaCorta, historial, preguntar } from './chatApi'
 import { filtros, textos, tiposReporte, type ClaveTexto } from './textos'
 import type { AccionChat, ContextoChat, MensajeUI } from './tipos'
 
 const props = withDefaults(defineProps<{
   parcelaId?: string
+  /** nombre del terreno para el encabezado (si no, el que devuelve el servidor o el lugar del contexto) */
+  terreno?: string
   contexto?: ContextoChat
   /** true: botón flotante abajo a la derecha que abre el panel; false: panel en línea (dentro de una tarjeta). */
   flotante?: boolean
@@ -34,20 +37,46 @@ function alternar(v = !abierto.value) {
   if (v) nextTick(() => entrada.value?.focus())
 }
 
-const CLAVE_MSG = 'fs-chat-msgs'
+// Mensajes en pantalla: uno por terreno (sin terreno, los del navegador).
+const claveMsg = () => 'fs-chat-msgs' + (props.parcelaId ? ':' + props.parcelaId : '')
 const conv = ref(conversacionId())
 const mensajes = ref<MensajeUI[]>(cargar())
+const nombreServidor = ref('')
+const nombre = computed(() => props.terreno || nombreServidor.value || props.contexto?.lugar || '')
 const texto = ref('')
 const esperando = ref(false)
 const lista = ref<HTMLElement | null>(null)
 const entrada = ref<HTMLTextAreaElement | null>(null)
 
 function cargar(): MensajeUI[] {
-  try { return JSON.parse(sessionStorage.getItem(CLAVE_MSG) || '[]') as MensajeUI[] } catch { return [] }
+  try { return JSON.parse(sessionStorage.getItem(claveMsg()) || '[]') as MensajeUI[] } catch { return [] }
 }
 watch(mensajes, (m) => {
-  try { sessionStorage.setItem(CLAVE_MSG, JSON.stringify(m.slice(-40))) } catch { /* sin storage */ }
+  try { sessionStorage.setItem(claveMsg(), JSON.stringify(m.slice(-40))) } catch { /* sin storage */ }
 }, { deep: true })
+
+// Al abrir el chat de un terreno: su conversación guardada (desde cualquier dispositivo).
+let cargado = ''
+async function cargarTerreno() {
+  const id = props.parcelaId
+  if (!id || !abierto.value || cargado === id) return
+  cargado = id
+  try {
+    const h = await historial(id)
+    if (props.parcelaId !== id) return
+    if (h.terreno) nombreServidor.value = h.terreno
+    if (h.mensajes?.length && !esperando.value) {
+      mensajes.value = h.mensajes.map((x) => ({ de: x.rol === 'usuario' ? 'yo' : 'asistente', texto: x.texto }) as MensajeUI)
+      bajar()
+    }
+  } catch { /* sin servidor: quedan los de la sesión */ }
+}
+watch(() => props.parcelaId, () => {
+  nombreServidor.value = ''
+  mensajes.value = cargar()
+  cargarTerreno()
+})
+watch(abierto, () => cargarTerreno(), { immediate: true })
 
 async function bajar(alInicioDeLaRespuesta = false) {
   await nextTick()
@@ -87,6 +116,7 @@ async function enviar(t = texto.value) {
       conversacion: conv.value,
       contexto: { idioma: L.value, fecha: hoyISO(), ...props.contexto },
     })
+    if (r.terreno) nombreServidor.value = r.terreno
     mensajes.value.push({ de: 'asistente', texto: r.respuesta, fuentes: r.fuentes, acciones: r.acciones, motor: r.motor })
     // La pantalla ejecuta las acciones al llegar (simulación, siembra, capa; el reporte avisa para refrescar).
     // Sin oyente, abrir la simulación queda en el botón (no se navega sin que la persona lo toque).
@@ -157,10 +187,11 @@ defineExpose({ enviar, abrir: () => alternar(true) })
         <header class="cab">
           <span class="marca" aria-hidden="true"><Sprout :size="18" /></span>
           <div class="cab-txt">
-            <strong>{{ tx('titulo') }} <span class="fs">Field Shift</span></strong>
+            <strong v-if="nombre" class="cab-nombre" :title="tx('tituloDe', { nombre })">{{ tx('tituloDe', { nombre }) }}</strong>
+            <strong v-else>{{ tx('titulo') }} <span class="fs">Field Shift</span></strong>
             <small>{{ tx('sub') }}</small>
           </div>
-          <button v-if="mensajes.length" class="icono" type="button" :title="tx('nuevo')" :aria-label="tx('nuevo')" @click="nueva"><RotateCcw :size="16" /></button>
+          <button v-if="mensajes.length && !parcelaId" class="icono" type="button" :title="tx('nuevo')" :aria-label="tx('nuevo')" @click="nueva"><RotateCcw :size="16" /></button>
           <button v-if="flotante" class="icono" type="button" :aria-label="tx('cerrar')" @click="alternar(false)"><X :size="18" /></button>
         </header>
 
@@ -225,6 +256,7 @@ defineExpose({ enviar, abrir: () => alternar(true) })
 .cab-txt { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.25; }
 .cab-txt strong { font-family: var(--font-display); font-weight: 600; font-size: 1.02rem; }
 .cab-txt .fs { color: var(--tierra); font-weight: 600; }
+.cab-txt .cab-nombre { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cab-txt small { color: var(--ink-3); font-size: 0.74rem; }
 .icono { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-2); cursor: pointer; }
 .icono:hover { background: var(--line); }
