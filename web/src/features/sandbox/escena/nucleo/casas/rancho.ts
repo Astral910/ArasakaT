@@ -3,6 +3,7 @@
 // casas de la familia y vecinos, anexos, animales con poses y caminos de tierra que unen todo. Nada en el agua,
 // nada en pendiente imposible, todo apoyado en el terreno (cimientos y postes enterrados). Ilustrativo.
 import * as THREE from 'three'
+import { crearCaminos } from '../suelo/caminos'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { Bioma } from '../biomas'
 import type { Parcela } from '../maqueta'
@@ -509,6 +510,10 @@ export function crearRancho(o: OpcionesRancho, tipoGranja?: TipoGranja): Rancho 
   for (const v of vecinas) if (Math.hypot(v.cx - hxP, v.cz - hzP) < 70) desdePatio([v.cx, v.cz + v.hz])
   for (const pt of potreros) desdePatio([pt.x, pt.z])
   caminos.push(curva(hub, [hxP + (hxP > 0 ? 1 : -1) * 20, -L / 2]))
+  // terreno5: los caminos de tierra van en 3D (roderas, huellas, polvo/lodo); antes solo se pintaban en la foto
+  const vered = crearCaminos(caminos.map((c, i) => ({ linea: c, ancho: i === 0 || i === caminos.length - 1 ? 2.8 : 1.5 })), o.alturaEn, U,
+    (x, z) => !!o.esAgua?.(x, z) || (parcela.dist ? parcela.dist(x, z) < 1 : Math.abs(x - cx) < hx + 1 && Math.abs(z - cz) < hz + 1))
+  if (vered) { grupo.add(vered.malla); extras.push(vered) }
 
   const cercaDeCamino = (x: number, z: number, d: number) => {
     for (const cam of caminos) for (const [px, pz] of cam) if (Math.hypot(x - px, z - pz) < d) return true

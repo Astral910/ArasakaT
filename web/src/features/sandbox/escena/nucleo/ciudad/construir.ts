@@ -377,7 +377,7 @@ export class ConstructorCiudad {
 }
 
 // ---------------------------------------------------------------- calles
-export interface CalleLocal { linea: P2[]; ancho: number; tipo: 0 | 1 | 3; marcas: 0 | 1 | 2; banqueta: boolean; puente: boolean; orden: number }
+export interface CalleLocal { linea: P2[]; ancho: number; tipo: 0 | 1 | 3 | 5; marcas: 0 | 1 | 2; banqueta: boolean; puente: boolean; orden: number }
 
 /** Cinta que sigue el relieve. `alturaEn` del terreno; `lado` −1..1 por vértice transversal. */
 export function construirCalles(calles: CalleLocal[], alturaEn: (x: number, z: number) => number) {
@@ -408,7 +408,7 @@ export function construirCalles(calles: CalleLocal[], alturaEn: (x: number, z: n
     }
     const h = c.ancho / 2
     const elev = 0.07 + c.orden * 0.012
-    const cruces = c.tipo === 1 ? [-1, -0.5, 0, 0.5, 1] : [-1, -0.5, 0, 0.5, 1]
+    const cruces = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]
     const fila = (i: number) => cruces.map((u) => {
       const off = u * h
       return [pts[i][0] + nor[i][0] * off, yBase(i, off) + elev, pts[i][1] + nor[i][1] * off] as V3
@@ -417,7 +417,7 @@ export function construirCalles(calles: CalleLocal[], alturaEn: (x: number, z: n
     for (let i = 1; i < n; i++) {
       const act = fila(i)
       for (let k = 0; k < cruces.length - 1; k++) {
-        const e = (u: number, vv: number) => [u, vv, c.tipo, c.marcas]
+        const e = (u: number, vv: number) => [u, vv, c.tipo, c.marcas + 4 * Math.max(2, Math.round(c.ancho))]
         lote.quad(prev[k], prev[k + 1], act[k + 1], act[k], col,
           { aCalle: [e(cruces[k], dist[i - 1]), e(cruces[k + 1], dist[i - 1]), e(cruces[k + 1], dist[i]), e(cruces[k], dist[i])] }, [0, 1, 0])
       }

@@ -4,7 +4,8 @@ import * as THREE from 'three'
 import { decodificarPNG } from '../../dem'
 import { crearUniformsGlobales } from '../../glsl'
 import { crearUniformsSuelo } from '../../maqueta'
-import { aES, aLocalES, analizarColor, calcularSuelo, pesos, type EntradaCalculo } from '../calculo'
+import { aES, aLocalES, analizarColor, calcularSuelo, pesos, repartoUrbano, type EntradaCalculo } from '../calculo'
+import { geometriaCaminos } from '../caminos'
 import { C, MAT, codigoWorldCover } from '../clases'
 import { aMetros, mercator, type Precarga } from '../fuentes'
 import { crearSuelo } from '../index'
@@ -137,6 +138,48 @@ describe('suelo · agua y lecho', () => {
     expect(s.agua[(e.R / 2) * e.R + 3]).toBeGreaterThan(200)
     expect(s.clase[(e.R / 2) * e.R + e.R - 5]).toBe(C.arbol)
     expect(s.pesosMedios[MAT.bosque]).toBeGreaterThan(0.3)
+  })
+})
+
+describe('suelo · ciudad y patios (terreno5)', () => {
+  it('reparte el suelo urbano por la foto: verde → grama, gris claro → concreto, pardo → tierra apisonada', () => {
+    const o = new Float32Array(4)
+    repartoUrbano(analizarColor(70, 120, 50), 0, 0, o)
+    expect(o[0]).toBeGreaterThan(0.7)
+    repartoUrbano(analizarColor(175, 172, 168), 0, 0, o)
+    expect(o[3]).toBeGreaterThan(0.6)
+    repartoUrbano(analizarColor(150, 115, 80), 0, 0, o)
+    expect(o[1] + o[2]).toBeGreaterThan(0.7)
+    expect(o[0] + o[1] + o[2] + o[3]).toBeCloseTo(1, 5)
+  })
+  it('la mancha "urbano" ya no es asfalto plano: sale grama/patio en splatC; la grama de OSM manda', () => {
+    const e = base()
+    const W = 20
+    e.cob = { W, H: W, ids: new Uint8Array(W * W).fill(C.urbano) }
+    const sat = new Uint8ClampedArray(e.R * e.R * 4)
+    for (let k = 0; k < e.R * e.R; k++) { sat[k * 4] = 150; sat[k * 4 + 1] = 118; sat[k * 4 + 2] = 84; sat[k * 4 + 3] = 255 } // tierra parda
+    e.sat = sat
+    // parque de OSM en el cuadrante noroeste (E,S en metros: x = E, z = S con phi 0)
+    const parque = new Float32Array([-90, -90, -10, -90, -10, -10, -90, -10])
+    e.usos = [{ anillos: [parque], tipo: 1 }]
+    const s = calcularSuelo(e)
+    expect(s.pesosMedios[MAT.urbano]).toBeLessThan(0.1)
+    const k = (px: number, pz: number) => (Math.floor((pz / e.L + 0.5) * e.R) * e.R + Math.floor((px / e.L + 0.5) * e.R)) * 4
+    const enParque = k(-50, -50), fuera = k(50, 50)
+    expect(s.splatC[enParque]).toBeGreaterThan(180)              // grama
+    expect(s.splatC[fuera + 1] + s.splatC[fuera + 2]).toBeGreaterThan(150) // apisonado + grava
+    expect(s.splatC[fuera]).toBeLessThan(80)
+  })
+  it('caminos de tierra: cinta que sigue el relieve, mira hacia arriba y se corta en la parcela', () => {
+    const linea: Array<[number, number]> = []
+    for (let i = 0; i <= 20; i++) linea.push([i * 2 - 20, 0])
+    const g = geometriaCaminos([{ linea, ancho: 2.8 }], (x) => x * 0.1, (x) => x > 10)!
+    const pos = g.attributes.position as THREE.BufferAttribute
+    expect(pos.count).toBe(16 * 7) // puntos con x ≤ 10 (16) × 7 cruces
+    for (let k = 0; k < pos.count; k++) expect(pos.getY(k)).toBeCloseTo(pos.getX(k) * 0.1 + 0.05, 2)
+    const n = g.attributes.normal as THREE.BufferAttribute
+    expect(n.getY(10)).toBeGreaterThan(0.9)
+    expect((g.attributes.aCam as THREE.BufferAttribute).getZ(0)).toBeCloseTo(2.8, 4)
   })
 })
 

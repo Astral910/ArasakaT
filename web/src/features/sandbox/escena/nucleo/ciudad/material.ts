@@ -234,51 +234,170 @@ export function materialTechos(U: U | undefined, sat: THREE.Texture | null, L: n
 }
 
 /** Calles. aCalle = (u a lo ancho −1..1, v a lo largo m, tipo 0 asfalto/1 terracería/2 banqueta/3 peatonal/4 bordillo, marcas). */
+/**
+ * Calles. aCalle = (u −1..1 a lo ancho, v m a lo largo, tipo, marcas + 4·ancho m).
+ * tipo 0 asfalto (grietas, parches, tapaderas, tragantes junto al bordillo, charcos), 1 terracería (roderas, piedras,
+ * huellas, charcos y lodo con lluvia, polvo con sequía), 2 banqueta (losas con juntas), 3 peatonal (adoquín),
+ * 4 cara del bordillo, 5 empedrado. Relieve en las normales (derivadas de pantalla).
+ */
 export function materialCalles(U?: U) {
-  return base(U, 'calles', (sh) => {
+  return base(U, 'calles2', (sh) => {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aCalle; varying vec4 vCalle;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCalle = aCalle;')
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec4 vCalle;\nfloat mojado;')
+      .replace('#include <common>', '#include <common>\nvarying vec4 vCalle;')
+      .replace('void main() {', `float mojado; float gH; float gCharco;
+      // celdas: (F1, F2−F1, id)
+      vec3 celC(vec2 p){
+        vec2 n = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0; vec2 id = vec2(0.0);
+        for (int j=-1;j<=1;j++) for (int i=-1;i<=1;i++){
+          vec2 g = vec2(float(i),float(j)); vec2 r = g + h22(n+g) - f; float d = dot(r,r);
+          if (d < d1){ d2 = d1; d1 = d; id = n+g; } else if (d < d2) d2 = d;
+        }
+        return vec3(sqrt(d1), sqrt(d2)-sqrt(d1), h21(id));
+      }
+      void main() {`)
       .replace('#include <color_fragment>', `#include <color_fragment>
       {
-        float u = vCalle.x, v = vCalle.y, tipo = floor(vCalle.z + 0.5), marcas = floor(vCalle.w + 0.5);
+        float u = vCalle.x, v = vCalle.y, tipo = floor(vCalle.z + 0.5);
+        float anchoM = max(2.0, floor(vCalle.w/4.0 + 0.01));
+        float marcas = floor(vCalle.w - 4.0*floor(vCalle.w/4.0 + 0.01) + 0.5);
+        float hw = anchoM*0.5;
+        vec2 q = vec2(u*hw, v);               // m: a lo ancho, a lo largo
         vec2 p = vLocal.xz;
-        vec3 c;
+        float fw = max(fwidth(p.x), fwidth(p.y));
+        float af = 1.0 - smoothstep(0.03, 0.09, fw); // detalle fino solo cerca
+        vec3 c; gH = 0.0; gCharco = 0.0;
         mojado = uWet;
+        vec3 cielo = vec3(0.55,0.64,0.74);
         if (tipo < 0.5) {
-          float n = fbm(p*1.7), g = h21(floor(p*14.0)) * (1.0 - smoothstep(0.03, 0.08, max(fwidth(p.x), fwidth(p.y))));
-          c = vec3(0.3,0.305,0.31) * (0.85 + 0.25*n + 0.08*g);
-          c *= 1.0 - 0.12*smoothstep(0.62, 0.75, fbm(p*0.35 + 3.0)); // parches
-          c = mix(c, c*0.82, smoothstep(0.75, 0.2, abs(abs(u)-0.45))*0.35);   // huella de llantas
-          c = mix(c, vec3(0.32,0.31,0.3), smoothstep(0.86, 0.99, abs(u))*0.5); // orilla gastada
-          if (marcas > 0.5 && marcas < 1.5) c = mix(c, vec3(0.88,0.86,0.8), step(abs(u), 0.03) * step(fract(v/6.0), 0.5) * 0.9);
-          if (marcas > 1.5) c = mix(c, vec3(0.86,0.7,0.22), (step(abs(u - 0.02), 0.012) + step(abs(u + 0.02), 0.012)) * 0.9);
-          if (marcas > 0.5) c = mix(c, vec3(0.85,0.84,0.8), step(0.93, abs(u)) * step(abs(u), 0.96) * 0.75);
+          float n = fbm(p*1.7), g = h21(floor(p*14.0)) * af;
+          c = vec3(0.30,0.305,0.31) * (0.85 + 0.25*n + 0.08*g);
+          // envejecido por zonas (más claro y gris) y huella de llantas
+          float viejo = smoothstep(0.4, 0.75, fbm(p*0.05 + 11.0));
+          c = mix(c, vec3(0.42,0.41,0.4)*(0.9 + 0.2*n), viejo*0.55);
+          c = mix(c, c*0.84, smoothstep(0.75, 0.2, abs(abs(u)-0.45))*0.35);
+          c = mix(c, vec3(0.34,0.33,0.32), smoothstep(0.86, 0.99, abs(u))*0.5);
+          // parches de bacheo (rectángulos más oscuros o más nuevos)
+          float idP = floor(v/9.0);
+          float hp = h21(vec2(idP, 3.1));
+          vec2 cp = vec2(fract(v/9.0)*9.0, q.x);
+          float pu0 = (h21(vec2(idP, 7.0)) - 0.5)*hw*1.2, pl = 0.8 + 2.2*h21(vec2(idP, 9.0)), pa = 0.5 + 1.2*h21(vec2(idP, 5.0));
+          float bordeP = (vnoise(p*3.0) - 0.5)*0.35;
+          float parche = step(0.62, hp) * step(abs(cp.x - 4.5) + bordeP, pl) * step(abs(cp.y - pu0) - bordeP, pa);
+          c = mix(c, (h21(vec2(idP, 1.0)) > 0.5 ? vec3(0.21,0.21,0.22) : vec3(0.35,0.345,0.34)) * (0.88 + 0.24*n), parche*0.85);
+          // grietas: red en el asfalto viejo y longitudinales
+          vec3 ce = celC(p*0.55);
+          float grieta = (1.0 - smoothstep(0.0, 0.025 + fw*0.6, ce.y)) * smoothstep(0.55, 0.8, viejo + 0.25*fbm(p*0.2)) * af * (1.0 - parche);
+          float iG = floor(v/14.0);
+          float lon = (1.0 - smoothstep(0.0, 0.02 + fw*0.5, abs(q.x - 0.15*sin(v*0.37) - hw*0.7*(h21(vec2(iG, 2.0))-0.5)))) * step(0.7, h21(vec2(iG, 4.0))) * af;
+          grieta = max(grieta, lon*(1.0 - parche));
+          c = mix(c, vec3(0.1,0.1,0.11), grieta*0.85);
+          gH += -grieta*0.012 + parche*0.006 + g*0.002;
+          // marcas pintadas (gastadas)
+          float desg = 0.75 + 0.25*smoothstep(0.3, 0.7, fbm(p*0.6));
+          if (marcas > 0.5 && marcas < 1.5) c = mix(c, vec3(0.88,0.86,0.8), step(abs(u), 0.03) * step(fract(v/6.0), 0.5) * 0.9 * desg);
+          if (marcas > 1.5) c = mix(c, vec3(0.86,0.7,0.22), (step(abs(u - 0.02), 0.012) + step(abs(u + 0.02), 0.012)) * 0.9 * desg);
+          if (marcas > 0.5) c = mix(c, vec3(0.85,0.84,0.8), step(0.93, abs(u)) * step(abs(u), 0.96) * 0.75 * desg);
+          // residencial ancha: línea central discontinua, más gastada
+          if (marcas < 0.5 && anchoM >= 6.0) c = mix(c, vec3(0.8,0.78,0.72), step(abs(q.x), 0.06) * step(fract(v/5.0), 0.4) * 0.5 * desg);
+          // tapadera de pozo (cada ~38 m, en un carril)
+          float iT = floor(v/38.0);
+          vec2 dT = vec2(fract(v/38.0)*38.0 - 19.0, q.x - hw*0.3*(h21(vec2(iT, 8.0)) > 0.5 ? 1.0 : -1.0));
+          float rT = length(dT);
+          float tap = 1.0 - smoothstep(0.34, 0.36 + fw, rT);
+          float aro = tap * smoothstep(0.26, 0.3, rT);
+          float rejT = tap * step(0.5, fract((dT.x + dT.y)*6.0)) * af;
+          c = mix(c, vec3(0.2,0.19,0.18)*(0.85 + 0.3*rejT), tap);
+          c = mix(c, vec3(0.32,0.31,0.3), aro*0.6);
+          gH += tap*0.004 - aro*0.006;
+          // tragante (alcantarilla) junto al bordillo, cada ~30 m
+          float iA = floor((v + 11.0)/30.0);
+          float lado = h21(vec2(iA, 6.0)) > 0.5 ? 1.0 : -1.0;
+          vec2 dA = vec2(fract((v + 11.0)/30.0)*30.0 - 15.0, q.x - lado*(hw - 0.3));
+          float trag = step(abs(dA.x), 0.5) * step(abs(dA.y), 0.22);
+          float barras = step(0.45, fract(dA.x*7.0)) * af;
+          c = mix(c, mix(vec3(0.05,0.05,0.05), vec3(0.24,0.23,0.22), barras), trag);
+          gH -= trag*(1.0 - barras)*0.02;
+          // charcos con lluvia: en las huellas y junto al bordillo
+          gCharco = smoothstep(0.6, 0.7, fbm(p*0.22 + 4.0) + smoothstep(0.8, 1.0, abs(u))*0.25 + smoothstep(0.75, 0.2, abs(abs(u)-0.45))*0.08) * smoothstep(0.35, 0.8, uWet);
         } else if (tipo < 1.5) {
-          float n = fbm(p*1.3), piedras = step(0.86, h21(floor(p*6.0))) * (1.0 - smoothstep(0.05, 0.15, max(fwidth(p.x), fwidth(p.y))));
-          c = vec3(0.47,0.38,0.29) * (0.8 + 0.35*n);
-          c = mix(c, c*0.78, smoothstep(0.3, 0.0, abs(abs(u)-0.42))*0.6);  // rodadas
-          c = mix(c, vec3(0.6,0.56,0.5), piedras*0.5);
-          c = mix(c, vec3(0.36,0.42,0.22), smoothstep(0.8, 1.0, abs(u))*smoothstep(0.4,0.7,n)*(1.0-uDry)); // monte en la orilla
-          c = mix(c, c*0.62, uWet*0.5);
-          mojado = uWet*0.5;
+          // terracería: roderas hundidas, lomo central con zacate, piedras, huellas, polvo y lodo
+          float n = fbm(p*1.3);
+          float rod = smoothstep(0.24, 0.0, abs(abs(u)-0.42));
+          float lomo = smoothstep(0.16, 0.0, abs(u)) * smoothstep(0.35, 0.6, fbm(p*0.5));
+          vec3 ce = celC(p*3.2);
+          float piedra = smoothstep(0.0, 0.25, ce.y) * step(0.72, ce.z) * (1.0 - rod*0.7) * af;
+          float seco = clamp(uDry + 0.15, 0.0, 1.0);
+          c = mix(vec3(0.47,0.38,0.29), vec3(0.62,0.53,0.40), seco*0.6) * (0.8 + 0.35*n);
+          c = mix(c, c*0.74, rod*0.65);
+          c = mix(c, vec3(0.62,0.58,0.52)*(0.8 + 0.4*ce.z), piedra*0.75);
+          c = mix(c, mix(vec3(0.33,0.4,0.18), vec3(0.55,0.5,0.3), uDry), lomo*0.8);
+          c = mix(c, mix(vec3(0.36,0.42,0.22), vec3(0.58,0.52,0.32), uDry), smoothstep(0.8, 1.0, abs(u))*smoothstep(0.35,0.7,n));
+          vec2 ch = floor(q*vec2(3.0, 2.2)); vec2 fh = fract(q*vec2(3.0, 2.2)) - 0.5;
+          float huella = step(0.86, h21(ch + 4.2)) * (1.0 - smoothstep(0.12, 0.2, length(fh*vec2(1.0, 1.6)))) * (1.0 - rod) * af;
+          c = mix(c, c*0.78, huella*0.7);
+          float lodo = clamp(uWet*1.2, 0.0, 1.0);
+          c = mix(c, c*vec3(0.62,0.58,0.55), lodo*0.7);
+          gCharco = smoothstep(0.55, 0.68, fbm(p*0.35 + 2.0)*0.7 + rod*0.45) * smoothstep(0.3, 0.75, uWet);
+          gH = -rod*0.05 + lomo*0.02 + piedra*0.03 + n*0.02 - huella*0.01;
+          mojado = uWet*0.6;
         } else if (tipo < 2.5) {
-          // banqueta: concreto con juntas cada 1.5 m
+          // banqueta: losas de concreto con juntas cada 1.5 m, grietas y manchas
           float n = fbm(p*2.2);
-          c = vec3(0.64,0.62,0.58) * (0.88 + 0.18*n);
-          c *= 1.0 - 0.18*step(fract(v/1.5), 0.03);
+          float iL = floor(v/1.5);
+          c = vec3(0.64,0.62,0.58) * (0.88 + 0.18*n) * (0.93 + 0.1*h21(vec2(iL, 1.0)));
+          float junta = 1.0 - smoothstep(0.0, 0.02 + fw*0.4, min(fract(v/1.5), 1.0 - fract(v/1.5))*1.5);
+          c *= 1.0 - 0.28*junta;
           c *= 1.0 - 0.1*step(0.94, abs(u));
+          vec3 ce = celC(p*0.9);
+          float gr = (1.0 - smoothstep(0.0, 0.02 + fw*0.4, ce.y)) * step(0.8, h21(vec2(iL, 3.0))) * af;
+          c = mix(c, c*0.5, gr);
+          c *= 1.0 - 0.15*smoothstep(0.62, 0.8, fbm(p*0.4 + 5.0));
+          gH = -junta*0.006 - gr*0.004;
         } else if (tipo < 3.5) {
-          float n = fbm(p*2.0);
-          c = vec3(0.56,0.53,0.48) * (0.85 + 0.25*n);
-        } else {
+          // peatonal: adoquín trabado (20×10 cm)
+          vec2 a = vec2(p.x*5.0, p.y*10.0);
+          a.x += step(1.0, mod(floor(a.y), 2.0))*0.5;
+          vec2 fa = fract(a), ia = floor(a);
+          float j = 1.0 - smoothstep(0.0, 0.06 + fw*3.0, min(min(fa.x, 1.0-fa.x)*0.5, min(fa.y, 1.0-fa.y)));
+          c = mix(vec3(0.6,0.55,0.5), vec3(0.52,0.44,0.38), h21(ia)) * (0.85 + 0.25*fbm(p*2.0));
+          c = mix(c, c*0.55, j*af);
+          gH = -j*0.008*af;
+        } else if (tipo < 4.5) {
+          // cara del bordillo: juntas cada metro y suciedad
+          float j = 1.0 - smoothstep(0.0, 0.03 + fw*0.4, min(fract(v), 1.0 - fract(v)));
           c = vec3(0.7,0.69,0.66) * (0.9 + 0.1*fbm(p*3.0));
+          c *= 1.0 - 0.3*j;
+          c = mix(c, c*0.75, 0.3*smoothstep(0.55, 0.75, fbm(p*1.5)));
+        } else {
+          // empedrado colonial: piedras de río redondeadas con mezcla y musgo entre ellas
+          vec3 ce = celC(q*vec2(4.2, 3.6));
+          float piedra = smoothstep(0.02, 0.16 + fw*1.5, ce.y);
+          vec3 cp = mix(vec3(0.5,0.47,0.43), vec3(0.62,0.58,0.52), ce.z) * (0.8 + 0.3*vnoise(p*7.0));
+          cp = mix(cp, vec3(0.42,0.39,0.36), step(0.85, ce.z));
+          c = mix(vec3(0.34,0.31,0.27), cp, mix(0.7, piedra, af));
+          c = mix(c, vec3(0.36,0.42,0.22), (1.0 - piedra)*smoothstep(0.55, 0.7, fbm(p*0.6))*0.5*af*(1.0 - uDry));
+          c = mix(c, c*0.84, smoothstep(0.75, 0.2, abs(abs(u)-0.45))*0.25);
+          gH = (piedra*0.025 - 0.012)*af;
+          gCharco = (1.0 - piedra)*smoothstep(0.4, 0.8, uWet)*0.6*af;
+          mojado = uWet*0.8;
         }
+        c = mix(c, c*0.62, mojado*0.45);
+        c = mix(c, mix(vec3(0.12,0.12,0.12), cielo*0.7, 0.55), gCharco);
         diffuseColor.rgb = pow(max(c, vec3(0.0)), vec3(2.2));
       }`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.25, mojado*0.8);')
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      {
+        // relieve por derivadas (grietas, roderas, piedras, juntas)
+        vec3 sx = dFdx(-vViewPosition), sy = dFdy(-vViewPosition);
+        vec3 r1 = cross(sy, normal), r2 = cross(normal, sx);
+        float det = dot(sx, r1);
+        vec3 grad = sign(det) * (dFdx(gH) * r1 + dFdy(gH) * r2) * (1.0 - gCharco);
+        normal = normalize(abs(det) * normal - grad);
+      }`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(mix(roughnessFactor, 0.3, mojado*0.8), 0.04, gCharco);')
   }, { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, roughness: 0.95 })
 }
 
