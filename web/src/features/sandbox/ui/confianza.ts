@@ -1,4 +1,4 @@
-// Insignia de confianza: "Escenario El Niño · 72 % probable · se repitió en 9 de 25 años · confianza media".
+// Insignia de confianza: "Confianza media" (ronda 6). El escenario, el % y "se repitió en 9 de 25 años" van al detalle.
 // Sale de SimTimeline.confianza (MOTOR, ronda 3). Mientras el motor no la mande, se arma un sustituto honesto con la
 // misma forma: solo lo que se sabe (año análogo real, frecuencia climatológica de El Niño 2001–2025), nivel "baja".
 import type { SimConfianza, SimTimeline, OrigenSim } from './tipos'
@@ -70,6 +70,7 @@ export function insignia(tl: SimTimeline, origen: OrigenSim, idioma: 'es' | 'en'
   }
   const { c, sustituto } = confianzaDe(tl)
   const en = idioma === 'en'
+  // ronda 6: en pantalla solo el nivel; escenario, % y "X de N años" van al tooltip y al informe
   const partes = [nombreEscenario(tl, c, idioma)]
   if (c.prob_escenario != null && isFinite(c.prob_escenario)) {
     partes.push(sustituto ? (en ? `${pct(c.prob_escenario)} historical odds` : `${pct(c.prob_escenario)} (frecuencia histórica)`) : en ? `${pct(c.prob_escenario)} likely` : `${pct(c.prob_escenario)} probable`)
@@ -78,8 +79,7 @@ export function insignia(tl: SimTimeline, origen: OrigenSim, idioma: 'es' | 'en'
     partes.push(en ? `happened in ${c.anios_parecidos} of ${c.anios_base} years` : `se repitió en ${c.anios_parecidos} de ${c.anios_base} años`)
   }
   const nivel = (['alta', 'media', 'baja'].includes(c.nivel ?? '') ? c.nivel : 'baja') as Insignia['nivel']
-  const NIV = { alta: en ? 'high' : 'alta', media: en ? 'medium' : 'media', baja: en ? 'low' : 'baja' } as Record<string, string>
-  partes.push(en ? `${NIV[nivel]} confidence` : `confianza ${NIV[nivel]}`)
-  const det = [en ? c.texto_en || c.texto : c.texto, c.habilidad, c.anios_analogos?.length ? (en ? `Analog year: ${c.anios_analogos.join(', ')}` : `Año análogo: ${c.anios_analogos.join(', ')}`) : '']
-  return { texto: partes.join(' · '), nivel, detalle: det.filter(Boolean).join(' · '), sustituto }
+  const texto = en ? `${{ alta: 'High', media: 'Medium', baja: 'Low' }[nivel as 'alta']} confidence` : `Confianza ${nivel}`
+  const det = [partes.join(' · '), en ? c.texto_en || c.texto : c.texto, c.habilidad, c.anios_analogos?.length ? (en ? `Analog year: ${c.anios_analogos.join(', ')}` : `Año análogo: ${c.anios_analogos.join(', ')}`) : '', en ? 'Details in the report' : 'Detalle en el informe']
+  return { texto, nivel, detalle: det.filter(Boolean).join(' · '), sustituto }
 }

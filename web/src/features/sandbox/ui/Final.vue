@@ -1,13 +1,14 @@
 <script setup lang="ts">
 // Fin de la guía: el resultado en una frase, S0 vs recomendada en dos números y qué hacer después.
-import { computed } from 'vue'
-import { FileText, MessageCircle, RotateCcw, X } from 'lucide-vue-next'
+import { computed, onMounted } from 'vue'
+import { FileText, MessageCircle, RotateCcw, UserPlus, X } from 'lucide-vue-next'
 import type { Resultado } from './guia'
 import type { Insignia } from './confianza'
 import { t } from './textos'
 import { numero } from '../../mapa/comun/idioma'
 import { useRoute } from 'vue-router'
 import GuardarTerreno from '@/components/cuenta/GuardarTerreno.vue'
+import { useSesion } from '@/stores/sesion'
 
 const props = defineProps<{ res: Resultado; recomendada: string; informe: string; whatsapp: string; insignia: Insignia; movil?: boolean }>()
 const emit = defineEmits<{ otraVez: []; cerrar: [] }>()
@@ -15,6 +16,11 @@ const mejor = computed(() => (isFinite(props.res.s0) ? props.res.recomendada - p
 // temporada perdida = menos del 70 % de lo normal (no cero): se muestra el número real y la marca
 const qq = (x: number) => numero(x, 1)
 const route = useRoute() // integrador5: "Guardar este terreno" (landing3) con la misma ruta del simulador
+// ronda 6: sin sesión (/api/auth/yo), el botón principal invita a crear la cuenta; reusa /guardar (registro → vuelve y guarda)
+const sesion = useSesion()
+onMounted(() => { sesion.yo() })
+const invitar = computed(() => sesion.cargado && !sesion.conSesion && typeof route.query.parcela !== 'string')
+const aGuardar = computed(() => ({ path: '/guardar', query: route.query }))
 </script>
 
 <template>
@@ -33,13 +39,14 @@ const route = useRoute() // integrador5: "Guardar este terreno" (landing3) con l
       </div>
     </div>
     <p class="conf" :title="insignia.detalle">{{ insignia.texto }}</p>
+    <RouterLink v-if="invitar" class="btn prim cuenta" :to="aGuardar" data-testid="crear-cuenta"><UserPlus :size="18" />{{ t('crearCuenta') }}</RouterLink>
     <div class="acciones">
-      <RouterLink class="btn prim" :to="informe"><FileText :size="17" />{{ t('verInforme') }}</RouterLink>
+      <RouterLink class="btn" :class="{ prim: !invitar }" :to="informe"><FileText :size="17" />{{ t('verInforme') }}</RouterLink>
       <a class="btn wa" :href="whatsapp" target="_blank" rel="noopener"><MessageCircle :size="17" />{{ t('enviarWa') }}</a>
       <slot />
       <button class="btn sec" type="button" @click="emit('otraVez')"><RotateCcw :size="16" />{{ t('otraVez') }}</button>
     </div>
-    <GuardarTerreno :query="route.query" :pista="!movil" />
+    <GuardarTerreno v-if="!invitar" :query="route.query" :pista="!movil" />
   </section>
 </template>
 
@@ -66,6 +73,7 @@ h2 { font-family: var(--font-display); font-size: clamp(1.3rem, 2.6vw, 1.75rem);
 .btn:focus-visible { outline: 3px solid #e0a526; outline-offset: 2px; }
 .btn.prim { background: #f4ebdb; color: #2a2118; border-color: #f4ebdb; }
 .btn.prim:hover { background: #fff; }
+.btn.cuenta { justify-content: center; padding: 13px 18px; font-size: .95rem; text-align: center; }
 .btn.wa { border-color: rgba(37,211,102,.6); background: rgba(37,211,102,.16); }
 .acciones :deep(.fsx-btn) { padding: 10px 16px; font-weight: 800; font-size: .86rem; background: rgba(255,250,240,.08); color: #f4ebdb; border-color: rgba(255,250,240,.25); }
 .acciones :deep(.fsx-panel) { top: auto; bottom: calc(100% + 10px); left: 0; right: auto; }

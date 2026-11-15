@@ -142,3 +142,12 @@ export function rangoDias(tl: Pick<SimTimeline, 'inicio' | 'dias'>, desde?: stri
   const d0 = Math.max(0, Math.min(a, b)), d1 = Math.min(tl.dias - 1, Math.max(a, b))
   return d1 - d0 >= 1 ? [d0, d1] : null
 }
+
+export interface Avance { fase: 'antes' | 'crece' | 'cosechado'; pct: number; faltan: number }
+/** Avance de la siembra a la cosecha en la fecha que se ve (ronda 6): % del ciclo y días que faltan. */
+export function avanceSiembra(siembra: string, cosecha: string, fecha: string): Avance {
+  const ciclo = Math.max(1, entre(siembra, cosecha)), d = entre(siembra, fecha)
+  if (d < 0) return { fase: 'antes', pct: 0, faltan: -d }
+  if (d >= ciclo) return { fase: 'cosechado', pct: 100, faltan: 0 }
+  return { fase: 'crece', pct: Math.round((d / ciclo) * 100), faltan: ciclo - d }
+}

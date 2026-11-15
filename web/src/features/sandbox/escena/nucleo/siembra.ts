@@ -1,4 +1,4 @@
-// Siembra y cosecha en 3D (ronda 5): marcadores con fecha flotando sobre la parcela, animación del día de
+// Siembra y cosecha en 3D (ronda 5): marcadores discretos sobre la parcela (ronda 6: punto y línea fina), animación del día de
 // siembra (surcos que se abren, semilla que cae, brote) y del día de cosecha (montones de mazorcas y costales;
 // la dobla y el corte con rastrojo los hace el shader de los cultivos). Las animaciones corren con el reloj de la
 // escena (dt de renderFrame): duran lo mismo aunque la línea de tiempo vaya rápido y son deterministas en video.
@@ -83,40 +83,20 @@ export function armarMarcadores(tl: SimTimeline | null, elegida: string | null, 
 }
 
 // ------------------------------------------------------------ 3D
-const ICONO: Record<TipoMarcador, string> = { siembra: '🌱', cosecha: '🌽', recomendada: '⭐' }
 const COLOR: Record<TipoMarcador, string> = { siembra: '#2f7d32', cosecha: '#c98a12', recomendada: '#2563eb' }
 
-function texturaMarcador(m: Marcador, sub: string) {
-  const W = 640, H = 200
+/** Ronda 6: marca discreta (punto con aro blanco); la fecha y la cosecha van en la barra de abajo, no sobre la parcela. */
+function texturaMarcador(m: Marcador) {
+  const W = 64
   const cv = document.createElement('canvas')
-  cv.width = W; cv.height = H
+  cv.width = W; cv.height = W
   const g = cv.getContext('2d')!
-  const r = 52
-  g.fillStyle = 'rgba(255,255,255,0.94)'
-  g.strokeStyle = COLOR[m.tipo]
-  g.lineWidth = m.tipo === 'recomendada' ? 6 : 8
-  if (m.tipo === 'recomendada') g.setLineDash([18, 12])
-  g.beginPath()
-  g.roundRect(8, 8, W - 16, H - 46, r)
-  g.fill(); g.stroke()
-  g.setLineDash([])
-  // pico hacia abajo
-  g.fillStyle = COLOR[m.tipo]
-  g.beginPath(); g.moveTo(W / 2 - 22, H - 40); g.lineTo(W / 2 + 22, H - 40); g.lineTo(W / 2, H - 6); g.closePath(); g.fill()
-  g.textBaseline = 'middle'
-  g.font = '64px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif'
-  g.fillText(ICONO[m.tipo], 34, 78)
-  g.fillStyle = '#1f2a1f'
-  g.font = '600 50px "Inter","Segoe UI",system-ui,sans-serif'
-  g.fillText(m.texto, 116, sub ? 60 : 80, W - 140)
-  if (sub) {
-    g.fillStyle = '#3d4a3a'
-    g.font = '500 38px "Inter","Segoe UI",system-ui,sans-serif'
-    g.fillText(sub, 118, 112, W - 140)
-  }
+  g.beginPath(); g.arc(W / 2, W / 2, W / 2 - 4, 0, Math.PI * 2)
+  g.fillStyle = 'rgba(255,255,255,0.95)'; g.fill()
+  g.beginPath(); g.arc(W / 2, W / 2, W / 2 - 12, 0, Math.PI * 2)
+  g.fillStyle = COLOR[m.tipo]; g.fill()
   const t = new THREE.CanvasTexture(cv)
   t.colorSpace = THREE.SRGBColorSpace
-  t.anisotropy = 4
   return t
 }
 
@@ -298,28 +278,26 @@ export class Siembra3D {
     return im
   }
 
-  /** Marcadores flotantes (se rehacen al cambiar fechas). */
-  setMarcadores(ms: Marcador[], sub: Partial<Record<TipoMarcador, string>> = {}) {
+  /** Marcadores discretos: punto chico de tamaño fijo en pantalla y una línea fina al suelo (se rehacen al cambiar fechas). */
+  setMarcadores(ms: Marcador[], _sub: Partial<Record<TipoMarcador, string>> = {}) {
     for (const s of this.sprites) { this.grupo.remove(s.s, s.linea); (s.s.material as THREE.SpriteMaterial).map?.dispose(); s.s.material.dispose(); s.linea.geometry.dispose(); (s.linea.material as THREE.Material).dispose() }
     this.sprites = []
     const p = this.o.parcela
-    const w = Math.min(70, Math.max(9, this.R * 0.55))
-    const lado: Record<TipoMarcador, [number, number, number]> = {
-      siembra: [-0.42, 0, 1], cosecha: [0.42, 0, 1], recomendada: [0, 0.32, 0.55],
-    }
+    // sizeAttenuation=false: escala en fracción de pantalla (~12 px en 720 px de alto)
+    const w = 0.014
+    const lado: Record<TipoMarcador, [number, number]> = { siembra: [-0.42, 1], cosecha: [0.42, 1], recomendada: [0, 0.32] }
     for (const m of ms) {
-      const [fx, fz, fy] = lado[m.tipo]
+      const [fx, fz] = lado[m.tipo]
       const x = p.cx + p.hx * fx, z = p.cz + p.hz * fz
       const suelo = this.o.alturaEn(x, z)
-      const y = suelo + (5.5 + this.R * 0.16) * fy + w * 0.16
-      const mat = new THREE.SpriteMaterial({ map: texturaMarcador(m, sub[m.tipo] ?? ''), depthTest: false, depthWrite: false, transparent: true, toneMapped: false, fog: false })
+      const y = suelo + 2.5 + this.R * 0.05
+      const mat = new THREE.SpriteMaterial({ map: texturaMarcador(m), depthTest: false, depthWrite: false, transparent: true, toneMapped: false, fog: false, sizeAttenuation: false })
       const s = new THREE.Sprite(mat)
-      s.center.set(0.5, 0)
       s.position.set(x, y, z)
-      s.scale.set(w, w * (200 / 640), 1)
+      s.scale.set(w, w, 1)
       s.renderOrder = 20
       const gl = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, suelo + 0.2, z), new THREE.Vector3(x, y, z)])
-      const linea = new THREE.Line(gl, new THREE.LineBasicMaterial({ color: COLOR[m.tipo], transparent: true, opacity: 0.75, depthTest: false }))
+      const linea = new THREE.Line(gl, new THREE.LineBasicMaterial({ color: COLOR[m.tipo], transparent: true, opacity: 0.6, depthTest: false }))
       linea.renderOrder = 19
       this.grupo.add(linea, s)
       this.sprites.push({ m, s, linea, w, y })
@@ -337,10 +315,10 @@ export class Siembra3D {
     for (const s of this.sprites) {
       const d = x - s.m.indice
       const cerca = 1 - smooth(1.5, 6, Math.abs(d))
-      const k = 1 + 0.22 * cerca
-      s.s.scale.set(s.w * k, s.w * k * (200 / 640), 1)
-      ;(s.s.material as THREE.SpriteMaterial).opacity = d > 6 ? 0.62 : 1
-      ;(s.linea.material as THREE.LineBasicMaterial).opacity = d > 6 ? 0.4 : 0.75
+      const k = 1 + 0.35 * cerca
+      s.s.scale.set(s.w * k, s.w * k, 1)
+      ;(s.s.material as THREE.SpriteMaterial).opacity = d > 6 ? 0.55 : 0.95
+      ;(s.linea.material as THREE.LineBasicMaterial).opacity = d > 6 ? 0.3 : 0.6
     }
     // temporada que toca: la que contiene x (con márgenes)
     const t = temporadas.find((t) => x >= t.iS - 3 && x <= t.iC + 30)
