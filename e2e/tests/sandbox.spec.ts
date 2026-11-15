@@ -53,7 +53,7 @@ async function guiaHastaFinal(page: Page, pre2: string) {
   await snap(page, `${pre2}02-guia-corriendo`)
   const final = page.locator('section.final')
   await expect(final).toBeVisible({ timeout: 90_000 })
-  await expect(final).toContainText(/qq\/mz/)
+  await expect(final).toContainText(/qq\/mz|qq por cuerda|qq per cuerda|t\/ha/) // granjero6: unidad del lugar
   await snap(page, `${pre2}03-tarjeta-final`)
   return final
 }

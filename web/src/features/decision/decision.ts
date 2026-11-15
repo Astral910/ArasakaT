@@ -94,7 +94,7 @@ export function tarjetaSiembra(sb: SiembraDec | null | undefined, ca: boolean, h
   let chico: string | undefined
   if (sb.tarde && rec != null && sb.tarde.cosecha_p50 != null) {
     const d = rinde(sb.tarde.cosecha_p50 - rec, ca)
-    if (d < 0) chico = t('dec.tarde', { f: fecha(sb.tarde.fecha), n: num(d), u: unidadRinde(ca) })
+    if (Number(num(d)) < 0) chico = t('dec.tarde', { f: fecha(sb.tarde.fecha), n: num(d), u: unidadRinde(ca) })
   }
   return {
     id: 'siembra',
