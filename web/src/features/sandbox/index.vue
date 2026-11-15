@@ -35,6 +35,7 @@ import { createAudio, BotonSonido, Subtitulos, type ControlAudio } from './audio
 import { usePlanStore, requestFromQuery } from '@/stores/plan'
 import { lang, setLang } from '@/i18n'
 import type { PlanRequest } from '@/api/types'
+import { enCentroamerica } from '../decision/decision'
 
 const route = useRoute()
 const router = useRouter()
@@ -764,6 +765,7 @@ onBeforeUnmount(() => roPie?.disconnect())
     <Transition name="sube">
       <Final
         v-if="finVisible && res && insignia && !ajustarAbierto" :res="res" :recomendada="mostrada" :informe="informe" :whatsapp="whatsapp" :insignia="insignia" :movil="movil"
+        :siembra="tl?.siembra" :ca="hayLugar ? enCentroamerica(lugar.lat, lugar.lon) : enGT"
         @otra-vez="otraVez" @cerrar="finVisible = false"
       >
         <BotonExportar v-if="BotonExportar && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" />

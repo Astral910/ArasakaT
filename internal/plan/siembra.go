@@ -264,6 +264,7 @@ func evalSiembra(a *siembraArgs, elegida string) (*contract.SimSiembra, int) {
 			}
 		}
 	}
+	decisiones(a, out, evs, best, el, d1)
 	tEl, tRec := a.realDe(el.d), a.realDe(best.d)
 	out.Elegida = tEl.Format("2006-01-02")
 	out.CosechaElegida = a.realDe(el.d + el.cicloDias).Format("2006-01-02")
@@ -487,3 +488,80 @@ func nombreCultivo(id string, en bool) string {
 	}
 	return strings.ToLower(id)
 }
+
+// decisiones (granjero6): cosecha esperada vs año normal, rango de siembra, último día seguro y canícula.
+//
+// Último día seguro: la última fecha (desde la recomendada, cada 7 días, hasta 6 semanas después de la ventana)
+// cuya cosecha típica (P50) no cae más de 15 % bajo la de la recomendada ni sube el riesgo de pérdida más de
+// 15 puntos; se corta en la primera que no cumple (esa va en Tarde, para mostrar cuánto se pierde).
+func decisiones(a *siembraArgs, out *contract.SimSiembra, evs []fechaEval, best, el fechaEval, d1 int) {
+	out.CosechaEsperada = math.Round(el.p50*10) / 10
+	if ys := a.s.ClimYears(); len(ys) > 0 {
+		n := *a
+		n.pool, n.peso, n.base = ys, nil, nil
+		out.CosechaNormal = math.Round(n.eval(el.d).p50*10) / 10
+	}
+	bi := 0
+	for i, e := range evs {
+		if e.d == best.d {
+			bi = i
+		}
+	}
+	bueno := func(e fechaEval) bool { return e.prob <= best.prob+0.05+1e-9 && e.p50 >= 0.95*best.p50-1e-9 }
+	i0, i1 := bi, bi
+	for i0 > 0 && bueno(evs[i0-1]) {
+		i0--
+	}
+	for i1+1 < len(evs) && bueno(evs[i1+1]) {
+		i1++
+	}
+	out.RangoIni, out.RangoFin = a.realDe(evs[i0].d).Format("2006-01-02"), a.realDe(evs[i1].d).Format("2006-01-02")
+	seguro := func(e fechaEval) bool { return e.p50 >= 0.85*best.p50-1e-9 && e.prob <= best.prob+0.15+1e-9 }
+	ult := best
+	var tarde *fechaEval
+	for i := bi + 1; i < len(evs); i++ {
+		if !seguro(evs[i]) {
+			tarde = &evs[i]
+			break
+		}
+		ult = evs[i]
+	}
+	if tarde == nil && ult.d == evs[len(evs)-1].d {
+		for d := ult.d + 7; d <= d1+42; d += 7 {
+			e := a.eval(d)
+			if !seguro(e) {
+				tarde = &e
+				break
+			}
+			ult = e
+		}
+	}
+	out.UltimoSeguro = a.realDe(ult.d).Format("2006-01-02")
+	if tarde != nil {
+		out.Tarde = &contract.RiesgoFecha{Fecha: a.realDe(tarde.d).Format("2006-01-02"), ProbPerdida: math.Round(tarde.prob*100) / 100,
+			CosechaP50: math.Round(tarde.p50*10) / 10, Cosecha: a.realDe(tarde.d + tarde.cicloDias).Format("2006-01-02")}
+	}
+	if ps, ok := a.s.PeriodoSeco(); ok {
+		c := &contract.PeriodoSecoInfo{Ini: a.realDe(ps.Ini).Format("2006-01-02"), Fin: a.realDe(ps.Fin).Format("2006-01-02"),
+			Dias: ps.Dias, MMDia: ps.MMDia, RefMMDia: ps.RefMMDia, Centroamerica: Centroamerica(a.s.Lat, a.s.Lon),
+			Floracion: a.realDe(el.d + el.floracionDD).Format("2006-01-02"),
+			Fuente: fuentePOWER + " · climatología diaria suavizada ±7 días"}
+		fl := el.d + el.floracionDD
+		switch {
+		case ps.Fin < el.d:
+			c.Etapa = "antes"
+		case ps.Fin >= fl-7 && ps.Ini <= fl+21:
+			c.Etapa = "floracion"
+		case ps.Fin < fl-7:
+			c.Etapa = "crecimiento"
+		case ps.Ini <= el.d+el.cicloDias:
+			c.Etapa = "llenado"
+		default:
+			c.Etapa = "despues"
+		}
+		out.Canicula = c
+	}
+}
+
+// Centroamerica caja aproximada (Guatemala a Panamá, sur de México incluido hasta el istmo).
+func Centroamerica(lat, lon float64) bool { return lat >= 7 && lat <= 18.5 && lon >= -94.5 && lon <= -77 }

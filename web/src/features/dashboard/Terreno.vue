@@ -19,6 +19,9 @@ import ReporteDia from './ReporteDia.vue'
 import ChatStub from './ChatStub.vue'
 import TarjetaSensor from '../sensores/TarjetaSensor.vue'
 import { diaSemana, fmt, tx } from './textos'
+import Decisiones from '../decision/Decisiones.vue'
+import { enCentroamerica, riegoTexto, semaforo, tarjetaAbono, tarjetaCanicula, tarjetaCosecha, tarjetaSiembra, type ConfDec, type SiembraDec } from '../decision/decision'
+import { t } from '@/i18n'
 
 // chat del agente chatbot si ya está en el repo; si no, el stub con la misma interfaz
 const chats = import.meta.glob('../chat/ChatFieldShift.vue')
@@ -38,9 +41,34 @@ async function cargar() {
   if (!(await revisarSesion())) { router.replace({ name: 'entrar', query: { volver: route.fullPath } }); return }
   p.value = await obtenerParcela(String(route.params.id))
   if (!p.value) { noHay.value = true; return }
+  cargarDec(p.value)
   h.value = await cargarHoy(p.value, lang.value)
 }
 onMounted(cargar)
+
+// granjero6: decisiones del motor (POST /api/simulate?resumen=1: siembra + confianza; sin datos → sin tarjetas)
+const dec = ref<{ siembra?: SiembraDec | null; confianza?: ConfDec | null } | null>(null)
+async function cargarDec(x: Parcela) {
+  dec.value = null
+  const ctl = new AbortController()
+  const tope = setTimeout(() => ctl.abort(), 30000)
+  try {
+    const base = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
+    const r = await fetch(`${base}/api/simulate?resumen=1`, {
+      method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: { lat: x.lat, lon: x.lon, cultivo: x.cultivo }, estrategia: 'S0', escenario: 'pronostico', riego_mm_semana: x.riego ?? 0, fecha_siembra: x.siembra || undefined }),
+    })
+    if (r.ok && (r.headers.get('content-type') || '').includes('json')) dec.value = await r.json()
+  } catch { /* sin motor: no se muestran */ } finally { clearTimeout(tope) }
+}
+const ca = computed(() => (p.value ? enCentroamerica(p.value.lat, p.value.lon) : false))
+const tarjetas = computed(() => {
+  void lang.value
+  const sb = dec.value?.siembra, cf = dec.value?.confianza
+  return [tarjetaSiembra(sb, ca.value, h.value?.fecha), tarjetaCanicula(sb, ca.value), tarjetaCosecha(sb, cf, ca.value),
+    h.value ? tarjetaAbono(h.value.siembra, h.value.fecha, h.value.pronostico) : null].filter((x) => x !== null)
+})
+const luz = computed(() => (h.value ? semaforo(h.value.aguaSueloPct, h.value.riego.mm, h.value.avisos) : 'verde'))
 watch(() => route.params.id, () => { h.value = null; cargar() })
 watch(lang, () => p.value && cargarHoy(p.value, lang.value).then((x) => (h.value = x)))
 
@@ -163,25 +191,31 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
         <div class="principal">
           <!-- 1 · HOY -->
           <article class="card hoy" data-test="hoy" data-tour="hoy">
-            <p class="eyebrow">{{ tx('hoy') }} · {{ diaSemana(h.fecha) }}</p>
+            <p class="eyebrow">{{ tx('hoy') }} · {{ diaSemana(h.fecha) }} <span class="semaforo" :class="luz" data-test="semaforo"><i />{{ t(`dec.sem_${luz}`) }}</span></p>
             <div class="riego">
               <Droplets :size="40" aria-hidden="true" class="gota" :class="{ seco: h.riego.mm <= 0 }" />
               <div>
-                <p class="mm" data-test="riego-mm"><template v-if="h.riego.mm > 0">{{ tx('regar') }} <b>{{ h.riego.mm }}</b> mm</template><template v-else>{{ tx('noRegar') }}</template></p>
+                <p class="mm" data-test="riego-mm" :data-mm="h.riego.mm"><template v-if="h.riego.mm > 0">{{ riegoTexto(h.riego.mm, ca) }}</template><template v-else>{{ tx('noRegar') }}</template></p>
                 <p v-if="h.riego.mm > 0" class="litros">= <b class="tabular">{{ fmt(h.riego.litros) }}</b> L</p>
               </div>
             </div>
-            <p class="porque">{{ h.riego.porque }}</p>
+            <details class="porque-d">
+            <summary>{{ t('dec.porque') }}</summary>
+            <p class="porque">{{ h.riego.porque }}<template v-if="h.riego.mm > 0"> ({{ h.riego.mm }} mm)</template></p>
             <div class="chips">
               <span v-if="h.aguaSueloPct !== null" class="chip" :class="{ bajo: h.aguaSueloPct < 35, medio: h.aguaSueloPct >= 35 && h.aguaSueloPct < 55 }"><i class="punto" />{{ tx('aguaSuelo') }} <b>{{ h.aguaSueloPct }} %</b></span>
               <span v-if="h.manana.lluviaMm !== null" class="chip"><CloudRain :size="15" aria-hidden="true" />{{ tx('manana') }} <b>{{ h.manana.lluviaMm }} mm</b></span>
               <span v-if="h.manana.tmax !== null" class="chip"><Thermometer :size="15" aria-hidden="true" /><b>{{ h.manana.tmin }}–{{ h.manana.tmax }} °C</b></span>
             </div>
+            </details>
             <div class="reportar" data-tour="reportar">
               <p class="mini">{{ tx('reportar') }}</p>
               <ReporteDia :hoy="h.fecha" :ocupado="ocupado" :listo="listo" @reportar="reportar" />
             </div>
           </article>
+
+          <!-- decisiones (granjero6): siembra, canícula, cosecha, abono -->
+          <Decisiones :tarjetas="tarjetas" />
 
           <!-- 2 · PRÓXIMOS DÍAS -->
           <article class="card" data-tour="dias">
@@ -286,6 +320,12 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
 </template>
 
 <style scoped>
+.semaforo { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.5rem; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.78rem; letter-spacing: 0; text-transform: none; font-weight: 800; }
+.semaforo i { width: 10px; height: 10px; border-radius: 50%; }
+.semaforo.verde { background: #e3f4ea; color: #1f6b43; } .semaforo.verde i { background: #2f8f5b; }
+.semaforo.amarillo { background: #fbf0d4; color: #7a5a06; } .semaforo.amarillo i { background: #e0a526; }
+.semaforo.rojo { background: #f9e1dc; color: #8f2f1d; } .semaforo.rojo i { background: #c8553d; }
+.porque-d summary { cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--ink-3); margin: 0.2rem 0; }
 .terreno { padding: 1.2rem 0 5rem; }
 .terreno.container { width: min(1380px, 100% - 2.5rem); }
 .volver { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; font-weight: 600; color: var(--ink-2); text-decoration: none; margin-bottom: 0.9rem; }

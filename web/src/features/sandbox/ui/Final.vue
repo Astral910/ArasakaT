@@ -9,12 +9,18 @@ import { numero } from '../../mapa/comun/idioma'
 import { useRoute } from 'vue-router'
 import GuardarTerreno from '@/components/cuenta/GuardarTerreno.vue'
 import { useSesion } from '@/stores/sesion'
+import Decisiones from '../../decision/Decisiones.vue'
+import { rinde, tarjetaCanicula, tarjetaSiembra, unidadRinde, type SiembraDec } from '../../decision/decision'
+import { lang } from '@/i18n'
 
-const props = defineProps<{ res: Resultado; recomendada: string; informe: string; whatsapp: string; insignia: Insignia; movil?: boolean }>()
+const props = defineProps<{ res: Resultado; recomendada: string; informe: string; whatsapp: string; insignia: Insignia; movil?: boolean; siembra?: SiembraDec | null; ca?: boolean }>()
 const emit = defineEmits<{ otraVez: []; cerrar: [] }>()
 const mejor = computed(() => (isFinite(props.res.s0) ? props.res.recomendada - props.res.s0 : 0))
 // temporada perdida = menos del 70 % de lo normal (no cero): se muestra el número real y la marca
-const qq = (x: number) => numero(x, 1)
+// granjero6: en la unidad del lugar (qq por cuerda en Centroamérica, t/ha en otros lados)
+const qq = (x: number) => numero(rinde(x, !!props.ca), 1)
+const u = computed(() => (void lang.value, unidadRinde(!!props.ca)))
+const tarjetas = computed(() => (void lang.value, [tarjetaSiembra(props.siembra, !!props.ca), tarjetaCanicula(props.siembra, !!props.ca)].filter((x) => x !== null)))
 const route = useRoute() // integrador5: "Guardar este terreno" (landing3) con la misma ruta del simulador
 // ronda 6: sin sesión (/api/auth/yo), el botón principal invita a crear la cuenta; reusa /guardar (registro → vuelve y guarda)
 const sesion = useSesion()
@@ -31,14 +37,15 @@ const aGuardar = computed(() => ({ path: '/guardar', query: route.query }))
     <div class="nums">
       <div v-if="isFinite(res.s0)" class="n s0">
         <small>S0 · {{ t('S0') }}</small>
-        <b class="num">{{ qq(res.s0) }}</b><span>qq/mz</span><i v-if="res.perdidaS0" class="mala">{{ t('temporadaMala') }}</i>
+        <b class="num">{{ qq(res.s0) }}</b><span>{{ u }}</span><i v-if="res.perdidaS0" class="mala">{{ t('temporadaMala') }}</i>
       </div>
       <div class="n rec" :class="{ mejor: mejor > 0.4 }">
         <small>{{ recomendada }} · {{ t(recomendada) }} <em :title="t('recomendada')">★<template v-if="!movil"> {{ t('recomendada') }}</template></em></small>
-        <b class="num">{{ qq(res.recomendada) }}</b><span>qq/mz</span><i v-if="res.perdidaRec" class="mala">{{ t('temporadaMala') }}</i>
+        <b class="num">{{ qq(res.recomendada) }}</b><span>{{ u }}</span><i v-if="res.perdidaRec" class="mala">{{ t('temporadaMala') }}</i>
       </div>
     </div>
     <p class="conf" :title="insignia.detalle">{{ insignia.texto }}</p>
+    <Decisiones :tarjetas="tarjetas" oscuro compacto />
     <RouterLink v-if="invitar" class="btn prim cuenta" :to="aGuardar" data-testid="crear-cuenta"><UserPlus :size="18" />{{ t('crearCuenta') }}</RouterLink>
     <div class="acciones">
       <RouterLink class="btn" :class="{ prim: !invitar }" :to="informe"><FileText :size="17" />{{ t('verInforme') }}</RouterLink>

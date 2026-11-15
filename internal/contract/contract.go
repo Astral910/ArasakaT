@@ -407,6 +407,28 @@ type SimSiembra struct {
 	GDDCiclo           float64        `json:"gdd_ciclo"`        // grados-día (base 10 °C) a madurez
 	Escenarios         bool           `json:"escenarios"`       // true si la fecha cae más allá del pronóstico estacional (son escenarios, no pronóstico)
 	Fuentes            []string       `json:"fuentes"`
+
+	// Agregado por granjero6 (15-nov): decisiones para quien siembra.
+	CosechaEsperada float64           `json:"cosecha_esperada,omitempty"` // qq/mz: P50 de la fecha elegida en esta temporada
+	CosechaNormal   float64           `json:"cosecha_normal,omitempty"`   // qq/mz: P50 de la fecha elegida en todos los años 2001–2025 (un año normal)
+	RangoIni        string            `json:"rango_ini,omitempty"`        // YYYY-MM-DD: fechas tan buenas como la recomendada (riesgo ±5 pts, cosecha ≥ 95 %)
+	RangoFin        string            `json:"rango_fin,omitempty"`
+	UltimoSeguro    string            `json:"ultimo_seguro,omitempty"` // YYYY-MM-DD: última fecha con cosecha P50 ≥ 85 % de la recomendada
+	Tarde           *RiesgoFecha      `json:"tarde,omitempty"`         // primera fecha después del último día seguro (para "sembrar el X ≈ −N")
+	Canicula        *PeriodoSecoInfo  `json:"canicula,omitempty"`      // período seco climatológico dentro de la temporada (si existe)
+}
+
+// PeriodoSecoInfo canícula (Centroamérica) o período seco / dry spell (otros lugares), cruzado con el cultivo.
+type PeriodoSecoInfo struct {
+	Ini           string  `json:"ini"` // YYYY-MM-DD
+	Fin           string  `json:"fin"`
+	Dias          int     `json:"dias"`
+	MMDia         float64 `json:"mm_dia"`     // lluvia media del período (mm/día)
+	RefMMDia      float64 `json:"ref_mm_dia"` // lluvia de los picos que lo rodean (mm/día)
+	Centroamerica bool    `json:"centroamerica"`
+	Etapa         string  `json:"etapa"`      // etapa del cultivo (fecha elegida): antes | crecimiento | floracion | llenado | despues
+	Floracion     string  `json:"floracion"` // YYYY-MM-DD: floración de la fecha elegida
+	Fuente        string  `json:"fuente"`
 }
 
 // RazonSiembra una razón concreta (con fuente) a favor o en contra de una fecha.

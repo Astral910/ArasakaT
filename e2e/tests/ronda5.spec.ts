@@ -68,11 +68,8 @@ test('registro → guardar terreno → dashboard (riego de hoy) → "llovió muc
   const mm = page.locator('[data-test="riego-mm"]')
   await expect(mm).toBeVisible({ timeout: 90_000 })
   await expect(page.locator('body')).not.toContainText(/el servidor de campo aún no está|field server is not/i)
-  const leer = async () => {
-    const t = (await mm.innerText()).replace(/\s+/g, ' ')
-    const m = /(\d+(?:[.,]\d+)?)\s*mm/.exec(t)
-    return m ? parseFloat(m[1].replace(',', '.')) : 0
-  }
+  // granjero6: el riego se muestra en toneles por cuerda; los mm van en data-mm
+  const leer = async () => parseFloat((await mm.getAttribute('data-mm')) ?? '0') || 0
   const antes = await leer()
   await snap(page, 'dashboard-terreno-antes', true)
   const resp = page.waitForResponse((r) => /\/api\/parcelas\/p_[^/]+\/reportes/.test(r.url()) && r.request().method() === 'POST', { timeout: 60_000 })

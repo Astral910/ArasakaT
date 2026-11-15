@@ -361,5 +361,9 @@ func (e *Engine) handleSimulate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
+	if q.Get("resumen") == "1" { // granjero6: solo las decisiones (dashboard del terreno)
+		writeJSON(w, http.StatusOK, map[string]any{"siembra": tl.Siembra, "confianza": tl.Confianza})
+		return
+	}
 	writeJSON(w, http.StatusOK, tl)
 }
