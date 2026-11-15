@@ -13,7 +13,7 @@ Everything here is in English (portal rule). Markers `⟦TBD …⟧` are filled 
 | 6. Use of Artificial Intelligence | [06_use_of_ai.md](06_use_of_ai.md) |
 | 7. NASA Data | [04_nasa_data.md](04_nasa_data.md) |
 | 8. Space Agency Partner Data & Other References | [05_partner_data_and_references.md](05_partner_data_and_references.md) |
-| Images (JPG/PNG/GIF ≤ 10 MB) | `screenshots/` (final round-3 build, English: landing, centred flight, diorama with ranch, guided season, result card, technical report, S0 \| S2, WhatsApp simulator with TEST ALERT, risk map, alerts time machine, plan, mobile; GIFs `19-flow-landing-to-diorama.gif` and `20-guided-season.gif`; add a photo of the real linked WhatsApp chat) |
+| Images (JPG/PNG/GIF ≤ 10 MB) | `screenshots/` (final round-4 build, English: `21`–`28` new in round 4: worldwide neighbourhood search, drawing the exact plot, loading screen (built in your browser), neighbourhood diorama with 3D houses, desert plot, plot-on-a-river warning, report charts with PNG/SVG/CSV export, "What to get"; `03` and `06` refreshed; round 3: landing, centred flight, diorama with ranch, guided season, result card, technical report, S0 \| S2, WhatsApp simulator with TEST ALERT, risk map, alerts time machine, plan, mobile; GIFs `19-flow-landing-to-diorama.gif` and `20-guided-season.gif`; add a photo of the real linked WhatsApp chat) |
 | WhatsApp message templates (create in WhatsApp Manager) | [whatsapp_templates.md](whatsapp_templates.md) |
 
 ## Checklist before pressing Submit

@@ -200,7 +200,7 @@ class SandboxImpl implements Sandbox {
     const etapa = (e: EtapaCarga, f: number) => {
       // progreso global: cada etapa ocupa un tramo de la barra
       const [a, b] = TRAMOS[e]
-      this.emitir('progreso', { etapa: e, p: Math.min(1, a + (b - a) * Math.min(1, Math.max(0, f))), texto: TEXTO_ETAPA[this.opts.idioma ?? 'es'][e] })
+      this.emitir('progreso', { etapa: e, u: Math.min(1, Math.max(0, f)), p: Math.min(1, a + (b - a) * Math.min(1, Math.max(0, f))), texto: TEXTO_ETAPA[this.opts.idioma ?? 'es'][e] })
     }
     const cierra = (e: string) => { const t = performance.now(); tiempos[e] = Math.round(t - tEtapa); tEtapa = t }
     const areaPedida = Math.max(100, (p.areaValor ?? 8) * (M2[p.areaUnidad ?? 'cuerda'] ?? M2.cuerda))

@@ -123,7 +123,8 @@ function adaptarReal(crear: any, canvas: HTMLCanvasElement, o: OpcionesSandbox):
   let tlActual: unknown = null
   let pend: Promise<void> = Promise.resolve()
   const listo = new Promise<void>((res) => {
-    sb.on('ready', (d: any) => { rumbo = d?.rumboCamara; res() })
+    // último ready a la vista (e2e y depuración: forma, edificios, casasQuitadas, aguaEnParcela)
+    sb.on('ready', (d: any) => { rumbo = d?.rumboCamara; (window as any).__fsListo = d; res() })
     sb.on('error', () => res())
   })
   return {

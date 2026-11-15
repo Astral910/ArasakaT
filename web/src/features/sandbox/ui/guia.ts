@@ -57,7 +57,7 @@ export function lineaDia(tl: SimTimeline, dia: number, estacion: Estacion, idiom
       ? {
           racha_seca: `${estacion === 'canicula' ? 'Mid-summer drought' : 'Dry spell'}: ${Math.round(e.dias || e.valor)} days without rain`,
           tormenta: `Storm: ${v(e.valor)} mm in one day`,
-          siembra: `Planting · ${cul.toLowerCase()} goes in`,
+          siembra: `Planting · ${cul.toLowerCase()} ${/s$/i.test(cul) ? 'go' : 'goes'} in`,
           cosecha: `Harvest: ${v(e.valor, 1)} qq/mz`,
           perdida: 'The harvest is lost',
           calor: `Heat: ${v(e.valor, 1)} °C`,
@@ -88,8 +88,10 @@ export function lineaDia(tl: SimTimeline, dia: number, estacion: Estacion, idiom
   const cap = tl.capas[k]
   const et = cap.etapa[d]
   const cul = cultivoDe(cap.cultivo, en)
+  // concordancia en inglés: "The beans grow", "The maize grows"
+  const pl = en && /s$/i.test(cul)
   const fase = en
-    ? et < 0.15 ? `${cul} sprouts` : et < 0.45 ? `${cul} grows` : et < 0.65 ? `${cul} flowers` : et < 0.9 ? 'Grain filling' : 'Ready to harvest'
+    ? et < 0.15 ? `${cul} ${pl ? 'sprout' : 'sprouts'}` : et < 0.45 ? `${cul} ${pl ? 'grow' : 'grows'}` : et < 0.65 ? `${cul} ${pl ? 'flower' : 'flowers'}` : et < 0.9 ? 'Grain filling' : 'Ready to harvest'
     : et < 0.15 ? `${cul} nace` : et < 0.45 ? `${cul} crece` : et < 0.65 ? `${cul} en floración` : et < 0.9 ? 'Llenado del grano' : 'Lista para cosechar'
   const extra = ll >= 5 ? (en ? ` · ${numero(ll, 0)} mm of rain` : ` · llueve ${numero(ll, 0)} mm`)
     : agua < 0.25 ? (en ? ' · dry soil' : ' · suelo seco')

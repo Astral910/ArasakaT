@@ -53,7 +53,7 @@ const meses = computed(() => {
       <text :x="L - 5" :y="yl(t) + 3.5" text-anchor="end" class="ax">{{ t }}</text>
       <text :x="W - R + 5" :y="yl(t) + 3.5" class="ax">{{ Math.round((t / tope) * 100) }}%</text>
     </g>
-    <text x="2" :y="T - 12" class="ax u">mm/sem</text>
+    <text x="2" :y="T - 12" class="ax u">{{ tx('mmSemCorto') }}</text>
     <text :x="W - 2" :y="T - 12" text-anchor="end" class="ax u">{{ tx('aguaCorto') }}</text>
     <g v-for="(v, i) in lluviaS" :key="i">
       <rect v-if="v > 0" :x="xd(i * 7) + 0.6" :y="yl(v)" :width="Math.max(1, bw - 1.2)" :height="yl(0) - yl(v)" :fill="TONO.cielo" />

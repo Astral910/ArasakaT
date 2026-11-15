@@ -174,3 +174,81 @@ test('simulador: VIDEO 🎬 devuelve el video de la milpa', async ({ page, reque
   await page.goto('/')
   await page.waitForTimeout(1000)
 })
+
+// Ronda 4: residencial de Ciudad de Guatemala → polígono dibujado → guía (casas vecinas en 3D) → informe minimalista
+// con gráficas exportables (PNG/SVG/CSV) → PDF con la misma forma.
+test('ronda 4: residencial (Zona 10) → polígono → guía → informe con gráficas exportables', async ({ page, request }) => {
+  test.skip(process.env.STATIC === '1', 'el motor y el PDF necesitan el servidor')
+  test.setTimeout(300_000)
+  const errors = watchErrors(page)
+  await page.goto('/?lang=es&e2e=1')
+  await page.waitForSelector('[data-testid=globo][data-listo="1"]', { timeout: 30_000 })
+  await page.getByTestId('buscar-lugar').fill('Condominio Las Margaritas')
+  const op = page.getByRole('option').filter({ hasText: /Zona 10|Guatemala/ }).first()
+  await expect(op).toBeVisible({ timeout: 25_000 })
+  await op.click()
+  await expect(page.getByTestId('lugar-elegido')).toBeVisible()
+  await page.waitForFunction(() => { const m = (window as any).__globo; return m && !m.isMoving() && m.getZoom() > 14 }, null, { timeout: 30_000 })
+  await page.waitForTimeout(1200)
+  await page.getByTestId('dibujar-terreno').click()
+  await page.getByTestId('forma-poligono').click()
+  await page.waitForTimeout(1000)
+  const v = page.viewportSize()!
+  const c = { x: v.width * 0.7, y: v.height * 0.5 }
+  for (const [dx, dy] of [[-60, -40], [60, -50], [70, 40], [-50, 50]]) { await page.mouse.click(c.x + dx, c.y + dy); await page.waitForTimeout(150) }
+  await page.getByTestId('cerrar').click()
+  await expect(page.getByTestId('dibujo-area')).toContainText(/cuerdas .* mz .* ha/)
+  await snap(page, 'residencial-01-poligono')
+  await page.getByTestId('dibujo-listo').click()
+  await page.getByTestId('ver-temporada').click()
+  await expect(page).toHaveURL(/\/sandbox\?.*forma=poligono&poly=/)
+  await snap(page, 'residencial-02-carga')
+  // la escena se arma en el navegador: forma real y edificios vecinos de la ciudad
+  await page.waitForFunction(() => (window as any).__fsListo, null, { timeout: 90_000 })
+  const listo = await page.evaluate(() => (window as any).__fsListo)
+  console.log('ready residencial:', JSON.stringify({ forma: listo.forma, areaM2: listo.areaM2, edificios: listo.edificios, casasQuitadas: listo.casasQuitadas, ms: listo.ms }))
+  expect(listo.forma).toBe('poligono')
+  expect(listo.edificios, 'casas vecinas en 3D').toBeGreaterThan(5)
+  const final = await guiaHastaFinal(page, 'residencial-')
+  await final.getByRole('link', { name: /informe técnico|technical report/i }).click()
+  await expect(page).toHaveURL(/\/informe\?.*forma=poligono/)
+  await expect(page.locator('body')).toContainText(/años|years/, { timeout: 90_000 })
+  await page.waitForTimeout(2500)
+  await snap(page, 'residencial-04-informe')
+  await snap(page, 'residencial-05-informe-completo', true)
+  // gráficas exportables
+  const png = page.getByRole('button', { name: 'PNG', exact: true }).first()
+  await png.scrollIntoViewIfNeeded()
+  for (const b of ['PNG', 'SVG', 'CSV']) {
+    const [d] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: b, exact: true }).first().click()])
+    const f = path.join(DIR, `residencial-grafica.${b.toLowerCase()}`)
+    await d.saveAs(f)
+    expect(fs.statSync(f).size, b).toBeGreaterThan(200)
+  }
+  const pdf = await request.get(`/api/informe.pdf${new URL(page.url()).search}`, { timeout: 170_000 })
+  expect(pdf.ok(), `pdf ${pdf.status()}`).toBeTruthy()
+  fs.writeFileSync(path.join(DIR, 'informe-residencial.pdf'), await pdf.body())
+  noErrors(errors)
+})
+
+// Ronda 4: una parcela sobre el río Motagua → la maqueta avisa y ofrece elegir otro lugar.
+test('ronda 4: parcela sobre el río Motagua avisa', async ({ page }) => {
+  await page.goto('/sandbox?lat=14.92010&lon=-90.00310&lugar=R%C3%ADo+Motagua&pais=GT&forma=circulo&radio=30&cultivo=milpa&auto=1&lang=es')
+  const aviso = page.getByRole('alertdialog')
+  await expect(aviso).toBeVisible({ timeout: 90_000 })
+  await snap(page, 'rio-motagua-aviso')
+  await aviso.getByRole('button').first().click()
+  await expect(page).toHaveURL(/elegir=1/)
+})
+
+// Ronda 4: desierto (Sahara, Erfoud) con punto → la escena arma arena y la guía corre.
+test('ronda 4: desierto (Sahara) con punto', async ({ page }) => {
+  test.skip(process.env.STATIC === '1', 'el motor global necesita el servidor')
+  await page.goto('/sandbox?lat=31.15000&lon=-4.00000&lugar=Erg+Chebbi&pais=MA&forma=punto&area=1&unidad=ha&cultivo=milpa&auto=1&lang=es')
+  await page.waitForFunction(() => (window as any).__fsListo, null, { timeout: 90_000 })
+  const listo = await page.evaluate(() => (window as any).__fsListo)
+  console.log('ready sahara:', JSON.stringify({ forma: listo.forma, bioma: listo.bioma, ms: listo.ms }))
+  expect(listo.forma).toBe('punto')
+  await page.waitForTimeout(6000)
+  await snap(page, 'sahara-01-guia')
+})
