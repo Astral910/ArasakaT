@@ -42,7 +42,12 @@ export function geoAnimal(esp: Especie, pose: Pose = 'pie'): THREE.BufferGeometr
   const L2 = c.largo / 2
   const pelo = '#ffffff', oscuro = '#3a322c', cuerno = '#d8cfb8'
   // cuerpo (tórax más alto que la grupa en el cebú)
-  A.esfera(1, 0, yB, 0, c.ancho / 2, c.alto / 2, L2, pelo, T.pelo, { seg: 10 })
+  A.esfera(1, 0, yB, 0, c.ancho / 2 * 0.92, c.alto / 2 * 0.92, L2, pelo, T.pelo, { seg: 10 })
+  if (esp !== 'cerdo') {
+    // pecho más hondo adelante y anca marcada atrás (rompe el "chorizo")
+    A.esfera(1, 0, yB - c.alto * 0.06, L2 * 0.42, c.ancho / 2, c.alto / 2 * 1.02, L2 * 0.5, pelo, T.pelo, { seg: 9 })
+    A.esfera(1, 0, yB + c.alto * 0.04, -L2 * 0.55, c.ancho / 2 * 0.96, c.alto / 2 * 0.9, L2 * 0.42, pelo, T.pelo, { seg: 9 })
+  }
   if (esp === 'vaca') {
     A.esfera(1, 0, yB + c.alto * 0.42, L2 * 0.5, 0.17, 0.2, 0.26, pelo, T.pelo, { seg: 7 }) // giba
   }
@@ -51,8 +56,9 @@ export function geoAnimal(esp: Especie, pose: Pose = 'pie'): THREE.BufferGeometr
   for (const sz of [1, -1]) for (const sx of [-1, 1]) {
     const x = sx * c.ancho * 0.3, z = sz * L2 * 0.68
     if (echado) {
-      A.tubo(V(x * 1.1, yB - c.alto * 0.3, z), V(x * 1.25, 0.06, z + sz * c.patas * 0.25), c.grosorPata, c.grosorPata * 0.9, 5, pelo, T.pelo)
-      A.tubo(V(x * 1.25, 0.06, z + sz * c.patas * 0.25), V(x * 1.2, 0.05, z - sz * c.patas * 0.25), c.grosorPata * 0.9, c.grosorPata * 0.7, 5, pelo, T.pelo)
+      // patas dobladas bajo el cuerpo: solo asoman rodillas y pezuñas a los lados
+      A.esfera(1, x * 1.45, 0.1, z * 0.9, c.grosorPata * 2.2, c.grosorPata * 1.4, c.patas * 0.3, pelo, T.pelo, { seg: 6 })
+      if (sz > 0) A.cil(c.grosorPata * 0.9, c.grosorPata, 0.06, 5, x * 1.5, 0.05, z * 0.9 + c.patas * 0.28, oscuro, T.pelo, { rx: Math.PI / 2 })
     } else {
       const rod = V(x, c.patas * 0.48, z + (sz > 0 ? 0.02 : -0.04) * c.patas)
       A.tubo(V(x, yB - c.alto * 0.2, z), rod, c.grosorPata * 1.5, c.grosorPata, 6, pelo, T.pelo)

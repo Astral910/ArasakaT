@@ -142,6 +142,17 @@ if (vista === 'casas') {
 const objetivo = new THREE.Vector3()
 if (vista === 'casas') {
   camara.position.set(4, 9, 22); objetivo.set(0, 1.5, -6)
+} else if (vista === 'patio') {
+  // patio de cerca: anexos y animales
+  const [hx, hz] = props!.rancho.centro
+  objetivo.set(hx, alturaEn(hx, hz) + 0.8, hz)
+  const ang = Math.atan2(parcela.cz - hz, parcela.cx - hx)
+  camara.position.set(hx + Math.cos(ang) * 13, objetivo.y + 9, hz + Math.sin(ang) * 13)
+} else if (vista === 'potrero') {
+  const v = props!.rancho.grupo.children.find((o) => o.name === 'animales-vaca') as THREE.InstancedMesh | undefined
+  const m = new THREE.Matrix4()
+  if (v) { v.getMatrixAt(0, m); objetivo.setFromMatrixPosition(m).add(new THREE.Vector3(0, 0.8, 0)) }
+  camara.position.copy(objetivo).add(new THREE.Vector3(7, 3.5, 8))
 } else if (vista === 'lejos') {
   const [hx, hz] = props!.rancho.centro
   objetivo.set(hx * 0.6, alturaEn(hx, hz), (hz + parcela.cz) / 2)

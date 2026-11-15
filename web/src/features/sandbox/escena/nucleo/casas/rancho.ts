@@ -349,10 +349,10 @@ export function crearRancho(o: OpcionesRancho, tipoGranja?: TipoGranja): Rancho 
       const x = hxP + Math.cos(a) * dd, z = hzP + Math.sin(a) * dd
       if (!libre(x, z, Math.hypot(w, d) / 2 + 1) || mojado(x, z, Math.max(w, d) / 2)) continue
       if (desnivel(x, z, Math.max(w, d) / 2) > 0.55 * Math.max(w, d)) continue
-      for (let zz = -d / 2; zz <= d / 2; zz += 2.0) for (let xx = -w / 2; xx <= w / 2; xx += 1.6) {
+      for (let zz = -d / 2; zz <= d / 2; zz += 2.5) for (let xx = -w / 2; xx <= w / 2; xx += 1.5) {
         const px = x + xx + (r() - 0.5) * 0.4, pz = z + zz + (r() - 0.5) * 0.3
         if (esAgua(px, pz)) continue
-        plantas.push({ tipo: 'cafeto', x: px, z: pz, escala: 0.8 + r() * 0.35 })
+        plantas.push({ tipo: 'cafeto', x: px, z: pz, escala: 0.7 + r() * 0.3 })
       }
       for (let zz = -d / 2 + 2; zz <= d / 2; zz += 7) for (let xx = -w / 2 + 2; xx <= w / 2; xx += 7.5) plantas.push({ tipo: 'sombra', x: x + xx + (r() - 0.5) * 2, z: z + zz + (r() - 0.5) * 2, escala: 0.9 + r() * 0.3 })
       ocup.push([x, z, Math.hypot(w, d) / 2])

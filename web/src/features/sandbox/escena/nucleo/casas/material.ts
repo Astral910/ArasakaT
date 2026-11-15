@@ -27,8 +27,8 @@ vec3 superficie(vec3 c, vec2 uv, int tipo, float est, float alto){
   if (tipo == 0 || tipo == 1) {
     vec3 a = aparejo(uv, vec2(0.40, 0.13));
     float junta = 1.0 - smoothstep(0.006, 0.018, a.x);
-    vec3 adobe = vec3(0.52, 0.39, 0.27) * (0.82 + 0.32 * h21(a.yz)) * (0.88 + 0.22 * n2);
-    adobe = mix(adobe, vec3(0.34, 0.26, 0.19), junta * 0.75 * aa);
+    vec3 adobe = vec3(0.3, 0.18, 0.09) * (0.82 + 0.32 * h21(a.yz)) * (0.88 + 0.22 * n2);
+    adobe = mix(adobe, vec3(0.14, 0.09, 0.055), junta * 0.75 * aa);
     float pc = fbm(uv * 0.75 + 3.7);
     float caido = tipo == 1 ? 1.0 : smoothstep(0.68 - est * 0.12, 0.7 - est * 0.12, pc) * smoothstep(0.2, 0.55, alto);
     float orilla = tipo == 1 ? 0.0 : smoothstep(0.63 - est * 0.12, 0.68 - est * 0.12, pc) * (1.0 - caido);
@@ -61,7 +61,7 @@ vec3 superficie(vec3 c, vec2 uv, int tipo, float est, float alto){
     c *= (0.76 + 0.34 * h21(id)) * mix(1.0, 0.68 + 0.32 * curva, aa);
     c *= mix(1.0, mix(0.72, 1.0, smoothstep(0.0, 0.22, f.y)), aa);
     float musgo = smoothstep(0.52, 0.82, fbm(uv * 0.6 + 11.0)) * (0.35 + est * 0.65);
-    c = mix(c, vec3(0.2, 0.22, 0.13) * (0.8 + 0.4 * n2), musgo * 0.7);
+    c = mix(c, vec3(0.05, 0.065, 0.025) * (0.8 + 0.4 * n2), musgo * 0.6);
     c = mix(c, c * vec3(0.55, 0.5, 0.48), smoothstep(0.6, 0.9, n1) * est * 0.5);
     gRough = 0.86;
   } else if (tipo == 5) {
@@ -73,7 +73,7 @@ vec3 superficie(vec3 c, vec2 uv, int tipo, float est, float alto){
     c *= 0.92 + 0.12 * hoja;
     float chorro = vnoise(vec2(uv.x * 9.0, uv.y * 0.6));
     float oxido = smoothstep(0.64, 0.9, fbm(uv * vec2(1.1, 0.45) + 5.0) + est * 0.2 + chorro * 0.12 * est + hoja * 0.08);
-    vec3 oxC = mix(vec3(0.24, 0.15, 0.1), vec3(0.38, 0.22, 0.13), n2);
+    vec3 oxC = mix(vec3(0.09, 0.04, 0.018), vec3(0.17, 0.075, 0.03), n2);
     c = mix(c * (0.9 + 0.12 * n1), oxC, oxido * 0.85);
     gMetal = 0.55 * (1.0 - oxido); gRough = mix(0.42, 0.9, oxido);
   } else if (tipo == 6) {
@@ -85,14 +85,14 @@ vec3 superficie(vec3 c, vec2 uv, int tipo, float est, float alto){
     gRough = 0.97;
   } else if (tipo == 7) {
     float pelado = smoothstep(0.73 - est * 0.08, 0.76 - est * 0.08, fbm(uv * 2.2 + 1.3)) * aa;
-    c = mix(c * (0.92 + 0.12 * n1), mix(c, vec3(0.55, 0.47, 0.38), 0.6) * (0.85 + 0.2 * n2), pelado);
+    c = mix(c * (0.92 + 0.12 * n1), mix(c, vec3(0.26, 0.19, 0.12), 0.6) * (0.85 + 0.2 * n2), pelado);
     gH = -pelado * 0.003; gRough = mix(0.62, 0.92, pelado);
   } else if (tipo == 8) {
     vec2 p = uv * vec2(2.4, 3.2);
     float vb = voroBorde(p);
     float junta = 1.0 - smoothstep(0.02, 0.09, vb);
     c *= (0.78 + 0.36 * h21(floor(p + 0.5))) * (0.88 + 0.2 * n2);
-    c = mix(c, vec3(0.42, 0.38, 0.33), junta * 0.8);
+    c = mix(c, vec3(0.15, 0.13, 0.1), junta * 0.8);
     gH = smoothstep(0.0, 0.18, vb) * 0.03 * aa;
     gRough = 0.92;
   } else if (tipo == 9) {
@@ -109,7 +109,7 @@ vec3 superficie(vec3 c, vec2 uv, int tipo, float est, float alto){
     c *= 0.75 + 0.45 * vnoise(uv * 7.0); gH = vnoise(uv * 7.0) * 0.01; gRough = 0.8;
   } else if (tipo == 14) {
     float ox = smoothstep(0.6, 0.85, fbm(uv * 1.7 + 9.0) + est * 0.3);
-    c = mix(c * (0.92 + 0.1 * n1), vec3(0.4, 0.2, 0.1), ox);
+    c = mix(c * (0.92 + 0.1 * n1), vec3(0.15, 0.06, 0.025), ox);
     gMetal = 0.45 * (1.0 - ox); gRough = mix(0.45, 0.9, ox);
   } else if (tipo == 15) {
     gRough = 1.0;
