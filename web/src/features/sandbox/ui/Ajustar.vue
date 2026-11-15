@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Panel "Ajustar" escondido: día de siembra (slot arriba), estrategia, riego, escenario y comparar (+ exportar y ayuda). Cajón a la derecha en
+// Panel "Ajustar" (ronda 7, simple): día de siembra (slot arriba), estrategia, riego y comparar. Curva, riesgos y fuentes → informe técnico. Cajón a la derecha en
 // escritorio, hoja inferior en celular.
 import { onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
 import { X } from 'lucide-vue-next'
@@ -32,12 +32,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', esc, true))
       </header>
       <slot name="arriba" />
       <Controles :model-value="modelValue" :cargando="cargando" :recomendada="recomendada" @update:model-value="emit('update:modelValue', $event)" />
-      <p v-if="aviso" class="aviso">{{ aviso }}</p>
-      <slot />
-      <footer>
-        <span>{{ t('origen_' + origen) }} · {{ t('fuente') }}</span>
-        <span v-if="!movil" class="kbd">{{ t('teclado') }}</span>
-      </footer>
     </aside>
   </Transition>
 </template>

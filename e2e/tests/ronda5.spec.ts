@@ -115,11 +115,13 @@ test('capas del simulador: temperatura, humedad y verdor con leyenda y fuente', 
   const q = new URLSearchParams({ ...JOCOTAN, idioma: 'es' })
   await page.goto(`/sandbox?${q}&lang=es`)
   await expect(page.locator('canvas').first()).toBeVisible({ timeout: 60_000 })
-  const chip = page.locator('button.chip.capas')
-  await expect(chip).toBeVisible({ timeout: 90_000 })
+  // ronda 7: columna de botones circulares arriba a la izquierda (sin el botón «Capas»)
+  await expect(page.locator('#menu-capas button.circ')).toHaveCount(5, { timeout: 90_000 })
+  await expect(page.locator('button.chip.capas')).toHaveCount(0)
   for (const [nombre, marca] of [[/Temperatura/, /°C/], [/Humedad/, /%/], [/Verdor/, /NDVI|Sentinel|verdor/i]] as const) {
-    await chip.click()
-    await page.getByRole('menuitemradio', { name: nombre }).click()
+    const b = page.locator('#menu-capas').getByRole('button', { name: nombre })
+    await b.click()
+    await expect(b).toHaveAttribute('aria-pressed', 'true')
     const ley = page.locator('.leyenda')
     await expect(ley).toBeVisible({ timeout: 30_000 })
     await expect(ley).toContainText(marca, { timeout: 30_000 })
@@ -127,5 +129,43 @@ test('capas del simulador: temperatura, humedad y verdor con leyenda y fuente', 
     await page.waitForTimeout(1500)
     await snap(page, `capa-${String(nombre).replace(/\W/g, '').toLowerCase()}`)
   }
+  noErrors(errors)
+})
+
+// Ronda 7: «Ir al dashboard» (confirmación propia) → sin sesión crea la cuenta → guarda y abre el dashboard del terreno;
+// con sesión, guardar otra vez el mismo terreno no lo duplica.
+test('simulador: «Ir al dashboard» → crear cuenta → dashboard del terreno, sin duplicar', async ({ page }) => {
+  const errors = watchErrors(page)
+  const correo = `e2e-ir-${Date.now()}@fieldshift.test`
+  const q = new URLSearchParams({ ...JOCOTAN, idioma: 'es' })
+  const irDashboard = async () => {
+    await page.goto(`/sandbox?${q}&lang=es&intro=0`)
+    const b = page.getByTestId('ir-dashboard')
+    await expect(b).toBeVisible({ timeout: 90_000 })
+    await b.click()
+    const dlg = page.getByTestId('confirmar-dashboard')
+    await expect(dlg).toContainText(/cancela la animación/)
+    return dlg
+  }
+  let dlg = await irDashboard()
+  await snap(page, 'ir-dashboard-confirmar')
+  await dlg.getByRole('button', { name: 'Cancelar' }).click()
+  await expect(dlg).toBeHidden()
+  await page.getByTestId('ir-dashboard').click()
+  await page.getByTestId('confirmar-ir').click()
+  await expect(page).toHaveURL(/\/entrar\?.*modo=registro/, { timeout: 20_000 })
+  await page.getByTestId('auth-nombre').fill('Prueba e2e ir')
+  await page.getByTestId('auth-usuario').fill(correo)
+  await page.getByTestId('auth-contrasena').fill('milpa-segura-2026')
+  await page.getByTestId('auth-enviar').click()
+  await expect(page).toHaveURL(/\/terrenos\/p_/, { timeout: 30_000 })
+  const id1 = new URL(page.url()).pathname.split('/').pop()
+  // otra vez, ya con sesión: mismo terreno
+  dlg = await irDashboard()
+  await page.getByTestId('confirmar-ir').click()
+  await expect(page).toHaveURL(/\/terrenos\/p_/, { timeout: 30_000 })
+  expect(new URL(page.url()).pathname.split('/').pop()).toBe(id1)
+  const lista = await page.evaluate(() => fetch('/api/parcelas', { credentials: 'include' }).then((r) => r.json()))
+  expect((lista.parcelas ?? lista).length).toBe(1)
   noErrors(errors)
 })

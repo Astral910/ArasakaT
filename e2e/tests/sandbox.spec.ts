@@ -54,6 +54,10 @@ async function guiaHastaFinal(page: Page, pre2: string) {
   const final = page.locator('section.final')
   await expect(final).toBeVisible({ timeout: 90_000 })
   await expect(final).toContainText(/qq\/mz|qq por cuerda|qq per cuerda|t\/ha/) // granjero6: unidad del lugar
+  // ronda 7: solo el título y un único botón «Guardar este terreno»; sin confianza, informe, WhatsApp ni video
+  await expect(final.getByTestId('guardar-terreno')).toBeVisible()
+  await expect(final.locator('a, button:not(.cerrar)')).toHaveCount(1)
+  await expect(final).not.toContainText(/Confianza|confidence|WhatsApp|informe técnico|technical report/i)
   await snap(page, `${pre2}03-tarjeta-final`)
   return final
 }
@@ -65,21 +69,22 @@ test('ronda 3: Jocotán → guía centrada → tarjeta final → informe web y P
   // nunca "ejemplo" con motor; la insignia de confianza dice el escenario con su probabilidad
   await expect(page.locator('body')).not.toContainText(/Example data|Datos de ejemplo|Ejemplo ilustrativo/i)
   const final = await guiaHastaFinal(page, 'jocotan-')
-  // ronda 6: la insignia solo dice el nivel; el % va al informe
-  await expect(final).toContainText(/Confianza (media|alta|baja)|(Medium|High|Low) confidence/)
-  // Ajustar: riego alto recalcula; Exportar video está en el panel
+  // ronda 7: en ningún lado del simulador se dice la confianza
+  await expect(page.locator('body')).not.toContainText(/Confianza (media|alta|baja)|(Medium|High|Low) confidence/)
+  // Ajustar (simple): siembra, estrategia, riego («Tu riego» marcado) y comparar; sin curva, riesgos ni fuentes
   await final.getByRole('button', { name: /Cerrar|Close/ }).click()
   await page.getByRole('button', { name: /^(Ajustar|Adjust)$/ }).click()
-  await page.getByRole('button', { name: /Mucho|High/ }).first().click()
+  const aj = page.locator('#panel-ajustar')
+  await expect(aj.getByTestId('sembras')).toContainText(/Sembrás el .* cosechás/)
+  await expect(aj.locator('svg.cal, .razones, select')).toHaveCount(0)
+  await aj.getByRole('button', { name: /Mucho|High/ }).first().click()
+  await expect(aj.getByTestId('riego').locator('button.on')).toContainText(/Tu riego/)
+  await expect(aj.getByTestId('riego').locator('button.on')).toContainText(/Mucho/)
   await page.waitForTimeout(2500)
-  await expect(page.getByRole('button', { name: /Export video|Exportar video/ }).first()).toBeVisible()
   await snap(page, 'jocotan-04-ajustar-riego')
   await page.getByRole('button', { name: /^(Ajustar|Adjust)$/ }).click()
-  // vuelve a la tarjeta final → informe técnico
-  await page.getByRole('button', { name: /Ver otra vez|Watch again|Pausa|Pause|Reproducir|Play/ }).first().click()
-  const f2 = await guiaHastaFinal(page, 'jocotan-b-')
-  await f2.getByRole('link', { name: /informe técnico|technical report/i }).click()
-  await expect(page).toHaveURL(/\/informe\?/)
+  // el informe técnico sigue en su ruta (se llega desde el dashboard)
+  await page.goto(`/informe${new URL(page.url()).search}`)
   await expect(page.locator('body')).toContainText(/Jocotán/, { timeout: 60_000 })
   await expect(page.locator('body')).toContainText(/años|years/)
   await page.waitForTimeout(2000)
@@ -98,9 +103,8 @@ test('ronda 3: punto fuera de Guatemala (Nairobi) → guía → informe y PDF', 
   test.skip(process.env.STATIC === '1', 'el motor global necesita el servidor')
   const errors = watchErrors(page)
   await landingAGuia(page, 'Nairobi', /Kenya|Kenia/)
-  const final = await guiaHastaFinal(page, 'nairobi-')
-  await final.getByRole('link', { name: /informe técnico|technical report/i }).click()
-  await expect(page).toHaveURL(/\/informe\?/)
+  await guiaHastaFinal(page, 'nairobi-')
+  await page.goto(`/informe${new URL(page.url()).search}`)
   await expect(page.locator('body')).toContainText(/Nairobi/, { timeout: 90_000 })
   await expect(page.locator('body')).toContainText(/sin validación local|no local validation/i)
   await page.waitForTimeout(2000)
@@ -210,8 +214,8 @@ test('ronda 4: residencial (Zona 10) → polígono → guía → informe con gr�
   console.log('ready residencial:', JSON.stringify({ forma: listo.forma, areaM2: listo.areaM2, edificios: listo.edificios, casasQuitadas: listo.casasQuitadas, ms: listo.ms }))
   expect(listo.forma).toBe('poligono')
   expect(listo.edificios, 'casas vecinas en 3D').toBeGreaterThan(5)
-  const final = await guiaHastaFinal(page, 'residencial-')
-  await final.getByRole('link', { name: /informe técnico|technical report/i }).click()
+  await guiaHastaFinal(page, 'residencial-')
+  await page.goto(`/informe${new URL(page.url()).search}`)
   await expect(page).toHaveURL(/\/informe\?.*forma=poligono/)
   await expect(page.locator('body')).toContainText(/años|years/, { timeout: 90_000 })
   await page.waitForTimeout(2500)

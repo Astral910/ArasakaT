@@ -1,12 +1,13 @@
 <script setup lang="ts">
-// Menú "Capas" (temperatura, humedad, estrés, erosión, verdor) y la leyenda de la capa activa, con su fuente:
+// Capas (ronda 7): columna de botones circulares arriba a la izquierda (temperatura, humedad, estrés, erosión, verdor),
+// con tooltip y activo/inactivo a la vista; abajo, la leyenda de la capa activa, con su fuente:
 // dato real (satélite) o estimado (motor).
 import { computed } from 'vue'
 import { Thermometer, Droplets, Activity, Mountain, Leaf, X } from 'lucide-vue-next'
 import { FILTROS, leyenda, nombreFiltro, type Filtro } from './filtros'
 import { t } from './textos'
 
-const props = defineProps<{ filtro: Filtro | null; abierto: boolean; idioma: 'es' | 'en'; deEscena?: any; movil?: boolean }>()
+const props = defineProps<{ filtro: Filtro | null; abierto?: boolean; idioma: 'es' | 'en'; deEscena?: any; movil?: boolean }>()
 const emit = defineEmits<{ elegir: [f: Filtro | null]; cerrar: [] }>()
 const ICONO = { temperatura: Thermometer, humedad: Droplets, estres: Activity, erosion: Mountain, verdor: Leaf }
 const ley = computed(() => (props.filtro ? leyenda(props.filtro, props.idioma, props.deEscena) : null))
@@ -14,15 +15,12 @@ const degradado = computed(() => (ley.value ? `linear-gradient(90deg, ${ley.valu
 </script>
 
 <template>
-  <Transition name="capas">
-    <div v-if="abierto" id="menu-capas" class="menu" :class="{ movil }" role="menu" :aria-label="t('capas')">
-      <button v-for="f in FILTROS" :key="f" type="button" role="menuitemradio" :aria-checked="filtro === f" :class="{ on: filtro === f }" @click="emit('elegir', filtro === f ? null : f)">
-        <component :is="ICONO[f]" :size="16" aria-hidden="true" /><span>{{ nombreFiltro(f, idioma) }}</span>
-        <small :class="leyenda(f, idioma, filtro === f ? deEscena : undefined).real ? 'real' : 'est'">{{ leyenda(f, idioma, filtro === f ? deEscena : undefined).real ? t('capaReal') : t('capaEst') }}</small>
-      </button>
-      <button v-if="filtro" type="button" class="quitar" role="menuitemradio" :aria-checked="false" @click="emit('elegir', null)">{{ t('capaNinguna') }}</button>
-    </div>
-  </Transition>
+  <div id="menu-capas" class="columna" :class="{ movil }" role="toolbar" aria-orientation="vertical" :aria-label="t('capas')">
+    <button v-for="f in FILTROS" :key="f" type="button" class="circ" :class="{ on: filtro === f }" :aria-pressed="filtro === f" :aria-label="nombreFiltro(f, idioma)" :data-capa="f" @click="emit('elegir', filtro === f ? null : f)">
+      <component :is="ICONO[f]" :size="movil ? 16 : 18" aria-hidden="true" />
+      <span class="tip" role="tooltip">{{ nombreFiltro(f, idioma) }}</span>
+    </button>
+  </div>
   <Transition name="capas">
     <div v-if="ley" class="leyenda vidrio-l" :class="{ movil }" role="note">
       <p class="tit"><b>{{ ley.nombre }}</b><span :class="ley.real ? 'real' : 'est'">{{ ley.real ? t('capaReal') : t('capaEst') }}</span>
@@ -35,14 +33,17 @@ const degradado = computed(() => (ley.value ? `linear-gradient(90deg, ${ley.valu
 </template>
 
 <style scoped>
-.menu { position: absolute; z-index: 14; top: 60px; right: 16px; width: 250px; display: grid; gap: 4px; padding: 8px; border-radius: 16px;
-  background: rgba(22,17,12,.82); border: 1px solid rgba(255,250,240,.16); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 18px 50px rgba(0,0,0,.4); }
-.menu button { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; color: #f4ebdb; padding: 8px 10px; border-radius: 10px; font: inherit; font-size: .86rem; font-weight: 600; cursor: pointer; text-align: left; }
-.menu button span { flex: 1; }
-.menu button:hover { background: rgba(255,250,240,.08); }
-.menu button.on { background: #f4ebdb; color: #2a2118; }
-.menu button:focus-visible, .x:focus-visible { outline: 3px solid #e0a526; outline-offset: 1px; }
-.menu .quitar { justify-content: center; font-size: .78rem; opacity: .8; }
+.columna { position: absolute; z-index: 12; top: 64px; left: 16px; display: grid; gap: 8px; }
+.circ { position: relative; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; padding: 0;
+  border: 1px solid rgba(255,250,240,.28); background: rgba(20,16,12,.55); color: #f4ebdb; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: 0 6px 18px rgba(0,0,0,.25); transition: background .2s, color .2s, box-shadow .2s; }
+.circ:hover { background: rgba(20,16,12,.75); }
+.circ.on { background: #f4ebdb; color: #2a2118; border-color: #ffe7a8; box-shadow: 0 0 0 3px rgba(224,165,38,.55), 0 6px 18px rgba(0,0,0,.3); }
+.circ:focus-visible, .x:focus-visible { outline: 3px solid #e0a526; outline-offset: 2px; }
+.tip { position: absolute; left: calc(100% + 10px); top: 50%; transform: translate(-4px, -50%); white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .15s, transform .15s;
+  font-size: .76rem; font-weight: 700; padding: 5px 9px; border-radius: 8px; background: rgba(22,17,12,.9); color: #f4ebdb; border: 1px solid rgba(255,250,240,.16); }
+.circ:hover .tip, .circ:focus-visible .tip { opacity: 1; transform: translate(0, -50%); }
+.columna.movil { top: 56px; left: 10px; gap: 6px; }
+.columna.movil .circ { width: 36px; height: 36px; }
 small { font-size: .64rem; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
 .real { color: #6fd0a6; background: rgba(42,138,102,.22); }
 .est { color: #ffd27a; background: rgba(224,165,38,.16); }
@@ -55,7 +56,6 @@ small { font-size: .64rem; font-weight: 700; padding: 2px 6px; border-radius: 6p
 .barra { display: block; height: 9px; border-radius: 5px; }
 .ext { display: flex; justify-content: space-between; font-size: .7rem; color: #e6d8bf; }
 .fte { font-size: .66rem; line-height: 1.35; color: #bfae94; }
-.menu.movil { right: 8px; top: 54px; }
 .leyenda.movil { left: 8px; bottom: calc(var(--pie-h, 130px) + 16px); width: min(260px, calc(100% - 16px)); }
 .capas-enter-active, .capas-leave-active { transition: opacity .2s ease, transform .25s var(--ease); }
 .capas-enter-from, .capas-leave-to { opacity: 0; transform: translateY(-6px); }
