@@ -130,6 +130,7 @@ export function resultado(rec: SimAnio | undefined, s0: SimAnio | undefined, nom
   let frase: string
   if (mismaEstrategia || !s0) frase = en ? `With ${nombreRec} you'd harvest about ${n(r)} qq/mz this season.` : `Con ${nombreRec} cosecharías cerca de ${n(r)} qq/mz esta temporada.`
   else if (s0.perdida && !rec.perdida) frase = en ? `Doing what you do today the harvest would be lost; with ${nombreRec} you'd get ${n(r)} qq/mz.` : `Como lo hacés hoy se perdería la cosecha; con ${nombreRec} salen ${n(r)} qq/mz.`
+  else if (s0.perdida && rec.perdida) frase = en ? `A poor season either way (under 70 % of a normal harvest); ${nombreRec} protects the soil better.` : `Temporada mala de todos modos (menos del 70 % de una cosecha normal); ${nombreRec} cuida mejor el suelo.`
   else if (r - b >= 0.5) frase = en ? `With ${nombreRec} you'd harvest ${n(r - b)} qq/mz more than today.` : `Con ${nombreRec} cosecharías ${n(r - b)} qq/mz más que como lo hacés hoy.`
   else if (b - r >= 0.5) frase = en ? `This season ${nombreRec} yields ${n(b - r)} qq/mz less, but protects the soil for the next ones.` : `Esta temporada ${nombreRec} rinde ${n(b - r)} qq/mz menos, pero cuida el suelo para las siguientes.`
   else frase = en ? `Both yield about the same this season; ${nombreRec} protects the soil better.` : `Las dos rinden parecido esta temporada; ${nombreRec} cuida mejor el suelo.`

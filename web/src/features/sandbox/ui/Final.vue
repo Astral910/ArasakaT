@@ -10,7 +10,8 @@ import { numero } from '../../mapa/comun/idioma'
 const props = defineProps<{ res: Resultado; recomendada: string; informe: string; whatsapp: string; insignia: Insignia; movil?: boolean }>()
 const emit = defineEmits<{ otraVez: []; cerrar: [] }>()
 const mejor = computed(() => (isFinite(props.res.s0) ? props.res.recomendada - props.res.s0 : 0))
-const qq = (x: number, perdida: boolean) => (perdida ? '0' : numero(x, 1))
+// temporada perdida = menos del 70 % de lo normal (no cero): se muestra el número real y la marca
+const qq = (x: number) => numero(x, 1)
 </script>
 
 <template>
@@ -21,11 +22,11 @@ const qq = (x: number, perdida: boolean) => (perdida ? '0' : numero(x, 1))
     <div class="nums">
       <div v-if="isFinite(res.s0)" class="n s0">
         <small>S0 · {{ t('S0') }}</small>
-        <b class="num">{{ qq(res.s0, res.perdidaS0) }}</b><span>qq/mz</span>
+        <b class="num">{{ qq(res.s0) }}</b><span>qq/mz</span><i v-if="res.perdidaS0" class="mala">{{ t('temporadaMala') }}</i>
       </div>
       <div class="n rec" :class="{ mejor: mejor > 0.4 }">
         <small>{{ recomendada }} · {{ t(recomendada) }} <em :title="t('recomendada')">★<template v-if="!movil"> {{ t('recomendada') }}</template></em></small>
-        <b class="num">{{ qq(res.recomendada, res.perdidaRec) }}</b><span>qq/mz</span>
+        <b class="num">{{ qq(res.recomendada) }}</b><span>qq/mz</span><i v-if="res.perdidaRec" class="mala">{{ t('temporadaMala') }}</i>
       </div>
     </div>
     <p class="conf" :title="insignia.detalle">{{ insignia.texto }}</p>
@@ -48,6 +49,7 @@ h2 { font-family: var(--font-display); font-size: clamp(1.3rem, 2.6vw, 1.75rem);
 .nums { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .n { border-radius: 14px; padding: 10px 14px; background: rgba(255,250,240,.06); border: 1px solid rgba(255,250,240,.14); display: grid; grid-template-columns: auto 1fr; align-items: baseline; column-gap: 6px; }
 .n small { grid-column: 1 / -1; font-size: .7rem; color: #d2c3ab; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.n .mala { grid-column: 1 / -1; font-style: normal; font-size: .68rem; font-weight: 700; color: #f0a39a; }
 .n small em { font-style: normal; color: #e0a526; margin-left: 4px; }
 .n b { font-family: var(--font-display); font-size: 2.3rem; font-weight: 600; line-height: 1.05; }
 .n span { font-size: .8rem; color: #d2c3ab; }
