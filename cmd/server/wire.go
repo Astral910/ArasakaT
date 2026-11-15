@@ -17,6 +17,7 @@ import (
 
 	"fieldshift/internal/alerts"
 	"fieldshift/internal/bot"
+	"fieldshift/internal/campo"
 	"fieldshift/internal/channels"
 	"fieldshift/internal/channels/evolution"
 	"fieldshift/internal/channels/whatsmeow"
@@ -48,6 +49,7 @@ type app struct {
 	comp      Componentes
 	cerrar    []func()
 	waAdmin   http.Handler // página de vinculación de WhatsApp (solo con WA_MODO=vinculado)
+	campo     *campo.Servicio // estado de hoy de las parcelas (nil con el motor falso); lo pueden usar chat y bot
 }
 
 func montar(mux *http.ServeMux, cfg Config) *app {
@@ -87,6 +89,13 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		alertasFalsas(mux, cfg)
 		a.alertador = alertadorFalso{}
 		a.comp.Alertas = "falso"
+	}
+
+	// CAMPO (internal/campo, cmd/server/campo.go): estado de hoy y reportes de cada parcela. Resolver nil = parcela
+	// por parámetros; al integrar cuentas, pasar el Resolver que lee la parcela de la sesión.
+	a.campo = montarCampo(mux, cfg, a.planner, alSvc, nil)
+	if a.campo != nil && a.campo.Store != nil {
+		a.cerrar = append(a.cerrar, func() { a.campo.Store.Close() })
 	}
 
 	// BOT (internal/bot, internal/channels, internal/cards)
