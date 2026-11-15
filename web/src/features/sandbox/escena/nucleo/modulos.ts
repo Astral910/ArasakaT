@@ -2,7 +2,6 @@
 // módulo (si su carpeta no está, la escena sigue sin él), caché del relieve, reglas de ubicación, etapas de
 // carga y calidad automática según el equipo del visitante.
 import * as THREE from 'three'
-import type { ClimaVisual } from '../api'
 import type { UniformsGlobales } from './glsl'
 import type { Maqueta, Parcela, UniformsSuelo } from './maqueta'
 import type { Bioma } from './biomas'
@@ -41,30 +40,46 @@ export interface CtxEscena {
   maqueta: Maqueta
 }
 
+/** API de `nucleo/suelo/` (agente suelo, COORDINACION.md). */
 export interface ModSuelo {
   grupo?: THREE.Object3D
   esAgua?(x: number, z: number): boolean
   cobertura?(x: number, z: number): string
-  actualizar?(clima: ClimaVisual, dt: number): void
+  actualizar?(dt: number, camara: THREE.Camera): void
+  parcelaEnAgua?(parcela: Parcela): { fraccion: number; tipo: 'rio' | 'lago' | 'mar' } | null
+  info?: { fuenteCobertura?: string; fuenteAgua?: string[]; fracciones?: Record<string, number>; ms?: number }
   dispose?(): void
 }
+/** API de `nucleo/ciudad/` (agente ciudad, COORDINACION.md). */
 export interface ModCiudad {
   grupo?: THREE.Object3D
   edificios?: number
   quitados?: number
-  actualizar?(clima: ClimaVisual, dt: number): void
+  calles?: number
+  urbano?: boolean
+  esCalle?(x: number, z: number): boolean
+  esEdificio?(x: number, z: number): boolean
+  pintar?(c: HTMLCanvasElement): HTMLCanvasElement
+  actualizarSatelite?(c: HTMLCanvasElement): void
+  actualizar?(dt: number, camara: THREE.Camera): void
   dispose?(): void
 }
 
 // Módulos opcionales: cada agente publica `nucleo/<modulo>/index.ts`. Sin la carpeta, glob no trae nada.
 const MODS = import.meta.glob(['./suelo/index.ts', './ciudad/index.ts', './casas/index.ts'])
 
-/** Carga un módulo y lo arma; si falta, falla o tarda más de `ms`, devuelve null (la escena sigue). */
-export async function cargarModulo<T>(nombre: 'suelo' | 'ciudad' | 'casas', crear: (m: any) => T | Promise<T> | undefined, ms = 14000): Promise<T | null> { // eslint-disable-line @typescript-eslint/no-explicit-any
+/** Importa un módulo opcional (null si su carpeta no está o falla al cargar). */
+export async function importarModulo(nombre: 'suelo' | 'ciudad' | 'casas'): Promise<any | null> { // eslint-disable-line @typescript-eslint/no-explicit-any
   const f = MODS[`./${nombre}/index.ts`]
   if (!f) return null
+  try { return await f() } catch (e) { console.warn(`[escena] módulo ${nombre}:`, e); return null }
+}
+
+/** Arma un módulo ya importado; si falla o tarda más de `ms`, devuelve null (la escena sigue sin él). */
+export async function cargarModulo<T>(nombre: 'suelo' | 'ciudad' | 'casas', crear: (m: any) => T | Promise<T> | undefined, ms = 14000): Promise<T | null> { // eslint-disable-line @typescript-eslint/no-explicit-any
   try {
-    const m = await f()
+    const m = await importarModulo(nombre)
+    if (!m) return null
     const r = crear(m)
     if (!r) return null
     return await Promise.race([Promise.resolve(r), new Promise<null>((res) => setTimeout(() => res(null), ms))])

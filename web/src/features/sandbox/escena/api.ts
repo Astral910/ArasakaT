@@ -110,7 +110,7 @@ export interface SandboxEvents {
   /** Carga por etapas (ronda 4): p = avance total 0..1, texto listo para la pantalla de carga. */
   progreso: { etapa: EtapaCarga; p: number; texto: string }
   /** La parcela cae (más del 20 %) en agua de río/lago: vuelo4 lo avisa y pide mover el punto. */
-  parcelaEnAgua: { fraccion: number; lat: number; lon: number }
+  parcelaEnAgua: { fraccion: number; lat: number; lon: number; tipo?: 'rio' | 'lago' | 'mar' }
   dia: { indice: number; fecha: string; clima: ClimaVisual }
   evento: SimEvento
   rayo: { indice: number }

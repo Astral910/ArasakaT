@@ -23,7 +23,7 @@ import {
 import { cache } from './cache'
 import { construirCerco, type Cerco } from './cerco'
 import {
-  aplicarReglas, calidadInicial, cargarModulo, esMovil, relieveConCache, TEXTO_ETAPA, TRAMOS,
+  aplicarReglas, calidadInicial, cargarModulo, esMovil, importarModulo, relieveConCache, TEXTO_ETAPA, TRAMOS,
   type CtxEscena, type EtapaCarga, type ModCiudad, type ModSuelo,
 } from './modulos'
 
@@ -212,6 +212,8 @@ class SandboxImpl implements Sandbox {
     etapa('relieve', 0)
     // región grande centrada en el punto → se recorta rotada para que la ladera baje hacia la cámara
     const B = 2 * (cz + L * 0.7072) + 16
+    // el suelo (cobertura 10 m + agua OSM) se descarga en paralelo con el relieve
+    const precargaSuelo = importarModulo('suelo').then((m) => m?.precargarSuelo?.({ lat, lon, B, signal: ab.signal }) ?? null).catch(() => null)
     let rec
     try {
       const grande = await relieveConCache({
@@ -267,13 +269,19 @@ class SandboxImpl implements Sandbox {
     // 2) suelo: materiales del terreno + agua (nada se pone en el agua)
     etapa('suelo', 0)
     ctx.progreso = (_f, v) => etapa('suelo', v)
-    this.suelo = await cargarModulo<ModSuelo>('suelo', (m) => m.crearSuelo?.(ctx))
+    const superficie = mq.grupo.getObjectByName('superficie')
+    this.suelo = await cargarModulo<ModSuelo>('suelo', (m) => m.crearSuelo?.({
+      ...ctx, superficie, alturas: mq.alturas, precarga: precargaSuelo, camara: this.camara,
+    }), 16000)
     if (ab.signal.aborted || this.desechado) return
     if (this.suelo?.grupo) this.mundo.add(this.suelo.grupo)
-    const esAgua = this.suelo?.esAgua ? (x: number, z: number) => this.suelo!.esAgua!(x, z) : () => false
-    if (this.suelo?.esAgua) ocupacion.marcarFuncion('agua', esAgua, true)
-    const fracAgua = this.suelo?.esAgua ? ocupacion.fraccionEn('agua', this.parcela.dentro!, esAgua) : 0
-    if (fracAgua > 0.2) this.emitir('parcelaEnAgua', { fraccion: Math.round(fracAgua * 100) / 100, lat, lon })
+    const sueloAgua = this.suelo?.esAgua?.bind(this.suelo)
+    const esAgua = sueloAgua ?? (() => false)
+    // el suelo marca el agua en la ocupación; por si no, se marca aquí (pisa lo anterior: el agua manda)
+    if (sueloAgua && !ocupacion.g.some((v) => v === 1)) ocupacion.marcarFuncion('agua', esAgua, true)
+    const enAgua = this.suelo?.parcelaEnAgua?.(this.parcela)
+    const fracAgua = enAgua ? enAgua.fraccion : sueloAgua ? ocupacion.fraccionEn('agua', this.parcela.dentro!, esAgua) : 0
+    if (fracAgua > 0.2) this.emitir('parcelaEnAgua', { fraccion: Math.round(fracAgua * 100) / 100, lat, lon, tipo: enAgua?.tipo })
     ocupacion.marcarPoligono('parcela', poli)
     cierra('suelo')
     // 3) ciudad: calles, edificios vecinos (los que caen en la parcela se quitan)
@@ -282,6 +290,8 @@ class SandboxImpl implements Sandbox {
     this.ciudad = await cargarModulo<ModCiudad>('ciudad', (m) => m.crearCiudad?.(ctx, { parcela: this.parcela, esAgua }))
     if (ab.signal.aborted || this.desechado) return
     if (this.ciudad?.grupo) this.mundo.add(this.ciudad.grupo)
+    // los techos quitados de la parcela y las calles se pintan en la imagen (el satélite no muestra lo que ya no está)
+    if (this.ciudad?.pintar) { try { this.ciudad.pintar(datos.satelite) } catch (e) { console.warn(e) } }
     cierra('ciudad')
     // 4) casas y rancho
     etapa('casas', 0)
@@ -321,6 +331,7 @@ class SandboxImpl implements Sandbox {
         .then((c) => {
           if (ab.signal.aborted || this.desechado || this.maqueta !== mq) return
           const hd = recortarImagen(c, B, L, Math.round(cfg.sat * 1.33), rec.phi, rec.Cx, rec.Cz)
+          try { this.ciudad?.pintar?.(hd); this.ciudad?.actualizarSatelite?.(hd) } catch (e) { console.warn(e) }
           this.props?.rancho.pintar(hd)
           mq.actualizarSatelite(hd)
           this.emitir('progress', { fase: 'satelite-hd', p: 1 })
@@ -859,7 +870,7 @@ class SandboxImpl implements Sandbox {
       if (performance.now() / 1000 - this.tUltimoSetDay > 0.4) this.velDias *= Math.max(0, 1 - dt * 2)
       this.actualizarClima(dt)
       this.actualizarPlantas()
-      for (const m of [this.suelo, this.ciudad]) if (m?.actualizar) { try { m.actualizar(this.clima, dtE) } catch { m.actualizar = undefined } }
+      for (const m of [this.suelo, this.ciudad]) if (m?.actualizar) { try { m.actualizar(dtE, this.camara) } catch (e) { console.warn(e); m.actualizar = undefined } }
     }
     this.actualizarCamara(dt)
     this.actualizarLuzYEfectos(dt, dtE)
