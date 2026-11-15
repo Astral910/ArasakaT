@@ -123,11 +123,20 @@ describe('informe: página con salida real del motor', () => {
     w.unmount()
   })
 
-  it('portada breve, 6 gráficas exportables, productos y anexo con la ficha de 5 puntos', async () => {
+  it('informe de consultora: encabezado en una línea, resumen ejecutivo, 6 secciones, gráficas exportables, productos y método', async () => {
     const w = await montar(Q)
-    expect(w.findAll('.cifras4 .c4')).toHaveLength(4)
+    const meta = w.find('.cab .meta').text()
+    for (const t of ['Jocotán', 'milpa', 'Emitido', 'Fuente']) expect(meta).toContain(t)
+    const resumen = w.findAll('.resumen li').map((l) => l.text())
+    expect(resumen).toHaveLength(4)
+    expect(resumen[0]).toMatch(/Sembrar entre .* Último día seguro/)
+    expect(resumen[1]).toContain('qq/cuerda')
+    expect(resumen[2]).toContain('Riesgo principal')
     expect(w.find('.veredicto').text()).toContain(motor.plan.estrategias.find((e: any) => e.recomendada)!.nombre)
-    for (const g of ['temporada', 'estrategias', 'meses', 'suelo', 'riego', '2040']) {
+    expect(w.findAll('.h-sec').map((h) => h.text()).filter((t) => /^\d\./.test(t))).toEqual(['1. Siembra', '2. Clima de la temporada', '3. Agua y riego', '4. Riesgos', '5. Recomendaciones (productos y prácticas)'])
+    expect(w.find('details#anexo summary').text()).toContain('6. Método y fuentes')
+    expect(w.findAll('#g-estrategias tbody tr')).toHaveLength(3)
+    for (const g of ['temporada', 'meses', 'riego', '2040']) {
       const b = w.find('#g-' + g)
       expect(b.exists(), g).toBe(true)
       expect(b.findAll('.b-exp button').map((x) => x.text())).toEqual(['PNG', 'SVG', 'CSV'])

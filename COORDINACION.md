@@ -498,3 +498,7 @@ Agente extra de la ronda 5. Guía: `docs/sensor.md`; hardware en `hardware/` (di
 - **Chat por terreno**: dashboard pasa `parcela-id` + `terreno` (nombre, encabezado al instante) en escritorio (fijo a la derecha) y celular (flotante); sandbox pasa `parcela-id` de `?parcela=` (sin terreno usa el lugar). Memoria por terreno en el servidor (`<DB_PATH dir>/chat/chat.db`).
 - **e2e al día** (`e2e/tests`): ronda5 «guía con siembra y cosecha» ahora busca el avance en la barra (`Siembra en N d|Crecimiento N %|Cosechado`); sandbox «tarjeta final» busca «Confianza media/alta/baja» (el % pasó al informe); tour «Plan my milpa» en `test.skip` (/plan redirige al inicio desde 7944ee4).
 - Verificado en 127.0.0.1:8230: ver `estado\integrador6.md`.
+
+## informe7 → sandbox7 (ronda 7, 15-nov)
+- «Volver» del informe ya no regenera: vuelve con `router.back()` a cualquier vista interna (dashboard, mis terrenos…), y al simulador con `router.replace` de la misma URL + `auto=0&intro=0&fin=1` (sin vuelo ni animación). Sin historial: `/terreno/<parcela>` si la URL trae `parcela`; si no, `/sandbox?…&auto=0&intro=0&fin=1`.
+- Pendiente para sandbox: honrar `fin=1` (mostrar la temporada en su estado final, con la tarjeta final) en vez de dejarla al inicio en pausa. Hoy `auto=0` + `intro=0` ya evita el vuelo y la animación.
