@@ -17,6 +17,7 @@ export interface SiembraDec {
   recomendada?: string
   cosecha_esperada?: number
   cosecha_normal?: number
+  cosecha_de?: string
   rango_ini?: string
   rango_fin?: string
   ultimo_seguro?: string
@@ -73,12 +74,13 @@ export function tarjetaCosecha(sb: SiembraDec | null | undefined, cf: ConfDec | 
   const peor = nrm != null && nrm > 0 && e < 0.85 * nrm
   const lo = cf?.cosecha_p10
   const hi = cf?.cosecha_p90
-  const rango = lo != null && hi != null && hi > lo ? t('dec.cosechaRango', { a: num(rinde(lo, ca)), b: num(rinde(hi, ca)) }) + ' · ' : ''
+  const rango = lo != null && hi != null && hi > lo && e >= lo && e <= hi ? t('dec.cosechaRango', { a: num(rinde(lo, ca)), b: num(rinde(hi, ca)) }) + ' · ' : ''
   return {
     id: 'cosecha',
     nivel: peor ? 'ojo' : 'ok',
     titulo: t('dec.cosecha'),
-    texto: t('dec.cosechaTxt', { n: num(rinde(e, ca)), u }) + (nrm != null && nrm > 0 ? ' ' + t('dec.cosechaNormal', { n: num(rinde(nrm, ca)) }) : ''),
+    texto: (sb?.cosecha_de && sb.elegida && sb.cosecha_de !== sb.elegida ? t('dec.siSembras', { f: fecha(sb.cosecha_de) }) + ' ' : '') +
+      t('dec.cosechaTxt', { n: num(rinde(e, ca)), u }) + (nrm != null && nrm > 0 ? ' ' + t('dec.cosechaNormal', { n: num(rinde(nrm, ca)) }) : ''),
     chico: rango + confianzaPalabras(cf?.nivel) + (ca ? ' · ' + t('dec.cuerdaEs') : ''),
     accion: t(peor ? 'dec.accCosechaMal' : 'dec.accCosechaBien'),
   }

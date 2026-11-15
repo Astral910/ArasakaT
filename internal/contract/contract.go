@@ -409,8 +409,9 @@ type SimSiembra struct {
 	Fuentes            []string       `json:"fuentes"`
 
 	// Agregado por granjero6 (15-nov): decisiones para quien siembra.
-	CosechaEsperada float64           `json:"cosecha_esperada,omitempty"` // qq/mz: P50 de la fecha elegida en esta temporada
+	CosechaEsperada float64           `json:"cosecha_esperada,omitempty"` // qq/mz: P50 de la fecha de siembra CosechaDe en esta temporada
 	CosechaNormal   float64           `json:"cosecha_normal,omitempty"`   // qq/mz: P50 de la fecha elegida en todos los años 2001–2025 (un año normal)
+	CosechaDe       string            `json:"cosecha_de,omitempty"`       // YYYY-MM-DD: fecha de siembra de esas cosechas (la elegida; la recomendada si la elegida cae fuera de la ventana)
 	RangoIni        string            `json:"rango_ini,omitempty"`        // YYYY-MM-DD: fechas tan buenas como la recomendada (riesgo ±5 pts, cosecha ≥ 95 %)
 	RangoFin        string            `json:"rango_fin,omitempty"`
 	UltimoSeguro    string            `json:"ultimo_seguro,omitempty"` // YYYY-MM-DD: última fecha con cosecha P50 ≥ 85 % de la recomendada

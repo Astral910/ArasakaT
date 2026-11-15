@@ -495,11 +495,18 @@ func nombreCultivo(id string, en bool) string {
 // cuya cosecha típica (P50) no cae más de 15 % bajo la de la recomendada ni sube el riesgo de pérdida más de
 // 15 puntos; se corta en la primera que no cumple (esa va en Tarde, para mostrar cuánto se pierde).
 func decisiones(a *siembraArgs, out *contract.SimSiembra, evs []fechaEval, best, el fechaEval, d1 int) {
-	out.CosechaEsperada = math.Round(el.p50*10) / 10
+	// fuera de la ventana (p. ej. un terreno sembrado en la época seca) la cosecha de esa fecha no sirve para decidir:
+	// se da la de la recomendada (CosechaDe dice de qué fecha es)
+	ce := el
+	if el.d < evs[0].d-7 || el.d > d1+42 {
+		ce = best
+	}
+	out.CosechaDe = a.realDe(ce.d).Format("2006-01-02")
+	out.CosechaEsperada = math.Round(ce.p50*10) / 10
 	if ys := a.s.ClimYears(); len(ys) > 0 {
 		n := *a
 		n.pool, n.peso, n.base = ys, nil, nil
-		out.CosechaNormal = math.Round(n.eval(el.d).p50*10) / 10
+		out.CosechaNormal = math.Round(n.eval(ce.d).p50*10) / 10
 	}
 	bi := 0
 	for i, e := range evs {
@@ -544,17 +551,17 @@ func decisiones(a *siembraArgs, out *contract.SimSiembra, evs []fechaEval, best,
 	if ps, ok := a.s.PeriodoSeco(); ok {
 		c := &contract.PeriodoSecoInfo{Ini: a.realDe(ps.Ini).Format("2006-01-02"), Fin: a.realDe(ps.Fin).Format("2006-01-02"),
 			Dias: ps.Dias, MMDia: ps.MMDia, RefMMDia: ps.RefMMDia, Centroamerica: Centroamerica(a.s.Lat, a.s.Lon),
-			Floracion: a.realDe(el.d + el.floracionDD).Format("2006-01-02"),
+			Floracion: a.realDe(ce.d + ce.floracionDD).Format("2006-01-02"),
 			Fuente: fuentePOWER + " · climatología diaria suavizada ±7 días"}
-		fl := el.d + el.floracionDD
+		fl := ce.d + ce.floracionDD
 		switch {
-		case ps.Fin < el.d:
+		case ps.Fin < ce.d:
 			c.Etapa = "antes"
 		case ps.Fin >= fl-7 && ps.Ini <= fl+21:
 			c.Etapa = "floracion"
 		case ps.Fin < fl-7:
 			c.Etapa = "crecimiento"
-		case ps.Ini <= el.d+el.cicloDias:
+		case ps.Ini <= ce.d+ce.cicloDias:
 			c.Etapa = "llenado"
 		default:
 			c.Etapa = "despues"

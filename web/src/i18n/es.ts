@@ -444,6 +444,7 @@ export const es: Record<string, string> = {
   'dec.accNada': "No tenés que hacer nada",
   'dec.caniculaPorque': "Lluvia media del período {mm} mm/día contra {ref} mm/día antes y después. Floración de tu siembra: {flor}.",
   'dec.cosecha': "Cosecha esperada",
+  'dec.siSembras': "Si sembrás el {f}:",
   'dec.cosechaTxt': "~{n} {u}",
   'dec.cosechaNormal': "(un año normal: {n})",
   'dec.cosechaRango': "puede ir de {a} a {b}",

@@ -444,6 +444,7 @@ export const en: Record<string, string> = {
   'dec.accNada': "Nothing to do",
   'dec.caniculaPorque': "Average rain in the period {mm} mm/day vs {ref} mm/day before and after. Your crop flowers: {flor}.",
   'dec.cosecha': "Expected harvest",
+  'dec.siSembras': "If you sow on {f}:",
   'dec.cosechaTxt': "~{n} {u}",
   'dec.cosechaNormal': "(normal year: {n})",
   'dec.cosechaRango': "could range from {a} to {b}",

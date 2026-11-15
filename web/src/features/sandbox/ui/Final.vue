@@ -20,6 +20,8 @@ const mejor = computed(() => (isFinite(props.res.s0) ? props.res.recomendada - p
 // granjero6: en la unidad del lugar (qq por cuerda en Centroamérica, t/ha en otros lados)
 const qq = (x: number) => numero(rinde(x, !!props.ca), 1)
 const u = computed(() => (void lang.value, unidadRinde(!!props.ca)))
+// la frase de la guía viene en qq/mz: se pasa a la misma unidad que los números
+const frase = computed(() => props.res.frase.replace(/(\d+(?:[.,]\d+)?)\s*qq\/mz/g, (_, x: string) => `${qq(parseFloat(x.replace(',', '.')))} ${u.value}`))
 const tarjetas = computed(() => (void lang.value, [tarjetaSiembra(props.siembra, !!props.ca), tarjetaCanicula(props.siembra, !!props.ca)].filter((x) => x !== null)))
 const route = useRoute() // integrador5: "Guardar este terreno" (landing3) con la misma ruta del simulador
 // ronda 6: sin sesión (/api/auth/yo), el botón principal invita a crear la cuenta; reusa /guardar (registro → vuelve y guarda)
@@ -33,7 +35,7 @@ const aGuardar = computed(() => ({ path: '/guardar', query: route.query }))
   <section class="final" :class="{ movil }" role="dialog" aria-modal="false" aria-labelledby="final-t">
     <button class="cerrar" type="button" :aria-label="t('cerrar')" @click="emit('cerrar')"><X :size="18" /></button>
     <p class="kicker">{{ t('finTitulo') }}</p>
-    <h2 id="final-t">{{ res.frase }}</h2>
+    <h2 id="final-t">{{ frase }}</h2>
     <div class="nums">
       <div v-if="isFinite(res.s0)" class="n s0">
         <small>S0 · {{ t('S0') }}</small>
