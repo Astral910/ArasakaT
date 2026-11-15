@@ -11,9 +11,8 @@ function initial(): Lang {
     if (q === 'es' || q === 'en') return q
     const s = localStorage.getItem('fs-lang')
     if (s === 'es' || s === 'en') return s
-    // sin elección previa: el idioma del navegador (un agricultor de Guatemala ve español; el jurado, inglés)
-    if (/^es\b/i.test(navigator.language ?? '')) return 'es'
   } catch { /* sin storage */ }
+  // sin elección previa: inglés (el jurado evalúa en inglés); el botón ES/EN cambia y se recuerda
   return 'en'
 }
 
