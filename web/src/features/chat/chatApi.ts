@@ -22,6 +22,13 @@ export async function preguntar(body: { mensaje: string; parcelaId?: string; con
   }
 }
 
+/** Conversación guardada del terreno (un asistente por terreno, con memoria en el servidor). */
+export async function historial(parcelaId: string): Promise<{ terreno: string; mensajes: { rol: string; texto: string }[] }> {
+  const r = await fetch(API_BASE + '/api/chat/historial?parcelaId=' + encodeURIComponent(parcelaId), { credentials: 'include' })
+  if (!r.ok) throw new Error(String(r.status))
+  return await r.json()
+}
+
 /** Conversación estable por navegador (el servidor guarda el contexto con --resume). */
 export function conversacionId(clave = 'fs-chat-conv'): string {
   try {

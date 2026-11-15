@@ -64,6 +64,7 @@ type Respuesta struct {
 	Conversacion string   `json:"conversacion"`
 	Motor        string   `json:"motor"` // claude | respaldo
 	Ms           int64    `json:"ms"`
+	Terreno      string   `json:"terreno,omitempty"` // nombre del terreno o del lugar: «Asistente de …»
 }
 
 // Usuario: quién pregunta. Cookie (web, sesión de cuentas) o Tel (WhatsApp). Se reenvía a campo.
@@ -96,7 +97,7 @@ var ErrOcupado = errors.New("chat: demasiadas consultas a la vez")
 type Config struct {
 	MaxParalelo int           // consultas a Claude a la vez (2)
 	Timeout     time.Duration // tiempo límite por consulta, incluida la espera en la cola (90 s)
-	Dir         string        // conversaciones guardadas (sesiones.json)
+	Dir         string        // memoria por terreno (chat.db); "" = en memoria del proceso
 }
 
 // Servicio: cola, conversaciones, turnos y respaldo.
@@ -105,10 +106,10 @@ type Servicio struct {
 	H     *Herramientas
 	cfg   Config
 
-	sem      chan struct{}
-	mu       sync.Mutex
-	sesiones map[string]string // conversación → session_id de Claude
-	turnos   map[string]*Turno // token → turno en curso
+	sem    chan struct{}
+	mu     sync.Mutex
+	mem    *Memoria          // por terreno: sesión de Claude, conversación y hechos
+	turnos map[string]*Turno // token → turno en curso
 }
 
 func Nuevo(cfg Config, m Motor, h *Herramientas) *Servicio {
@@ -121,9 +122,13 @@ func Nuevo(cfg Config, m Motor, h *Herramientas) *Servicio {
 	if h == nil {
 		h = &Herramientas{}
 	}
-	s := &Servicio{Motor: m, H: h, cfg: cfg, sem: make(chan struct{}, cfg.MaxParalelo),
-		sesiones: map[string]string{}, turnos: map[string]*Turno{}}
-	s.cargar()
+	s := &Servicio{Motor: m, H: h, cfg: cfg, sem: make(chan struct{}, cfg.MaxParalelo), turnos: map[string]*Turno{}}
+	mem, err := AbrirMemoria(cfg.Dir)
+	if err != nil {
+		log.Printf("chat: memoria %v → sin memoria guardada", err)
+	}
+	s.mem = mem
+	s.migrarSesiones()
 	return s
 }
 
@@ -147,6 +152,7 @@ func (s *Servicio) Preguntar(ctx context.Context, u Usuario, p Pedido) Respuesta
 	}
 	tu := s.abrirTurno(u, p)
 	defer s.cerrarTurno(tu)
+	s.prepararTerreno(ctx, tu)
 
 	var r Respuesta
 	if s.Motor != nil && p.Mensaje != "" {
@@ -179,6 +185,11 @@ func (s *Servicio) Preguntar(ctx context.Context, u Usuario, p Pedido) Respuesta
 	if r.Acciones == nil {
 		r.Acciones = []Accion{}
 	}
+	r.Terreno = tu.nombre
+	s.mem.Anotar(tu.Clave, Mensaje{Rol: "usuario", Texto: p.Mensaje}, Mensaje{Rol: "asistente", Texto: r.Respuesta})
+	for _, h := range tu.hechosTurno() {
+		s.mem.Recordar(tu.Clave, h)
+	}
 	r.Ms = time.Since(t0).Milliseconds()
 	return r
 }
@@ -191,10 +202,9 @@ func (s *Servicio) conClaude(ctx context.Context, tu *Turno) (string, error) {
 		return "", ErrOcupado
 	}
 	p := tu.Pedido
-	s.mu.Lock()
-	sid := s.sesiones[p.Conversacion]
-	s.mu.Unlock()
-	l := Llamada{Mensaje: MensajeConContexto(p, s.H.ahora()), Sistema: Sistema(p.Contexto.Idioma), SesionID: sid, Token: tu.Token}
+	sid := s.mem.Sesion(tu.Clave)
+	sis := Sistema(p.Contexto.Idioma) + "\n\n" + Ficha(tu, s.mem.Hechos(tu.Clave, 12), s.H.ahora())
+	l := Llamada{Mensaje: MensajeConContexto(p, s.H.ahora()), Sistema: sis, SesionID: sid, Token: tu.Token}
 	out, err := s.Motor.Correr(ctx, l)
 	if err != nil && sid != "" && ctx.Err() == nil { // la sesión vieja ya no existe: empieza de nuevo
 		l.SesionID = ""
@@ -203,12 +213,7 @@ func (s *Servicio) conClaude(ctx context.Context, tu *Turno) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if out.SesionID != "" {
-		s.mu.Lock()
-		s.sesiones[p.Conversacion] = out.SesionID
-		s.mu.Unlock()
-		s.guardar()
-	}
+	s.mem.GuardarSesion(tu.Clave, out.SesionID)
 	return out.Texto, nil
 }
 
@@ -219,10 +224,27 @@ type Turno struct {
 	Token   string
 	Usuario Usuario
 	Pedido  Pedido
+	Clave   string         // memoria: "parcela:<id>" (un asistente por terreno) o "conv:<id>"
+	Hoy     map[string]any // estado de hoy del terreno (campo), si hay
+	nombre  string         // nombre del terreno o del lugar
 
 	mu   sync.Mutex
 	acc  []Accion
 	fuen []Fuente
+	hech []Hecho
+}
+
+// Recordar: un hecho del terreno para la memoria (reporte, siembra, decisión).
+func (t *Turno) Recordar(fecha, texto string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.hech = append(t.hech, Hecho{Fecha: fecha, Texto: texto})
+}
+
+func (t *Turno) hechosTurno() []Hecho {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return append([]Hecho(nil), t.hech...)
 }
 
 func (t *Turno) Accion(a Accion) {
@@ -276,36 +298,63 @@ func (s *Servicio) Turno(token string) *Turno {
 	return s.turnos[token]
 }
 
-// ---------- conversaciones guardadas ----------
+// ---------- un asistente por terreno ----------
 
-func (s *Servicio) ruta() string {
-	if s.cfg.Dir == "" {
-		return ""
-	}
-	return filepath.Join(s.cfg.Dir, "sesiones.json")
-}
-
-func (s *Servicio) cargar() {
-	if s.ruta() == "" {
+// prepararTerreno: con parcelaId (y acceso a ese terreno) la memoria es la del terreno, sin importar el
+// dispositivo o la conversación; sin terreno, la de la conversación con el lugar actual.
+func (s *Servicio) prepararTerreno(ctx context.Context, t *Turno) {
+	p := t.Pedido
+	t.Clave = "conv:" + p.Conversacion
+	t.nombre = strings.TrimSpace(p.Contexto.Lugar)
+	if p.ParcelaID == "" {
 		return
 	}
-	if b, err := os.ReadFile(s.ruta()); err == nil {
-		_ = json.Unmarshal(b, &s.sesiones)
+	if s.H.Campo == nil {
+		t.Clave = "parcela:" + p.ParcelaID
+		return
+	}
+	hoy, err := s.H.Campo.Hoy(ctx, t.Usuario, p.ParcelaID)
+	if err != nil { // sin acceso a ese terreno: no se mezcla su memoria
+		log.Printf("chat: terreno %s sin acceso (%v) → conversación", p.ParcelaID, err)
+		return
+	}
+	t.Clave, t.Hoy = "parcela:"+p.ParcelaID, hoy
+	if pa, ok := hoy["parcela"].(map[string]any); ok {
+		if n := str(pa, "nombre"); n != "" {
+			t.nombre = n
+		}
 	}
 }
 
-func (s *Servicio) guardar() {
-	if s.ruta() == "" {
+// Historial: conversación guardada (para la web al abrir el chat de un terreno).
+func (s *Servicio) Historial(ctx context.Context, u Usuario, parcela, conv string, n int) (string, []Mensaje) {
+	t := &Turno{Usuario: u, Pedido: Pedido{ParcelaID: parcela, Conversacion: conv}}
+	s.prepararTerreno(ctx, t)
+	if parcela != "" && !strings.HasPrefix(t.Clave, "parcela:") || parcela == "" && conv == "" {
+		return t.nombre, []Mensaje{}
+	}
+	return t.nombre, s.mem.Conversacion(t.Clave, n)
+}
+
+// migrarSesiones: sesiones.json de la versión anterior (conversación → session_id) pasa a la memoria.
+func (s *Servicio) migrarSesiones() {
+	if s.cfg.Dir == "" || s.mem == nil {
 		return
 	}
-	s.mu.Lock()
-	b, _ := json.MarshalIndent(s.sesiones, "", " ")
-	s.mu.Unlock()
-	_ = os.MkdirAll(s.cfg.Dir, 0o755)
-	tmp := s.ruta() + ".tmp"
-	if os.WriteFile(tmp, b, 0o644) == nil {
-		_ = os.Rename(tmp, s.ruta())
+	ruta := filepath.Join(s.cfg.Dir, "sesiones.json")
+	b, err := os.ReadFile(ruta)
+	if err != nil {
+		return
 	}
+	var viejas map[string]string
+	if json.Unmarshal(b, &viejas) == nil {
+		for k, v := range viejas {
+			if s.mem.Sesion("conv:"+k) == "" {
+				s.mem.GuardarSesion("conv:"+k, v)
+			}
+		}
+	}
+	_ = os.Rename(ruta, ruta+".migrado")
 }
 
 // ---------- utilidades ----------

@@ -20,6 +20,7 @@ import (
 	"fieldshift/internal/bot"
 	"fieldshift/internal/chat"
 	"fieldshift/internal/contract"
+	"fieldshift/internal/plan"
 )
 
 func montarChat(mux *http.ServeMux, cfg Config, planner contract.Planner, sim chat.Simulador) (*chat.Servicio, string) {
@@ -28,6 +29,9 @@ func montarChat(mux *http.ServeMux, cfg Config, planner contract.Planner, sim ch
 	ccfg.Dir = dir
 	secreto := chatSecreto() // integrador5: lo comparte con el adaptador de cuentas (X-FieldShift-Interno)
 	h := &chat.Herramientas{Planner: planner, Simulador: sim, Campo: chat.CampoHTTP{H: mux, Secreto: secreto}}
+	if eng, ok := planner.(*plan.Engine); ok { // lluvia_fecha: historia NASA POWER del motor + pronóstico 16 días
+		h.Clima = chat.ClimaMotor{E: eng}
+	}
 	var motor chat.Motor
 	estado := "respaldo"
 	if modo != "off" {
