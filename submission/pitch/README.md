@@ -1,4 +1,10 @@
-# Pitch · round 3 (what the judges see)
+# Pitch · final (round 6, 15 Nov 2026) · SEED · from ArasakaT
+
+**Current files:** [portal_page.md](portal_page.md) (all portal fields, English) and [SEED_ArasakaT_slides.html](SEED_ArasakaT_slides.html) → [SEED_ArasakaT_slides.pdf](SEED_ArasakaT_slides.pdf) (7 slides 16:9: problem, solution, how it works, demo, SEED sensor, impact/validation, team). Previews `png/SEED_ArasakaT_slides-slide-N.png`.
+Screens `img/live-*.jpg` = headless captures of https://arasakat-seed.vercel.app (`capture-live.mjs`, 15 Nov 2026 ~12:00, demo account). Re-export: `SLIDES=SEED_ArasakaT_slides PLAYWRIGHT_DIR=<node_modules/playwright> node submission/pitch/export.mjs`.
+`slides.html`/`slides.pdf` below are the older round-3 deck (kept for reference).
+
+## Round 3 (older)
 
 | File | What it is |
 |---|---|
