@@ -1,31 +1,64 @@
 1
-00:00:02,000 --> 00:00:07,000
-Type your place. Two taps. The guide starts on its own.
+00:00:00,120 --> 00:00:02,120
+Every season is a bet on the rain.
+NASA Space Apps 2026  ·  Guatemala
 
 2
-00:00:07,000 --> 00:00:11,000
-Your place, from NASA satellites: anywhere on Earth
+00:00:02,320 --> 00:00:04,120
+Field Shift
+See your next season before you plant it.
 
 3
-00:00:11,000 --> 00:00:15,000
-Next 16 days: forecast. Then the past year that best matches the seasonal outlook.
+00:00:04,320 --> 00:00:06,720
+Search any neighbourhood on Earth
+Village, farm, residential estate or city
 
 4
-00:00:15,000 --> 00:00:19,000
-47 % chance of a crop-loss season · happened in 8 of 24 years · medium confidence
+00:00:06,920 --> 00:00:08,920
+Draw your exact plot
+Point, circle or polygon
 
 5
-00:00:19,000 --> 00:00:21,500
-Same rain: what you do today vs. maize + velvet bean cover
+00:00:09,120 --> 00:00:11,520
+From satellites to your field
+Forecast + 25 years of NASA climate data
 
 6
-00:00:21,500 --> 00:00:24,000
-One clear result at the end of the season
+00:00:11,720 --> 00:00:13,920
+Your real plot, in 3D
+Terrain, soil and the houses next door, built in your browser
 
 7
-00:00:24,000 --> 00:00:26,500
-Every number in a technical report (web + PDF), with sources and limits
+00:00:14,120 --> 00:00:15,920
+Storms...
+62 mm of rain in one day
 
 8
-00:00:26,500 --> 00:00:28,500
-Real WhatsApp bot · 2026 replay: 5 of 6 dry-spell alerts confirmed
+00:00:16,120 --> 00:00:18,120
+...and the midsummer drought
+7 days without rain, day by day
+
+9
+00:00:18,320 --> 00:00:20,120
+It tells you how sure it is
+Every result says its odds and how often it happened
+
+10
+00:00:20,320 --> 00:00:22,320
+One clear answer
+Harvest for each way to farm, and which one protects the soil
+
+11
+00:00:22,520 --> 00:00:24,520
+Every number in a technical report
+Web + PDF  ·  exportable charts  ·  sources and limits
+
+12
+00:00:24,720 --> 00:00:27,120
+Real alerts on WhatsApp
+Live forecast for your place  ·  text or voice note
+
+13
+00:00:27,300 --> 00:00:29,550
+Field Shift · See your next season before you plant it.
+Free · WhatsApp + web · anywhere on Earth
