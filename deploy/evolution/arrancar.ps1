@@ -36,7 +36,7 @@ if (-not (Escucha $Port)) {
   $node = (Get-Command node.exe).Source
   $p = Start-Process -WindowStyle Hidden -PassThru -FilePath 'powershell.exe' -WorkingDirectory $evo -ArgumentList @(
     '-NoProfile', '-Command',
-    "(Get-Process -Id `$PID).PriorityClass='BelowNormal'; & '$node' dist/main.js *> '$(Join-Path $logs 'evolution.log')'")
+    "(Get-Process -Id `$PID).PriorityClass='BelowNormal'; & '$node' -r '$(Join-Path $PSScriptRoot 'solo-local.cjs')' dist/main.js *> '$(Join-Path $logs 'evolution.log')'")
   Set-Content (Join-Path $Base 'evolution.pid') $p.Id
   for ($i = 0; $i -lt 120 -and -not (Escucha $Port); $i++) { Start-Sleep -Milliseconds 500 }
   if (-not (Escucha $Port)) { throw "Evolution API no arrancó (ver $logs\evolution.log)" }

@@ -18,7 +18,7 @@ Botones y listas van como texto ("👉 *Sí* · *No*", listas numeradas): WhatsA
 
 ## En esta PC (sin Docker)
 
-Todo oculto, solo en `127.0.0.1` (no hay aviso de firewall). Carpeta: `%LOCALAPPDATA%\FieldShift\evolution` (o `EVOLUTION_HOME`).
+Todo oculto, solo en `127.0.0.1` (no hay aviso de firewall; `solo-local.cjs` obliga a Node a escuchar en 127.0.0.1). Carpeta: `%LOCALAPPDATA%\FieldShift\evolution` (o `EVOLUTION_HOME`).
 
 ```powershell
 # 1) una sola vez (~5 min): PostgreSQL portable + Evolution API 2.3.7 + migraciones
