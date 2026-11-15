@@ -43,7 +43,8 @@ ul#eventos li b{color:var(--agua)}
     <div class="marca"><small>Field Shift · hardware</small>Sensor de humedad en vivo</div>
     <div class="fila">
       <span class="estado" id="conexion">Sin conectar</span>
-      <button id="btnConectar">Conectar sensor (USB)</button>
+      <button id="btnWifi">Conectar por WiFi</button>
+      <button class="sec" id="btnConectar">Conectar por USB</button>
       <button class="sec" id="btnDemo">Modo demo</button>
     </div>
   </header>
@@ -73,6 +74,20 @@ ul#eventos li b{color:var(--agua)}
     <section class="card">
       <h2>Lo que detectó</h2>
       <ul id="eventos"><li>Todavía nada.</li></ul>
+    </section>
+
+    <section class="card" style="grid-column:1/-1">
+      <h2>WiFi del sensor</h2>
+      <div class="fila">
+        <input id="dir" value="fieldshift-sensor.local" aria-label="Dirección del sensor" style="flex:1;min-width:200px;padding:10px 14px;border-radius:12px;border:1px solid var(--borde);background:#0b1f17;color:var(--texto)">
+        <span class="estado" id="ipSensor"></span>
+      </div>
+      <p class="nota" style="margin:10px 0">Primera vez (con el USB conectado): escribí tu red WiFi de 2.4 GHz y tocá «Guardar y conectar». Después ya no hace falta el cable: alimentalo con la power bank y tocá «Conectar por WiFi». La laptop tiene que estar en la misma red (recomendado: el hotspot del celular).</p>
+      <div class="fila">
+        <input id="ssid" placeholder="Nombre de la red WiFi" style="flex:1;min-width:160px;padding:10px 14px;border-radius:12px;border:1px solid var(--borde);background:#0b1f17;color:var(--texto)">
+        <input id="pass" type="password" placeholder="Contraseña" style="flex:1;min-width:160px;padding:10px 14px;border-radius:12px;border:1px solid var(--borde);background:#0b1f17;color:var(--texto)">
+        <button class="sec" id="btnGuardarWifi" disabled>Guardar y conectar</button>
+      </div>
     </section>
 
     <section class="card" style="grid-column:1/-1">
@@ -146,7 +161,7 @@ async function conectar(){
     puerto = await navigator.serial.requestPort()
     await puerto.open({ baudRate: 115200 })
     escritor = puerto.writable.getWriter()
-    $('conexion').textContent = 'Conectado'; $('btnSeco').disabled = $('btnMojado').disabled = false
+    $('conexion').textContent = 'Conectado por USB'; $('btnSeco').disabled = $('btnMojado').disabled = $('btnGuardarWifi').disabled = false
     pararDemo()
     const lector = puerto.readable.pipeThrough(new TextDecoderStream()).getReader()
     let buf = ''
@@ -155,7 +170,11 @@ async function conectar(){
       buf += value; let i
       while ((i = buf.indexOf('\n')) >= 0) {
         const linea = buf.slice(0, i).trim(); buf = buf.slice(i + 1)
-        if (linea.startsWith('{')) { try { recibir(JSON.parse(linea)) } catch {} }
+        if (linea.startsWith('{')) { try {
+          const j = JSON.parse(linea)
+          if (j.wifi) { $('ipSensor').textContent = (j.wifi === 'conectado' ? 'En «' + j.red + '» · IP ' : 'Red propia FieldShift-Sensor · IP ') + j.ip; if (j.ip) $('dir').value = j.ip; evento(`<b>${hora(Date.now())}</b> · WiFi: ${j.wifi === 'conectado' ? 'conectado, IP ' + j.ip : 'sin red; abrió su propia red «FieldShift-Sensor» (clave fieldshift)'}`) }
+          else if (j.humedad != null) recibir(j)
+        } catch {} }
       }
     }
   } catch (e) { $('conexion').textContent = 'No se pudo conectar' }
@@ -176,6 +195,28 @@ $('btnDemo').onclick = () => {
   }, 2000)
 }
 $('btnConectar').onclick = conectar
+let wifi = null
+$('btnWifi').onclick = () => {
+  if (wifi) { clearInterval(wifi); wifi = null; $('btnWifi').textContent = 'Conectar por WiFi'; $('conexion').textContent = 'Sin conectar'; return }
+  pararDemo()
+  const dir = $('dir').value.trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '')
+  $('conexion').textContent = 'Buscando ' + dir + '…'; $('btnWifi').textContent = 'Desconectar WiFi'
+  let fallos = 0
+  wifi = setInterval(async () => {
+    try {
+      const r = await fetch('http://' + dir + '/datos', { cache: 'no-store' })
+      const j = await r.json(); fallos = 0
+      $('conexion').textContent = 'Conectado por WiFi'; if (j.ip) $('ipSensor').textContent = 'IP ' + j.ip
+      recibir(j)
+    } catch { if (++fallos === 3) $('conexion').textContent = 'No encuentro el sensor: ¿misma red? Probá con su IP' }
+  }, 2000)
+}
+$('btnGuardarWifi').onclick = async () => {
+  const s = $('ssid').value.trim(), p = $('pass').value
+  if (!s) return
+  await enviar('wifi ' + s); await enviar('clave ' + p); await enviar('conectar')
+  evento(`<b>${hora(Date.now())}</b> · WiFi guardado: «${s}». Conectando…`)
+}
 $('btnSeco').onclick = () => { enviar('seco'); evento(`<b>${hora(Date.now())}</b> · Calibrado: seco`) }
 $('btnMojado').onclick = () => { enviar('mojado'); evento(`<b>${hora(Date.now())}</b> · Calibrado: mojado`) }
 addEventListener('resize', dibujar)
