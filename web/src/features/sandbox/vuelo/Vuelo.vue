@@ -1,14 +1,11 @@
 <script setup lang="ts">
 // Toma continua, parte 1: la Tierra entera (globo, satélite y relieve) gira hasta el punto y la cámara baja sobre él,
-// siempre centrado. Guatemala con sus 342 municipios por riesgo; el resto de Mesoamérica si hay capa; si no, el punto.
+// siempre centrado. Ronda 7: sin coropletas de riesgo ni bordes; solo la Tierra y el foco (las coropletas viven en «Mapa de riesgo»).
 // Satélite Esri World Imagery con toda la ruta precargada (./teselas.ts) y el contorno real del terreno.
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { cargarMaplibre, hayWebGL } from '../../mapa/comun/maplibre'
 import { SAT_ESRI, DEM_FSX, registrarProtocolo, urlsRuta, precargar } from './teselas'
 import { anillo, extensionM, type Parcela } from '../ui/parcela'
-import { cargarGeo, cargarRiesgo } from '../../mapa/cargar'
-import { ESCALA_RIESGO, colorDe } from '../../mapa/riesgo'
-import { pub } from '@/api/client'
 import { toma, inicioGlobo, zoomFinal, MARGEN_INF, type Toma } from './trayecto'
 import type { CamaraMapa } from './escena'
 
@@ -118,21 +115,6 @@ function pintado(tope = 900): Promise<void> {
   })
 }
 
-/** Capas de riesgo fuera de Guatemala (agente riesgo, opcionales): static/riesgo_mundo.geojson (países) y
- *  static/riesgo_mesoamerica.geojson (estados), con `riesgo` (0–10) y `color` ya pintado por polígono. */
-async function capaRiesgo(nombre: 'mundo' | 'mesoamerica'): Promise<any | null> {
-  try {
-    const r = await fetch(pub(`static/riesgo_${nombre}.geojson`))
-    if (!r.ok || !/json/.test(r.headers.get('content-type') || '')) return null
-    const g = await r.json()
-    return g?.type === 'FeatureCollection' && Array.isArray(g.features) && g.features.length ? g : null
-  } catch {
-    return null
-  }
-}
-
-const RIESGO_COLOR: any = ['step', ['to-number', ['coalesce', ['get', 'riesgo'], -1]], '#cfc6b6', 0, ESCALA_RIESGO[0].color, ...ESCALA_RIESGO.slice(0, -1).flatMap((e, i) => [e.hasta, ESCALA_RIESGO[i + 1].color])]
-const OPAC_RIESGO: any = ['interpolate', ['linear'], ['zoom'], 2.5, 0.0, 4, 0.72, 9.5, 0.42, 11.5, 0]
 
 defineExpose({
   saltar() { saltarYa = true },
@@ -168,7 +150,7 @@ onMounted(async () => {
   let hechasPre = 0
   const precarga = precargar(urls, (hechas, total) => { hechasPre = hechas; emit('carga', { hechas, total }) }, props.manual ? 25000 : 14000, props.manual ? urls.length : esenciales)
     .then(() => { if (import.meta.env.DEV) console.info(`[vuelo] precarga ${hechasPre}/${esenciales} esenciales (de ${urls.length}) teselas en ${Math.round(performance.now() - tPre)} ms`) })
-  let colorPunto = props.riesgo != null && isFinite(props.riesgo) ? colorDe(ESCALA_RIESGO, props.riesgo) : '#e0a526'
+  const colorPunto = '#e0a526'
   mapa = new ml.Map({
     container: el,
     style: {
@@ -201,36 +183,6 @@ onMounted(async () => {
   mapa.on('load', async () => {
     try { mapa.setProjection?.({ type: 'globe' }) } catch { /* ya viene en el estilo */ }
     mapa.setTerrain({ source: 'dem', exaggeration: EXAG })
-    // riesgo del mundo (países) debajo, Mesoamérica (estados) encima y Guatemala (municipios) arriba de todo
-    const [mundo, meso] = await Promise.all([capaRiesgo('mundo'), capaRiesgo('mesoamerica')])
-    for (const [id, g] of [['mundo', mundo], ['meso', meso]] as const) {
-      if (!g) continue
-      mapa.addSource(id, { type: 'geojson', data: g })
-      mapa.addLayer({ id: `${id}-relleno`, type: 'fill', source: id, paint: { 'fill-color': ['coalesce', ['get', 'color'], RIESGO_COLOR], 'fill-opacity': OPAC_RIESGO } })
-      mapa.addLayer({ id: `${id}-borde`, type: 'line', source: id, paint: { 'line-color': '#fffaf2', 'line-width': id === 'mundo' ? 0.5 : 0.4, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 2, 0, 4, 0.45, 11, 0.15] } })
-    }
-    try {
-      const [geo, datos] = await Promise.all([cargarGeo(), cargarRiesgo('2026')])
-      mapa.addSource('municipios', { type: 'geojson', data: geo, promoteId: 'id' })
-      mapa.addLayer({
-        id: 'relleno', type: 'fill', source: 'municipios',
-        paint: { 'fill-color': ['coalesce', ['feature-state', 'color'], '#cfc6b6'], 'fill-opacity': OPAC_RIESGO },
-      })
-      mapa.addLayer({ id: 'borde', type: 'line', source: 'municipios', paint: { 'line-color': '#fffaf2', 'line-width': 0.6, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 3, 0, 5, 0.6, 11, 0.2] } })
-      if (props.municipioId) {
-        mapa.addLayer({
-          id: 'sel-brillo', type: 'line', source: 'municipios', filter: ['==', ['get', 'id'], props.municipioId],
-          paint: { 'line-color': '#e0a526', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 4, 11, 14], 'line-blur': 8, 'line-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0, 6, 0.75, 10, 0.75, 12, 0] },
-        })
-        mapa.addLayer({
-          id: 'sel', type: 'line', source: 'municipios', filter: ['==', ['get', 'id'], props.municipioId],
-          paint: { 'line-color': '#fff6dc', 'line-width': ['interpolate', ['linear'], ['zoom'], 5, 1.2, 11, 3], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0, 6, 1, 10, 1, 12, 0] },
-        })
-      }
-      for (const f of datos.filas) mapa.setFeatureState({ source: 'municipios', id: f.id }, { color: colorDe(ESCALA_RIESGO, f.riesgo) })
-      const fila = props.riesgo == null && props.municipioId ? datos.filas.find((f) => f.id === props.municipioId) : null
-      if (fila) colorPunto = colorDe(ESCALA_RIESGO, fila.riesgo)
-    } catch { /* la toma sigue sin colores */ }
     // el terreno real: relleno tenue, halo cálido y borde; aparece cuando mide ~14 px y el punto se apaga
     const zc = zoomContorno()
     mapa.addSource('terreno', { type: 'geojson', data: contorno(), tolerance: 0 }) // sin simplificar: el círculo queda redondo

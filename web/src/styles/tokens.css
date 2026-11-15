@@ -1,8 +1,9 @@
 /* Sistema de diseño Field Shift · tierra y hueso con acentos de huipil.
    Semáforo: jade = bien, maíz = atención, granada = riesgo (siempre con ícono y texto). */
 :root {
-  --font-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
-  --font-ui: 'Figtree Variable', 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* ronda 7: una sola sans sobria (Geist) para títulos y texto; los pesos marcan la jerarquía */
+  --font-display: 'Geist Variable', 'Geist', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-ui: 'Geist Variable', 'Geist', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Menlo, monospace;
 
   --bg: #f5efe4;

@@ -12,22 +12,23 @@ function errores(page: Page) {
   return errs
 }
 
-test('landing: teléfono con chat (debajo del hero), aviso y botones', async ({ page }) => {
+test('landing: sin «Avisos» ni WhatsApp; menú Mis terrenos · Mapa · Cómo lo sabemos', async ({ page }) => {
   const errs = errores(page)
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Where is your land?')
-  await page.locator('.wa').scrollIntoViewIfNeeded()
-  await page.waitForTimeout(8000)
-  await shot(page, 'landing-chat', false)
-  await page.waitForTimeout(7000)
-  await shot(page, 'landing-notificacion', false)
-  await page.waitForTimeout(4500)
-  await shot(page, 'landing-aviso', false)
+  await expect(page.getByText(/Try it on WhatsApp/)).toHaveCount(0)
+  await expect(page.locator('.wa')).toHaveCount(0)
+  if (test.info().project.name === 'escritorio') {
+    await expect(page.locator('header .links a')).toHaveText(['My fields', 'Risk map', 'How do we know?'])
+  }
+  await expect(page.locator('a[href="/alerts"]')).toHaveCount(0)
   await shot(page, 'landing-completa')
-  await page.getByRole('button', { name: /Try it on WhatsApp/ }).first().click()
-  await expect(page.getByRole('dialog')).toBeVisible()
-  await shot(page, 'landing-whatsapp-qr', false)
   expect(errs).toEqual([])
+})
+
+test('/alerts lleva a Mis terrenos', async ({ page }) => {
+  await page.goto('/alerts')
+  await expect(page).toHaveURL(/\/(entrar\?volver=(%2F|\/)(mis-)?terrenos|(mis-)?terrenos)/)
 })
 
 test('landing en español y modo oscuro', async ({ page }) => {
@@ -73,7 +74,7 @@ test('demo de 30 s', async ({ page }) => {
 })
 
 test('rutas de webdatos tienen marcador o vista', async ({ page }) => {
-  for (const r of ['/map', '/alerts', '/how']) {
+  for (const r of ['/map', '/how']) {
     await page.goto(r)
     await expect(page.locator('#main')).not.toBeEmpty()
   }

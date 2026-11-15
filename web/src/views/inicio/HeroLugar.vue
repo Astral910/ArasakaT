@@ -515,9 +515,13 @@ defineExpose({ elegir })
 .velo { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(7, 13, 23, 0.72) 0%, rgba(7, 13, 23, 0.35) 38%, transparent 60%); }
 .ini-wrap { position: relative; height: 100%; display: flex; align-items: center; padding-top: 68px; pointer-events: none; }
 .ini-card { pointer-events: auto; width: min(520px, 100%); display: flex; flex-direction: column; gap: 0.85rem; padding: 1.6rem 1.6rem 1.2rem; border-radius: 26px;
-  background: rgba(14, 20, 30, 0.6); backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
+  /* ronda 7: liquid glass — translúcido, desenfoque saturado, borde fino claro con reflejo y sombra suave */
+  background: radial-gradient(120% 60% at 12% 0%, rgba(255, 255, 255, 0.16), transparent 55%), linear-gradient(155deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 38%, rgba(12, 18, 28, 0.34) 100%), rgba(12, 18, 28, 0.32);
+  backdrop-filter: blur(26px) saturate(1.8); -webkit-backdrop-filter: blur(26px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -1px 0 rgba(255, 255, 255, 0.06), 0 24px 60px rgba(0, 0, 0, 0.32), 0 2px 10px rgba(0, 0, 0, 0.18); }
 .eyebrow { color: #f2c75c; margin: 0; }
-h1 { font-size: clamp(2.1rem, 4.6vw, 3.3rem); line-height: 1.02; letter-spacing: -0.025em; color: #fff; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2.1rem, 4.6vw, 3.3rem); line-height: 1.06; letter-spacing: -0.025em; color: #fff; margin: 0; text-wrap: balance; }
 .elegido h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
 .sub { color: rgba(255, 255, 255, 0.84); font-size: 1.04rem; margin: 0; }
 

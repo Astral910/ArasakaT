@@ -503,3 +503,7 @@ Agente extra de la ronda 5. Guía: `docs/sensor.md`; hardware en `hardware/` (di
 - **Toqué `web/src/views/Guardar.vue` (zona de landing7)**, cambio chico y aditivo: `?ir=dashboard` → al guardar va directo a `/terrenos/<id>`; antes de `POST /api/parcelas` busca en `GET /api/parcelas` uno con mismo lat/lon (±1e-4) y cultivo y lo reusa (no duplica). Sin `ir`, todo igual que antes.
 - Tarjeta final del simulador: solo «Guardar este terreno» (`data-testid=guardar-terreno`), ya no usa `components/cuenta/GuardarTerreno.vue` (queda para otros usos).
 - e2e: `sandbox.spec.ts` llega al informe con `page.goto('/informe' + query)` (la tarjeta final ya no tiene el enlace); `ronda5.spec.ts` capas = botones circulares `#menu-capas button.circ`; nuevo test «Ir al dashboard → crear cuenta → dashboard, sin duplicar».
+## landing7 (ronda 7, 15 nov)
+- `web/src/features/sandbox/vuelo/Vuelo.vue` (zona sandbox7): quitadas las coropletas de riesgo y sus bordes del vuelo (punto 10); el foco queda en dorado fijo. Si sandbox7 toca ese archivo, conservar este cambio al unir.
+- Tipografía global: `--font-display` y `--font-ui` = Geist (tokens.css). Pendiente en zonas ajenas: `features/sandbox/export/marca.ts` y `components/plan/card.ts` (canvas) siguen con Fraunces/Figtree.
+- `/alerts` (y `/avisos`, `/alertas`) redirige a `/terrenos`. La vista `features/alertas` queda sin ruta.
