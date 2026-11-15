@@ -411,6 +411,36 @@ export function nivelYLecho(alt: Float32Array, N: number, L: number, bin: Uint8A
     }
     nc++
   }
+  // playa: junto al agua la tierra sube con pendiente ≤ ~24° desde la cota del agua (sin escalones ni paredes
+  // por el salto del SRTM entre lago y orilla); peñascos reales (> 20 m) y bordes de la maqueta no se tocan
+  {
+    const K = Math.max(2, Math.ceil(30 / paso))
+    const dTierra = new Int32Array(NN).fill(-1)
+    const lvT = new Float32Array(NN)
+    const cola2: number[] = []
+    for (let k = 0; k < NN; k++) if (!Number.isNaN(nivel[k])) { dTierra[k] = 0; lvT[k] = nivel[k]; cola2.push(k) }
+    for (let q = 0; q < cola2.length; q++) {
+      const k = cola2[q], i = k % N, j = (k - i) / N, dk = dTierra[k]
+      if (dk >= K) continue
+      for (const [di, dj] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const u = i + di, v = j + dj
+        if (u < 0 || v < 0 || u >= N || v >= N) continue
+        const kk = v * N + u
+        if (dTierra[kk] >= 0) continue
+        dTierra[kk] = dk + 1; lvT[kk] = lvT[k]; cola2.push(kk)
+      }
+    }
+    for (let k = 0; k < NN; k++) {
+      const d = dTierra[k]
+      if (d <= 0) continue
+      const i = k % N, j = (k - i) / N
+      if (Math.min(i, j, N - 1 - i, N - 1 - j) < 2) continue
+      const sobre = alturas[k] - lvT[k]
+      if (sobre <= 0.25 || sobre > 20) continue
+      const lim = lvT[k] + 0.25 + d * paso * 0.45
+      if (alturas[k] > lim) alturas[k] = lim
+    }
+  }
   // anillo alrededor: el nivel se extiende 2 vértices para que la malla del agua cubra hasta la orilla
   for (let it = 0; it < 2; it++) {
     const add: Array<[number, number]> = []

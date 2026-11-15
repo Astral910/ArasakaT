@@ -183,7 +183,15 @@ function medirFps() {
   const paso = () => {
     n++
     if (performance.now() - t < 3000) requestAnimationFrame(paso)
-    else window.__suelo = { ...window.__suelo, fps: Math.round((n * 1000) / (performance.now() - t)) }
+    else {
+      // costo por cuadro (render + finish), con y sin el suelo (agua, briznas y materiales)
+      const gl = renderer.getContext()
+      const px = new Uint8Array(4)
+      const medir = () => { const t0 = performance.now(); for (let k = 0; k < 40; k++) { suelo?.actualizar(0.016, camara); renderer.render(escena, camara); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px) } return (performance.now() - t0) / 40 }
+      medir()
+      const con = medir()
+      window.__suelo = { ...window.__suelo, fps: Math.round((n * 1000) / (performance.now() - t)), msCuadro: Math.round(con * 100) / 100 }
+    }
   }
   requestAnimationFrame(paso)
 }
