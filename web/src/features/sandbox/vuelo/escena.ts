@@ -79,8 +79,14 @@ export interface Sandbox {
   setTimeScale?(s: number): void
   /** dibuja un cuadro (autoRender:false, video) */
   renderFrame?(dt: number): void
-  /** eventos de armado: `progreso` (etapas) y `parcelaEnAgua` */
-  on?(ev: 'progreso' | 'parcelaEnAgua', cb: (d: any) => void): () => void
+  /** eventos de armado: `progreso` (etapas) y `parcelaEnAgua`; `filtro` (leyenda de la capa, escena5) */
+  on?(ev: 'progreso' | 'parcelaEnAgua' | 'filtro', cb: (d: any) => void): () => void
+  /** ronda 5 (escena5): marcadores 3D de siembra y cosecha */
+  setSiembra?(fecha: string | null): void
+  /** ronda 5 (escena5): capa de datos sobre el terreno */
+  setFiltro?(f: string | null): void
+  /** ronda 5 (escena5): rango que se reproduce */
+  setRango?(desde: string | null, hasta: string | null): void
 }
 
 type Fabrica = (canvas: HTMLCanvasElement, o: OpcionesSandbox) => Sandbox | Promise<Sandbox>
@@ -154,6 +160,10 @@ function adaptarReal(crear: any, canvas: HTMLCanvasElement, o: OpcionesSandbox):
     renderFrame: (dt) => sb.renderFrame?.(dt),
     // eventos nuevos de la ronda 4 (si la escena todavía no los emite, nunca llegan y la UI usa solo 'ready')
     on: (ev, cb) => { try { return sb.on(ev, cb) ?? (() => {}) } catch { return () => {} } },
+    // ronda 5: si la escena todavía no los trae, no pasa nada
+    setSiembra: (f) => { try { sb.setSiembra?.(f) } catch (e) { console.warn('[vuelo] setSiembra', e) } },
+    setFiltro: (f) => { try { sb.setFiltro?.(f) } catch (e) { console.warn('[vuelo] setFiltro', e) } },
+    setRango: (a, b) => { try { sb.setRango?.(a, b) } catch (e) { console.warn('[vuelo] setRango', e) } },
     dispose: () => sb.dispose(),
   }
 }

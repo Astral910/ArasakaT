@@ -13,6 +13,11 @@ export interface SimRequest {
   percentil: Percentil
   anios: number
   semilla: number
+  /** ronda 5: fecha de siembra elegida (AAAA-MM-DD); vacía = la recomendada */
+  fecha_siembra?: string
+  /** ronda 5: rango a reproducir (AAAA-MM-DD) */
+  desde?: string
+  hasta?: string
 }
 
 export interface SimCapa {
@@ -61,7 +66,28 @@ export interface SimTimeline {
   motor: string
   /** Qué tan confiable es lo mostrado (ronda 3, MOTOR). Puede faltar en salidas viejas. */
   confianza?: SimConfianza | null
+  /** Fecha de siembra elegida vs recomendada (ronda 5, MOTOR). Puede faltar. */
+  siembra?: SimSiembra | null
 }
+
+/** Espejo de contract.SimSiembra (_ronda5.md). */
+export interface SimSiembra {
+  elegida: string
+  recomendada: string
+  ventana_ini?: string
+  ventana_fin?: string
+  cosecha_elegida?: string
+  cosecha_recomendada?: string
+  razones?: SimRazon[]
+  riesgo_por_fecha?: RiesgoFecha[]
+  /** el motor considera buena la elegida (aunque no sea la recomendada) */
+  recomendable?: boolean
+  veredicto?: 'ok' | 'ojo' | 'mala' | string
+  texto?: string
+  texto_en?: string
+}
+export interface SimRazon { codigo: string; severidad: 'ok' | 'ojo' | 'mala' | string; texto: string; texto_en?: string; fuente?: string }
+export interface RiesgoFecha { fecha: string; prob_perdida: number; cosecha_p50?: number }
 
 /** Espejo de contract.SimConfianza (_ronda3.md). */
 export interface SimConfianza {
