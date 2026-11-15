@@ -4,8 +4,8 @@ import * as THREE from 'three'
 import type { Parcela } from './maqueta'
 import { GLSL_NUBES, GLSL_RUIDO, type UniformsGlobales } from './glsl'
 import { ESTILOS, elegir, type Bioma, type Especie } from './biomas'
-import { atlasHojas, geoArbustoHojas, geoEspecie, materialHojas, soltarAtlas } from './arboles'
-import { construirRancho, type Rancho } from './rancho'
+import { atlasHojas, geoArbustoHojas, geoCafeto, geoEspecie, geoPalmera, materialHojas, soltarAtlas } from './arboles'
+import { construirRancho, type Rancho, type TipoGranja } from './rancho'
 import { rng } from './ruido'
 
 const C = (h: string) => new THREE.Color(h)
@@ -66,6 +66,38 @@ export function geoPoste() {
 
 export interface Props { grupo: THREE.Group; rancho: Rancho; dispose(): void }
 
+/** Datos opcionales de otros módulos (suelo): agua, cobertura y altitud; y el tipo de granja forzado. */
+export interface ExtraProps {
+  esAgua?: (x: number, z: number) => boolean
+  cobertura?: (x: number, z: number) => string
+  altura?: number
+  tipoGranja?: TipoGranja
+}
+
+/**
+ * Stub de agua mientras SUELO no pasa `esAgua`: píxel azul/verde-azulado oscuro en la imagen satelital
+ * (ríos claros, lagos, mar). Los ríos muy turbios no se detectan: para eso está `esAgua` de suelo.
+ */
+export function aguaDesdeSatelite(sat: HTMLCanvasElement, L: number): (x: number, z: number) => boolean {
+  const ctx = sat.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return () => false
+  const W = sat.width
+  const d = ctx.getImageData(0, 0, W, W).data
+  const agua = (px: number, py: number) => {
+    const i = (Math.min(W - 1, Math.max(0, py)) * W + Math.min(W - 1, Math.max(0, px))) * 4
+    const R = d[i], G = d[i + 1], B = d[i + 2]
+    const lum = (R + G + B) / 3
+    return (B > R + 8 && B >= G - 6 && lum < 150) || (lum < 38 && B >= R && Math.abs(G - B) < 14)
+  }
+  return (x, z) => {
+    const px = Math.floor(((x + L / 2) / L) * (W - 1)), py = Math.floor(((z + L / 2) / L) * (W - 1))
+    // mayoría en una cruz de 5 píxeles: un píxel suelto (sombra, techo azul) no es un río
+    let n = 0
+    for (const [a, b] of [[0, 0], [2, 0], [-2, 0], [0, 2], [0, -2]]) if (agua(px + a, py + b)) n++
+    return n >= 3
+  }
+}
+
 /** Escala típica (multiplica la geometría) por especie para que el tamaño sea creíble. */
 const ESCALA: Record<Especie, [number, number]> = {
   ceiba: [0.9, 1.25], frondoso: [0.8, 1.15], encino: [0.85, 1.2], olivo: [0.8, 1.1], pino: [0.75, 1.1], cipres: [0.8, 1.1],
@@ -75,6 +107,7 @@ const ESCALA: Record<Especie, [number, number]> = {
 export function construirProps(
   U: UniformsGlobales, parcela: Parcela, alturaEn: (x: number, z: number) => number, L: number,
   sat: HTMLCanvasElement, calidad: 'alta' | 'media' | 'baja', bioma: Bioma = 'corredor-seco', semilla = 1,
+  extra: ExtraProps = {},
 ): Props {
   const E = ESTILOS[bioma]
   const grupo = new THREE.Group()
@@ -87,13 +120,15 @@ export function construirProps(
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3()
   const yUp = new THREE.Vector3(0, 1, 0)
   // rancho primero (ocupa los lugares planos)
-  const rancho = construirRancho(bioma, parcela, alturaEn, L, mat, calidad, semilla)
+  const esAgua = extra.esAgua ?? aguaDesdeSatelite(sat, L)
+  const rancho = construirRancho(bioma, parcela, alturaEn, L, mat, calidad, semilla, { U, esAgua, cobertura: extra.cobertura, altura: extra.altura, tipoGranja: extra.tipoGranja })
   grupo.add(rancho.grupo)
   rancho.pintar(sat)
   // instancias de árboles agrupadas por (especie, variante, detalle)
   const lotes = new Map<string, { esp: Especie; var: number; det: number; mats: THREE.Matrix4[] }>()
   const r = rng(semilla * 3 + 7)
   const plantar = (esp: Especie, x: number, z: number, escala = 1, lejos = false) => {
+    if (esAgua(x, z)) return
     const v = Math.floor(r() * 3), det = calidad === 'baja' ? 0.4 : lejos ? 0.6 : 1
     const k = `${esp}|${v}|${det}`
     let l = lotes.get(k)
@@ -121,7 +156,7 @@ export function construirProps(
     for (let k = 0; k <= n; k++) {
       const x = x0 + ((x1 - x0) * k) / n, z = z0 + ((z1 - z0) * k) / n
       const pt = new THREE.Vector3(x, alturaEn(x, z), z)
-      const hueco = lado === 0 && Math.abs(x - xTranq) < 2
+      const hueco = (lado === 0 && Math.abs(x - xTranq) < 2) || esAgua(x, z)
       // cerco vivo: cada tanto un poste es un árbol (madre cacao, izote…), en los lados y atrás
       if (E.cercoVivo && k % 4 === 2 && lado !== 2 && !hueco) plantar(E.cercoVivo, x, z, 0.85)
       else if (k < n && !hueco) postes.push(pt)
@@ -155,7 +190,7 @@ export function construirProps(
       else if (lado === 2) { x = cx - hx - fuera; z = cz + u * (hz + fuera) }
       else { x = cx + hx + fuera; z = cz + u * (hz + fuera) }
       if (Math.abs(x) > L * 0.48 || Math.abs(z) > L * 0.48) continue
-      if (rancho.ocupado(x, z, 0.5)) continue
+      if (rancho.ocupado(x, z, 0.5) || esAgua(x, z)) continue
       const vi = t % 2
       if (cuenta[vi] >= nA) continue
       q.setFromAxisAngle(yUp, r() * 6.28)
@@ -180,7 +215,7 @@ export function construirProps(
   for (let t = 0; t < 7000 && n < tope; t++) {
     const x = (r() - 0.5) * L * 0.97, z = (r() - 0.5) * L * 0.97
     if (Math.abs(x - cx) < hx + 7 && Math.abs(z - cz) < hz + 7) continue
-    if (rancho.ocupado(x, z, 3)) continue
+    if (rancho.ocupado(x, z, 3) || esAgua(x, z)) continue
     let verde = 0.5
     if (datos) {
       const px = Math.floor(((x + L / 2) / L) * (W - 1)), py = Math.floor(((z + L / 2) / L) * (W - 1))
@@ -196,12 +231,39 @@ export function construirProps(
   }
   // frutales y plátano junto a las casas
   for (const [x, z] of rancho.patio) plantar(elegir(E.patio, r()), x, z, 0.95)
+  // plantas que pide la granja: sombra del cafetal/potrero, cafetos y palmeras
+  const extrasPl: Array<{ geo: THREE.BufferGeometry; mats: THREE.Matrix4[] }> = []
+  const cafetos = calidad === 'baja' ? [geoCafeto(1)] : [geoCafeto(1), geoCafeto(2)]
+  const palmeras = calidad === 'baja' ? [geoPalmera(1, 0.5)] : [geoPalmera(1), geoPalmera(2)]
+  for (const g of [...cafetos, ...palmeras]) extrasPl.push({ geo: g, mats: [] })
+  for (const pl of rancho.plantas) {
+    if (esAgua(pl.x, pl.z)) continue
+    if (pl.tipo === 'sombra') { plantar(rancho.tipo === 'ganadera' ? (bioma === 'altiplano' ? 'encino' : 'ceiba') : r() < 0.6 ? 'gliricidia' : 'banano', pl.x, pl.z, pl.escala); continue }
+    if (pl.tipo === 'frutal') { plantar(elegir(E.patio, r()), pl.x, pl.z, pl.escala); continue }
+    const lista = pl.tipo === 'cafeto' ? cafetos : palmeras
+    const k = Math.floor(r() * lista.length)
+    const slot = extrasPl.find((e) => e.geo === lista[k])!
+    q.setFromAxisAngle(yUp, r() * Math.PI * 2)
+    sc.setScalar(pl.escala)
+    p.set(pl.x, alturaEn(pl.x, pl.z) - 0.1, pl.z)
+    slot.mats.push(new THREE.Matrix4().compose(p, q, sc))
+  }
+  for (const e of extrasPl) {
+    geos.push(e.geo)
+    if (!e.mats.length) continue
+    const im = new THREE.InstancedMesh(e.geo, matH, e.mats.length)
+    e.mats.forEach((mm, k) => im.setMatrixAt(k, mm))
+    im.castShadow = calidad !== 'baja'
+    im.receiveShadow = true
+    im.name = 'plantas-granja'
+    grupo.add(im)
+  }
   // un árbol grande de sombra junto a la parcela (el guanacaste del potrero)
   {
     const esp: Especie = bioma === 'altiplano' ? 'encino' : bioma === 'sabana' || bioma === 'arido' ? 'acacia' : 'ceiba'
     for (let k = 0; k < 40; k++) {
       const x = cx - hx - 9 - r() * 10, z = cz - hz * (0.2 + r() * 0.8)
-      if (!rancho.ocupado(x, z, 4) && Math.abs(x) < L * 0.46) { plantar(esp, x, z, 1.05); break }
+      if (!rancho.ocupado(x, z, 4) && !esAgua(x, z) && Math.abs(x) < L * 0.46) { plantar(esp, x, z, 1.05); break }
     }
   }
   for (const l of lotes.values()) {

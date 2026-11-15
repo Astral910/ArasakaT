@@ -400,6 +400,40 @@ export function geoEspecie(esp: Especie, semilla: number, hojas: string[], detal
   return A.geo()
 }
 
+/** Palmera datilera/cocotera (oasis y patios áridos): tronco curvo anillado y penacho de hojas largas. */
+export function geoPalmera(semilla: number, detalle = 1) {
+  const r = rng(semilla * 7 + 5)
+  const A = new Armador()
+  const H = 6 + r() * 3, inc = (r() - 0.5) * 1.6
+  const tronco = lin('#7a6650')
+  let prev = V(0, -0.4, 0)
+  const nS = detalle < 0.7 ? 3 : 5
+  for (let k = 1; k <= nS; k++) {
+    const t = k / nS
+    const p = V(inc * t * t, H * t, inc * 0.4 * t * t)
+    A.tubo(prev, p, 0.24 - 0.05 * t, 0.22 - 0.05 * t, detalle < 0.7 ? 5 : 7, 'corteza', tronco, 0, 0.05 + t * 0.1)
+    prev = p
+  }
+  const tonos = ['#3f6a2a', '#4d7a30', '#5a7f36', '#36602a'].map(lin)
+  const nH = Math.max(9, Math.round(18 * Math.min(1, detalle + 0.2)))
+  for (let k = 0; k < nH; k++) {
+    const az = (k / nH) * Math.PI * 2 + r() * 0.3
+    const vieja = k % 4 === 3
+    A.tira(prev.clone().add(V(0, -0.1, 0)), az, 3.2 + r() * 0.8, 0.75, vieja ? -0.2 : 0.55 + r() * 0.3, vieja ? 1.2 : 1.5 + r() * 0.4, 6, 'banano', vieja ? lin('#8a7a48') : tonos[k % tonos.length], 1)
+  }
+  return A.geo()
+}
+
+/** Cafeto (arbusto de ~2 m, hoja verde oscuro brillante) para el cafetal bajo sombra. */
+export function geoCafeto(semilla: number) {
+  const r = rng(semilla * 11 + 3)
+  const A = new Armador()
+  A.tubo(V(0, -0.2, 0), V(0, 1.4, 0), 0.05, 0.03, 4, 'corteza', lin('#6b5a48'), 0, 0.05)
+  const tonos = ['#22401c', '#2c4c20', '#345a24'].map(lin)
+  for (let k = 0; k < 3; k++) A.copa(V((r() - 0.5) * 0.2, 0.6 + k * 0.5, (r() - 0.5) * 0.2), V(0.75 - k * 0.15, 0.4, 0.75 - k * 0.15), 9, 0.8, r, 'ancha', tonos, 0.4)
+  return A.geo()
+}
+
 /** Arbusto bajo de tarjetas (monte junto al cerco). */
 export function geoArbustoHojas(semilla: number, hojas: string[]) {
   const r = rng(semilla)

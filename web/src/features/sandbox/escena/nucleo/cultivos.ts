@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { geoDe } from './plantas'
 import { GLSL_NUBES, GLSL_RUIDO, type UniformsGlobales } from './glsl'
 import type { Parcela } from './maqueta'
+import { distParcela } from './ubicacion'
 
 /** Escala ilustrativa: las plantas se dibujan algo más grandes para que se lean en la maqueta. */
 export const ESCALA_PLANTA = 1.5
@@ -160,6 +161,8 @@ export interface OpcionesCultivos {
   alturaEn: (x: number, z: number) => number
   tope: number // máx. instancias por capa
   sombras: boolean
+  /** false = ahí no se siembra (agua, calle, edificio). */
+  libre?: (x: number, z: number) => boolean
 }
 
 export function crearCapa(cultivo: string, U: UniformsGlobales, o: OpcionesCultivos, semilla: number): Capa3D {
@@ -167,11 +170,14 @@ export function crearCapa(cultivo: string, U: UniformsGlobales, o: OpcionesCulti
   const disp = DISPOSICION[cultivo] ?? DISPOSICION.otro
   const { parcela } = o
   let surco = disp.surco * ESCALA_PLANTA, entre = disp.entre * ESCALA_PLANTA
-  const area = parcela.hx * 2 * parcela.hz * 2
+  const area = parcela.area ?? parcela.hx * 2 * parcela.hz * 2
   const natural = area / (surco * entre)
+  // tope por rendimiento: en parcelas grandes se abren los surcos y las plantas crecen un poco para llenar
+  let escala = ESCALA_PLANTA
   if (natural > o.tope) {
     const f = Math.sqrt(natural / o.tope), fs = Math.min(f, 1.25)
     surco *= fs; entre *= (f * f) / fs
+    escala *= Math.min(1.45, Math.pow(f, 0.3))
   }
   // posiciones
   const pos: Array<[number, number, number, number]> = []
@@ -182,7 +188,8 @@ export function crearCapa(cultivo: string, U: UniformsGlobales, o: OpcionesCulti
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
     let x = x0 + i * entre + disp.offX * ESCALA_PLANTA + (r() - 0.5) * disp.jit * 2 * ESCALA_PLANTA
     let z = z0 + j * surco + disp.offZ * ESCALA_PLANTA + (r() - 0.5) * disp.jit * 2 * ESCALA_PLANTA
-    if (Math.abs(x - parcela.cx) > parcela.hx - 0.4 || Math.abs(z - parcela.cz) > parcela.hz - 0.4) continue
+    if (distParcela(parcela, x, z) > -0.4) continue
+    if (o.libre && !o.libre(x, z)) continue
     // huecos naturales (resiembra, golpes fallidos)
     if (r() < 0.035) continue
     x = Math.round(x * 1000) / 1000; z = Math.round(z * 1000) / 1000
@@ -198,7 +205,7 @@ export function crearCapa(cultivo: string, U: UniformsGlobales, o: OpcionesCulti
   for (let k = 0; k < n; k++) {
     const [x, z, rot, rr] = pos[k]
     q.setFromAxisAngle(yUp, rot)
-    sc.setScalar(ESCALA_PLANTA)
+    sc.setScalar(escala)
     p.set(x, o.alturaEn(x, z) - 0.03, z)
     m4.compose(p, q, sc)
     mesh.setMatrixAt(k, m4)
