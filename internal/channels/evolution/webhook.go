@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -151,6 +153,9 @@ func (c *Cliente) Handler() http.Handler {
 			http.Error(w, "cuerpo ilegible", http.StatusBadRequest)
 			return
 		}
+		if d := os.Getenv("EVOLUTION_DEBUG_DIR"); d != "" { // diagnóstico local: guarda el último evento crudo
+			_ = os.WriteFile(filepath.Join(d, "ultimo-webhook.json"), b, 0o600)
+		}
 		var ev evento
 		if err := json.Unmarshal(b, &ev); err != nil {
 			http.Error(w, "JSON inválido", http.StatusBadRequest)
@@ -211,10 +216,12 @@ func (c *Cliente) Procesar(evento string, data json.RawMessage) {
 func (c *Cliente) mensaje(m mensajeEvo) {
 	j := m.Key.RemoteJid
 	if m.Key.FromMe || strings.HasSuffix(j, "@g.us") || strings.HasSuffix(j, "@broadcast") || strings.HasSuffix(j, "@newsletter") {
+		log.Printf("evolution: ignorado (propio=%v, tipo de chat=%s)", m.Key.FromMe, sufijoJID(j))
 		return
 	}
 	e, ok := entradaDe(m.Message)
 	if !ok {
+		log.Printf("evolution: ignorado, tipo de mensaje no soportado (chat=%s)", sufijoJID(j))
 		return
 	}
 	e.Tel = telefonoDe(m)
@@ -252,4 +259,12 @@ func (c *Cliente) audio(m mensajeEvo) []byte {
 	}
 	b, _ := base64.StdEncoding.DecodeString(r.Base64)
 	return b
+}
+
+// sufijoJID: solo el tipo de dirección (@s.whatsapp.net, @lid, @g.us…), sin el número, para los logs.
+func sufijoJID(j string) string {
+	if i := strings.LastIndex(j, "@"); i >= 0 {
+		return j[i:]
+	}
+	return "?"
 }
