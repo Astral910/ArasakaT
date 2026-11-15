@@ -13,8 +13,10 @@ const props = withDefaults(defineProps<{
   dia: number; fraccion: number
   preset: string; duracion: number; mapa?: CamaraMapa | null; seq?: number
   subida: number; calidad: 'baja' | 'media' | 'alta'
+  /** ronda 5: fecha de siembra (marcadores 3D), capa de datos y rango a reproducir */
+  siembra?: string | null; filtro?: string | null; rango?: [string, string] | null
 }>(), { autoRender: true })
-const emit = defineEmits<{ listo: [info: { alineable: boolean; rumbo?: number }]; etapa: [d: EtapaEscena]; agua: [d: { fraccion?: number; tipo?: string }] }>()
+const emit = defineEmits<{ listo: [info: { alineable: boolean; rumbo?: number }]; etapa: [d: EtapaEscena]; agua: [d: { fraccion?: number; tipo?: string }]; filtro: [d: any] }>()
 
 const lienzo = ref<HTMLCanvasElement | null>(null)
 let sb: Sandbox | null = null
@@ -25,6 +27,11 @@ function plantilla() {
   if (!sb) return
   sb.setTemplate({ timeline: props.tl, parcela: props.parcela, cultivo: props.cultivo, area_m2: props.area_m2, area_valor: props.area_valor, area_unidad: props.area_unidad, estrategia: props.estrategia, lon: props.lon, lat: props.lat, pendiente_pct: props.tl?.pendiente_pct, bioma: props.bioma })
   if (props.tl) sb.setDay(props.dia, props.fraccion)
+}
+function extras() {
+  sb?.setSiembra?.(props.siembra ?? null)
+  sb?.setFiltro?.(props.filtro ?? null)
+  sb?.setRango?.(props.rango?.[0] ?? null, props.rango?.[1] ?? null)
 }
 function camara() {
   sb?.setCamera(props.preset, { duracion: props.duracion, mapa: props.mapa ?? undefined })
@@ -41,8 +48,10 @@ onMounted(async () => {
   sb.levantar?.(props.subida)
   sb.on?.('progreso', (d) => emit('etapa', normalizarEtapa(d)))
   sb.on?.('parcelaEnAgua', (d) => emit('agua', d ?? {}))
+  sb.on?.('filtro', (d) => emit('filtro', d))
   plantilla()
   camara()
+  extras()
   // tope 18 s: el suelo, la ciudad y las casas se arman en el navegador del visitante (pantalla de carga)
   await Promise.race([sb.listo, new Promise((r) => setTimeout(r, 18000))])
   if (vivo && sb) emit('listo', { alineable: !!sb.alineable, rumbo: sb.rumbo?.() })
@@ -64,6 +73,11 @@ defineExpose({ sandbox: () => sb, lienzo })
 watch(() => [props.dia, props.fraccion], () => props.tl && sb?.setDay(props.dia, props.fraccion))
 watch(() => [props.preset, props.mapa, props.seq], camara)
 watch(() => props.subida, (s) => sb?.levantar?.(s))
+watch(() => props.siembra, (f) => sb?.setSiembra?.(f ?? null))
+watch(() => props.filtro, (f) => sb?.setFiltro?.(f ?? null))
+watch(() => props.rango, (r) => sb?.setRango?.(r?.[0] ?? null, r?.[1] ?? null))
+// la escena real rearma el cultivo con cada timeline nuevo: los marcadores se vuelven a poner
+watch(() => props.tl, () => sb?.setSiembra?.(props.siembra ?? null))
 </script>
 
 <template>

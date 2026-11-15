@@ -59,10 +59,11 @@ export function nombreEscenario(tl: SimTimeline, c: SimConfianza, idioma: 'es' |
   return nino ? 'Escenario El Niño' : 'Escenario año neutro'
 }
 
-export function insignia(tl: SimTimeline, origen: OrigenSim, idioma: 'es' | 'en'): Insignia {
+export function insignia(tl: SimTimeline, origen: OrigenSim, idioma: 'es' | 'en', motivo?: 'sin-red' | 'motor'): Insignia {
   if (origen === 'ejemplo') {
+    const m = motivo === 'motor'
     return {
-      texto: idioma === 'en' ? 'Illustrative sample · engine offline' : 'Ejemplo ilustrativo · sin conexión al motor',
+      texto: idioma === 'en' ? `Illustrative sample · ${m ? 'the engine did not answer' : 'engine offline'}` : `Ejemplo ilustrativo · ${m ? 'el motor no respondió' : 'sin conexión al motor'}`,
       nivel: 'ejemplo', sustituto: true,
       detalle: idioma === 'en' ? 'Not a prediction: synthetic weather to show how the tool works.' : 'No es una predicción: clima sintético para mostrar cómo funciona.',
     }

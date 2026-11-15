@@ -2,7 +2,7 @@
 // La guía en pantalla: solo fecha, una línea de lo que pasa, la insignia de confianza y play/pausa + velocidad.
 // Debajo, la línea de tiempo delgada para saltar. Todo lo demás va en "Ajustar" y en el informe técnico.
 import { computed } from 'vue'
-import { Play, Pause, RotateCcw, ShieldCheck, ShieldAlert, ShieldQuestion } from 'lucide-vue-next'
+import { Play, Pause, RotateCcw, ShieldCheck, ShieldAlert, ShieldQuestion, Sprout } from 'lucide-vue-next'
 import Linea from './Linea.vue'
 import type { SimTimeline, SimEvento } from './tipos'
 import type { Banda } from './tiempo'
@@ -14,6 +14,10 @@ import { fechaCorta } from '../../mapa/comun/idioma'
 const props = defineProps<{
   tl: SimTimeline; bandas: Banda[]; dia: number; fecha: string; jugando: boolean; ritmo: number; fin: boolean
   linea: { texto: string; tipo: string; clave: string }; insignia: Insignia; compacto?: boolean; textosMotor?: boolean
+  /** ronda 5: "Sembrás el 15 may · cosechás ~20 sep" */
+  siembra?: string
+  /** rango pedido (desde/hasta) en días del timeline */
+  rango?: [number, number] | null
 }>()
 const emit = defineEmits<{ ir: [dia: number]; evento: [e: SimEvento]; play: []; ritmo: [] }>()
 
@@ -29,7 +33,7 @@ const tono = computed(() => TONO[props.linea.tipo] ?? null)
       </button>
       <button class="ritmo num" type="button" :aria-label="t('velocidad') + ' ×' + ritmo" @click="emit('ritmo')">×{{ ritmo }}</button>
       <div class="que">
-        <p class="fecha num">{{ fechaCorta(fecha, undefined, !compacto) }} <span>{{ fecha.slice(0, 4) }}</span></p>
+        <p class="fecha num">{{ fechaCorta(fecha, undefined, !compacto) }} <span>{{ fecha.slice(0, 4) }}</span><small v-if="siembra" class="sie"><Sprout :size="12" aria-hidden="true" />{{ siembra }}</small></p>
         <Transition name="linea" mode="out-in">
           <p :key="linea.clave" class="pasa" :style="tono ? { '--t': tono } : undefined" aria-live="polite">
             <i v-if="tono" aria-hidden="true" />{{ linea.texto }}
@@ -42,7 +46,7 @@ const tono = computed(() => TONO[props.linea.tipo] ?? null)
         <span class="sr-only">. {{ insignia.detalle }}</span>
       </p>
     </div>
-    <Linea :tl="tl" :bandas="bandas" :dia="dia" :compacto="compacto" :textos-motor="textosMotor" @ir="emit('ir', $event)" @evento="emit('evento', $event)" />
+    <Linea :tl="tl" :bandas="bandas" :dia="dia" :compacto="compacto" :textos-motor="textosMotor" :rango="rango" @ir="emit('ir', $event)" @evento="emit('evento', $event)" />
   </div>
 </template>
 
@@ -57,6 +61,9 @@ const tono = computed(() => TONO[props.linea.tipo] ?? null)
 .que { min-width: 0; flex: 1; display: grid; gap: 1px; }
 .fecha { font-family: var(--font-display); font-size: 1.32rem; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; white-space: nowrap; }
 .fecha span { opacity: .6; font-weight: 500; }
+.sie { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; vertical-align: middle; font-family: var(--font-ui); font-size: .72rem; font-weight: 700; letter-spacing: 0; color: #d9efc6; background: rgba(111,208,166,.14); border: 1px solid rgba(111,208,166,.35); padding: 2px 8px; border-radius: 999px; }
+.sie svg { color: #9fdc7c; }
+.compacto .sie { display: flex; width: fit-content; margin: 3px 0 0; font-size: .66rem; padding: 1px 7px; }
 .pasa { font-size: .95rem; font-weight: 600; color: #fff6e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 7px; }
 .pasa i { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--t); box-shadow: 0 0 0 3px color-mix(in srgb, var(--t) 30%, transparent); }
 .insignia { flex: 0 1 auto; max-width: 46%; display: flex; align-items: center; gap: 7px; font-size: .76rem; font-weight: 600; line-height: 1.3; padding: 7px 12px; border-radius: 12px; background: rgba(255,250,240,.08); border: 1px solid rgba(255,250,240,.18); color: #f4ebdb; }

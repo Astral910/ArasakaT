@@ -20,7 +20,16 @@ export interface Ruta {
   idioma?: 'es' | 'en'
   /** terreno exacto (forma/radio/poly); lat/lon pasan a ser su centro */
   parcela: Parcela | null
+  /** ronda 5: fecha de siembra elegida (AAAA-MM-DD); sin ella, la recomendada */
+  siembra?: string
+  /** ronda 5: rango a reproducir (AAAA-MM-DD; los números de desde/hasta son del video) */
+  desde?: string
+  hasta?: string
+  /** ronda 5: terreno guardado en la cuenta */
+  parcelaId?: string
 }
+const ISO = /^\d{4}-\d{2}-\d{2}$/
+const fechaOk = (s?: string) => (s && ISO.test(s) && isFinite(Date.parse(s)) ? s : undefined)
 
 const num = (s?: string) => (s != null && s !== '' && isFinite(Number(s)) ? Number(s) : undefined)
 const ESC: Escenario[] = ['pronostico', 'tipico', 'nino', 'real-2026', 'secuencia', '2040-ssp245', '2040-ssp585']
@@ -65,6 +74,7 @@ export function leerRuta(query: Record<string, unknown>): Ruta {
     auto: q.auto === '1',
     intro: q.intro !== '0',
     rec: q.rec === '1',
+    siembra: fechaOk(q.siembra), desde: fechaOk(q.desde), hasta: fechaOk(q.hasta), parcelaId: q.parcela || undefined,
     idioma: q.idioma === 'es' || q.idioma === 'en' ? q.idioma : q.lang === 'es' || q.lang === 'en' ? q.lang : undefined,
   }
 }
@@ -73,7 +83,9 @@ export function leerRuta(query: Record<string, unknown>): Ruta {
 export function consultaCompartible(query: Record<string, unknown>): string {
   const u = new URLSearchParams()
   for (const [k, v] of Object.entries(query)) {
-    if (v == null || ['rec', 'intro', 'calidad', 'vertical', 'fps', 'dur', 'desde', 'hasta'].includes(k)) continue
+    if (v == null || ['rec', 'intro', 'calidad', 'vertical', 'fps', 'dur'].includes(k)) continue
+    // desde/hasta en fecha = rango de la temporada (se comparte); en número = segundos del video (no)
+    if ((k === 'desde' || k === 'hasta') && !fechaOk(String(Array.isArray(v) ? v[0] : v))) continue
     u.set(k, String(Array.isArray(v) ? v[0] : v))
   }
   return u.toString()

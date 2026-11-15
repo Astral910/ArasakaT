@@ -23,7 +23,10 @@ export function rutaEstatica(r: SimRequest) {
 
 export function valida(t: unknown): t is SimTimeline {
   const x = t as SimTimeline
-  return !!x && typeof x.dias === 'number' && x.dias > 0 && Array.isArray(x.agua_suelo) && x.agua_suelo.length >= x.dias && Array.isArray(x.capas)
+  const ok = !!x && typeof x.dias === 'number' && x.dias > 0 && Array.isArray(x.agua_suelo) && x.agua_suelo.length >= x.dias && Array.isArray(x.capas)
+  // Go manda null en las listas vacías (p. ej. eventos de un rango corto): se dejan como []
+  if (ok) for (const k of ['eventos', 'anual', 'notas', 'fuente'] as const) if (!Array.isArray(x[k])) (x as any)[k] = []
+  return ok
 }
 
 async function jsonSiExiste(url: string): Promise<string | null> {
@@ -73,27 +76,62 @@ async function porWasm(r: SimRequest): Promise<SimTimeline | null> {
 }
 
 const cache = new Map<string, ResSim>()
-/** espera del motor: un punto nuevo del mundo tarda 8–15 s (NASA POWER + suelo + pronóstico) la primera vez */
+/** espera del motor: un punto nuevo del mundo tarda 8–15 s (NASA POWER + suelo + pronóstico) la primera vez;
+ *  lejos de Guatemala (SoilGrids, ERA5) puede pasar de 45 s → se reintenta una vez con más paciencia. */
 const TOPE_SIM = 45_000
+const TOPE_REINTENTO = 75_000
 
-export interface ResSim { tl: SimTimeline; origen: OrigenSim; /** escenario que realmente se usó (pronostico sin servidor → tipico) */ escenario: SimRequest['escenario'] }
+/** Por qué cayó al ejemplo: sin-red = el navegador no llega al servidor; motor = el servidor respondió con error. */
+export type MotivoEjemplo = 'sin-red' | 'motor'
+
+export interface ResSim {
+  tl: SimTimeline; origen: OrigenSim
+  /** escenario que realmente se usó (pronostico sin servidor → tipico) */ escenario: SimRequest['escenario']
+  motivo?: MotivoEjemplo
+}
+
+type Fallo = 'red' | 'tiempo' | 'http' | 'sin-api'
+/** Clasifica el error de api.post: sin red (fetch rechazado), tiempo agotado (AbortError), HTTP o "no hay API" (404 / HTML). */
+export function clasificar(e: unknown): Fallo {
+  const m = String((e as Error)?.message ?? e)
+  if ((e as Error)?.name === 'AbortError' || /abort/i.test(m)) return 'tiempo'
+  if (/^no-json|^404 /.test(m)) return 'sin-api'
+  if (/^\d{3} /.test(m)) return 'http'
+  return 'red'
+}
+const sinRed = () => typeof navigator !== 'undefined' && navigator.onLine === false
+
+/** POST /api/simulate con un reintento si el motor tarda o falla (no cae al ejemplo por lentitud). */
+async function porApi(r: SimRequest): Promise<{ tl: SimTimeline | null; fallo?: Fallo }> {
+  let fallo: Fallo | undefined
+  for (const tope of [TOPE_SIM, TOPE_REINTENTO]) {
+    try {
+      const tl = await api.post<SimTimeline>('/api/simulate', r, tope)
+      if (valida(tl)) return { tl }
+      fallo = 'http'
+    } catch (e) {
+      fallo = clasificar(e)
+    }
+    // sin red o sin servidor de API (sitio estático): no tiene sentido esperar otra vez
+    if (fallo === 'red' || fallo === 'sin-api' || sinRed()) break
+  }
+  return { tl: null, fallo }
+}
 
 export async function cargarSim(r0: SimRequest, plan?: Plan | null): Promise<ResSim> {
   const clave = JSON.stringify(r0)
   const c = cache.get(clave)
   if (c) return c
   let res: ResSim | null = null
-  try {
-    const tl = await api.post<SimTimeline>('/api/simulate', r0, TOPE_SIM)
-    if (valida(tl)) res = { tl, origen: 'api', escenario: r0.escenario }
-  } catch { /* sigue */ }
+  const a = await porApi(r0)
+  if (a.tl) res = { tl: a.tl, origen: 'api', escenario: r0.escenario }
+  let fallo = a.fallo
   // el pronóstico necesita el servidor (16 días + estacional): sin él, el motor local corre el año típico
   const r: SimRequest = r0.escenario === 'pronostico' ? { ...r0, escenario: 'tipico', percentil: 'p50' } : r0
-  if (!res && r !== r0) {
-    try {
-      const tl = await api.post<SimTimeline>('/api/simulate', r, TOPE_SIM)
-      if (valida(tl)) res = { tl, origen: 'api', escenario: r.escenario }
-    } catch { /* sigue */ }
+  if (!res && r !== r0 && fallo !== 'red' && fallo !== 'sin-api') {
+    const b = await porApi(r)
+    if (b.tl) res = { tl: b.tl, origen: 'api', escenario: r.escenario }
+    fallo = b.fallo ?? fallo
   }
   if (!res) {
     try {
@@ -109,7 +147,10 @@ export async function cargarSim(r0: SimRequest, plan?: Plan | null): Promise<Res
       if (valida(tl)) res = { tl, origen: 'static', escenario: r.escenario }
     }
   }
-  res ??= { tl: sintetico(r, plan), origen: 'ejemplo', escenario: r.escenario }
+  if (!res) {
+    // el ejemplo no se guarda en la caché: el próximo intento vuelve a probar el motor
+    return { tl: sintetico(r, plan), origen: 'ejemplo', escenario: r.escenario, motivo: fallo === 'http' || fallo === 'tiempo' ? 'motor' : 'sin-red' }
+  }
   cache.set(clave, res)
   return res
 }
@@ -144,9 +185,9 @@ const doyDe = (mmdd: string) => {
 
 interface Cultivo { cultivo: string; siembra: number; largo: number; alto: number }
 
-function cultivosDe(estrategia: string, plan?: Plan | null): Cultivo[] {
-  // siembra de Primera del calendario del plan real (si viene), si no 23 may
-  const pri = plan?.estrategias.find((e) => e.id === estrategia)?.calendario.find((p) => p.tipo === 'primera')?.inicio
+function cultivosDe(estrategia: string, plan?: Plan | null, fecha?: string): Cultivo[] {
+  // siembra elegida (ronda 5) o la de Primera del calendario del plan real (si viene), si no 23 may
+  const pri = /^\d{4}-\d\d-\d\d$/.test(fecha ?? '') ? fecha!.slice(5) : plan?.estrategias.find((e) => e.id === estrategia)?.calendario.find((p) => p.tipo === 'primera')?.inicio
   const sMaiz = doyDe(/^\d\d-\d\d$/.test(pri ?? '') ? pri! : '05-23')
   const base: Cultivo[] = [
     { cultivo: 'maiz', siembra: sMaiz, largo: 130, alto: 2.3 },
@@ -174,7 +215,7 @@ export function sintetico(r: SimRequest, plan?: Plan | null): SimTimeline {
     capas: [], eventos: [], anual: [], p95_lluvia_mm: 42, pendiente_pct: 28,
     notas: ['Ejemplo local sintético: no es salida del motor.'], motor: 'ejemplo-web',
   }
-  const cultivos = cultivosDe(r.estrategia, plan)
+  const cultivos = cultivosDe(r.estrategia, plan, r.fecha_siembra)
   const capas: SimCapa[] = cultivos.map((c) => ({ cultivo: c.cultivo, etapa: col(-1), cobertura: col(0), salud: col(1), altura_m: col(0) }))
 
   const reales: number[] = []
