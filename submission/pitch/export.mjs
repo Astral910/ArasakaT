@@ -12,15 +12,15 @@ const { chromium } = createRequire(path.join(pwDir, 'package.json'))('playwright
 
 const browser = await chromium.launch({ args: ['--mute-audio', '--enable-gpu', '--use-angle=d3d11', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
-await page.goto(pathToFileURL(path.join(dir, 'slides.html')).href, { waitUntil: 'networkidle' });
+await page.goto(pathToFileURL(path.join(dir, (process.env.SLIDES || 'slides') + '.html')).href, { waitUntil: 'networkidle' });
 await page.evaluate(() => document.fonts.ready);
 
 fs.mkdirSync(path.join(dir, 'png'), { recursive: true });
 const slides = await page.$$('section.slide');
 for (let i = 0; i < slides.length; i++) {
-  await slides[i].screenshot({ path: path.join(dir, 'png', `slide-${i + 1}.png`) });
+  await slides[i].screenshot({ path: path.join(dir, 'png', (process.env.SLIDES ? process.env.SLIDES + '-' : '') + `slide-${i + 1}.png`) });
 }
 await page.emulateMedia({ media: 'print' });
-await page.pdf({ path: path.join(dir, 'slides.pdf'), width: '1920px', height: '1080px', printBackground: true, preferCSSPageSize: true });
+await page.pdf({ path: path.join(dir, (process.env.SLIDES || 'slides') + '.pdf'), width: '1920px', height: '1080px', printBackground: true, preferCSSPageSize: true });
 await browser.close();
 console.log(`ok: ${slides.length} slides → slides.pdf + png/`);
