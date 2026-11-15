@@ -45,7 +45,7 @@ function geometriaMata() {
 
 export function crearPasto(opts: {
   U: UniformsGlobales; US: UniformsSuelo; L: number; N: number; alturas: Float32Array
-  splatA: THREE.Texture; splatB: THREE.Texture; aguaMap: THREE.Texture; satelite: { value: THREE.Texture | null }
+  splatA: THREE.Texture; splatB: THREE.Texture; splatC?: THREE.Texture; aguaMap: THREE.Texture; satelite: { value: THREE.Texture | null }
   calidad: 'alta' | 'media' | 'baja'; semilla: number
 }): Pasto | null {
   const { calidad } = opts
@@ -72,6 +72,8 @@ export function crearPasto(opts: {
     uAltTex: { value: alt },
     uSplatA: { value: opts.splatA },
     uSplatB: { value: opts.splatB },
+    uSplatC: { value: opts.splatC ?? opts.splatB },
+    uConC: { value: opts.splatC ? 1 : 0 },
     uAguaMap: { value: opts.aguaMap },
     uSatP: opts.satelite,
     uAlto: { value: 1.25 },
@@ -83,9 +85,9 @@ export function crearPasto(opts: {
       .replace('#include <common>', `#include <common>
         attribute vec2 iOff; attribute vec3 iRnd;
         uniform vec2 uCentro, uWindDir; uniform vec4 uParcel;
-        uniform float uTile, uMaqL, uMaqN, uTime, uWind, uGust, uDry, uSeason, uAlto;
-        uniform sampler2D uAltTex, uSplatA, uSplatB, uAguaMap, uSatP;
-        varying vec3 vColP; varying float vT;
+        uniform float uTile, uMaqL, uMaqN, uTime, uWind, uGust, uDry, uSeason, uAlto, uConC;
+        uniform sampler2D uAltTex, uSplatA, uSplatB, uSplatC, uAguaMap, uSatP;
+        varying vec3 vColP; varying float vT; varying vec4 vFlor;
         float hP(vec2 p){ p = fract(p*vec2(123.34,456.21)); p += dot(p,p+45.32); return fract(p.x*p.y); }
         float vnP(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f);
           return mix(mix(hP(i),hP(i+vec2(1,0)),u.x), mix(hP(i+vec2(0,1)),hP(i+vec2(1,1)),u.x), u.y); }
@@ -103,7 +105,11 @@ export function crearPasto(opts: {
         vec2 uvS = o/uMaqL + 0.5;
         vec4 sa = texture2D(uSplatA, uvS), sb = texture2D(uSplatB, uvS);
         float agua = texture2D(uAguaMap, uvS).r;
-        float wp = sa.r + sb.g*0.5 + sb.b*0.25;
+        float gr = texture2D(uSplatC, uvS).r * uConC; // grama (césped de patio, parque, jardín)
+        float wp = sa.r + sb.g*0.5 + sb.b*0.25 + gr;
+        float fG = gr / max(wp, 1e-3);
+        // borde de la grama (contra tierra/concreto): maleza más alta y flores sueltas
+        float borde = gr > 0.08 ? smoothstep(0.15, 0.4, gr) * (1.0 - smoothstep(0.45, 0.8, gr)) : 0.0;
         float parche = smoothstep(0.25, 0.65, vnP(o*0.16) * 0.7 + vnP(o*0.55 + 7.0) * 0.45);
         float dens = smoothstep(0.4, 0.75, wp) * parche * (1.0 - smoothstep(0.08, 0.3, agua + sb.a*0.25));
         float dentro = step(abs(uvS.x-0.5), 0.497) * step(abs(uvS.y-0.5), 0.497);
@@ -112,7 +118,10 @@ export function crearPasto(opts: {
         float fade = 1.0 - smoothstep(uTile*0.3, uTile*0.5, distance(o, uCentro));
         float seco = clamp(uSeason*0.7 + uDry*0.9, 0.0, 1.0);
         float vive = step(iRnd.x, dens) * dentro * fueraParcela;
-        float h = (0.12 + 0.26*iRnd.y) * (0.6 + 0.6*parche) * uAlto * fade * vive * (1.0 - seco*0.35);
+        dens = mix(dens, smoothstep(0.3, 0.6, wp) * (0.75 + 0.25*parche) * (1.0 - smoothstep(0.08, 0.3, agua)), fG);
+        vive = step(iRnd.x, dens) * dentro * fueraParcela;
+        float hCesped = (0.05 + 0.07*iRnd.y) * (1.0 + borde*2.2*step(0.6, iRnd.z));
+        float h = mix((0.12 + 0.26*iRnd.y) * (0.6 + 0.6*parche), hCesped, fG) * uAlto * fade * vive * (1.0 - seco*0.35);
         float ang = iRnd.z*6.2831;
         vec3 lp = position;
         vT = lp.y;
@@ -135,13 +144,22 @@ export function crearPasto(opts: {
         vec3 tf = satC*vec3(1.05,1.12,0.8);
         col = mix(col, tf * (dot(col, vec3(0.33)) / max(dot(tf, vec3(0.33)), 0.02)) * 0.5 + tf * 0.5, 0.45);
         col = max(col, verde * 0.9);
+        // césped: más parejo y más verde (se riega), con tréboles más oscuros
+        vec3 cesped = mix(vec3(0.13,0.27,0.05), vec3(0.24,0.38,0.09), iRnd.y) * mix(1.0, 0.75, step(0.8, vnP(o*0.9)));
+        cesped = mix(cesped, vec3(0.42,0.38,0.16), seco*0.55);
+        col = mix(col, mix(cesped, col, 0.25), fG);
+        // flores sueltas (blancas, amarillas, lila) en el borde y salpicadas en la grama
+        float pf = step(iRnd.z, 0.012 + borde*0.08 + (1.0-fG)*0.004) * (1.0 - seco*0.8);
+        vec3 fc = iRnd.y < 0.4 ? vec3(0.92,0.9,0.82) : iRnd.y < 0.75 ? vec3(0.95,0.78,0.12) : vec3(0.62,0.42,0.8);
+        vFlor = vec4(fc, pf);
         vColP = col;`)
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vColP; varying float vT;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vColP; varying float vT; varying vec4 vFlor;')
       .replace('#include <color_fragment>', `#include <color_fragment>
-        diffuseColor.rgb = vColP * (0.62 + 0.75*vT);`)
+        diffuseColor.rgb = vColP * (0.62 + 0.75*vT);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vFlor.rgb, vFlor.a * smoothstep(0.72, 0.9, vT));`)
   }
-  mat.customProgramCacheKey = () => 'pasto-suelo-1'
+  mat.customProgramCacheKey = () => 'pasto-suelo-2'
   const malla = new THREE.Mesh(geo, mat)
   malla.name = 'pasto'
   malla.frustumCulled = false

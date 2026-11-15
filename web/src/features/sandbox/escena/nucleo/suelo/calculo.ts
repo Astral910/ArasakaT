@@ -2,7 +2,7 @@
 // Entrada: cobertura 10 m (o nada), agua OSM en metros, satélite recortado y alturas de la maqueta.
 // Salida: splat de 8 materiales, clase por píxel, máscara de agua, nivel del agua y alturas con el lecho hundido.
 import { C, MAT } from './clases'
-import type { AguaLinea, AguaPoli } from './fuentes'
+import type { AguaLinea, AguaPoli, UsoPoli } from './fuentes'
 
 export interface EntradaCalculo {
   L: number
@@ -16,6 +16,8 @@ export interface EntradaCalculo {
   cob: { W: number; H: number; ids: Uint8Array } | null
   poli: AguaPoli[]
   lineas: AguaLinea[]
+  /** Grama y zonas residenciales de OSM (opcional). */
+  usos?: UsoPoli[]
   /** RGBA R×R del satélite ya recortado a la maqueta (fila 0 = z = −L/2). */
   sat: Uint8ClampedArray | null
   /** Alturas de la maqueta (N×N, ya exageradas). */
@@ -29,6 +31,8 @@ export interface SalidaCalculo {
   R: number
   splatA: Uint8Array
   splatB: Uint8Array
+  /** Suelo de ciudad y patios: grama (césped), tierra apisonada, grava, concreto. */
+  splatC: Uint8Array
   clase: Uint8Array
   /** 0..255, suave en la orilla. */
   agua: Uint8Array
@@ -67,29 +71,7 @@ function rasterAgua(e: EntradaCalculo, bin: Uint8Array, tipo: Uint8Array) {
     return [(x / L + 0.5) * R - 0.5, (z / L + 0.5) * R - 0.5]
   }
   // polígonos: relleno par-impar por filas (todos los anillos del rasgo juntos = huecos correctos)
-  for (const p of e.poli) {
-    const anillos = p.anillos.map((a) => { const o = new Float32Array(a.length); for (let k = 0; k < a.length; k += 2) { const [u, v] = aPx(a[k], a[k + 1]); o[k] = u; o[k + 1] = v } return o })
-    let vmin = Infinity, vmax = -Infinity
-    for (const a of anillos) for (let k = 1; k < a.length; k += 2) { vmin = Math.min(vmin, a[k]); vmax = Math.max(vmax, a[k]) }
-    const j0 = Math.max(0, Math.ceil(vmin)), j1 = Math.min(R - 1, Math.floor(vmax))
-    const xs: number[] = []
-    for (let j = j0; j <= j1; j++) {
-      xs.length = 0
-      for (const a of anillos) {
-        const n = a.length / 2
-        for (let k = 0; k < n; k++) {
-          const k2 = (k + 1) % n
-          const y1 = a[k * 2 + 1], y2 = a[k2 * 2 + 1]
-          if ((y1 <= j && y2 > j) || (y2 <= j && y1 > j)) xs.push(a[k * 2] + ((j - y1) / (y2 - y1)) * (a[k2 * 2] - a[k * 2]))
-        }
-      }
-      xs.sort((u, v) => u - v)
-      for (let q = 0; q + 1 < xs.length; q += 2) {
-        const i0 = Math.max(0, Math.ceil(xs[q])), i1 = Math.min(R - 1, Math.floor(xs[q + 1]))
-        for (let i = i0; i <= i1; i++) { bin[j * R + i] = 1; if (!tipo[j * R + i] || p.tipo === 3) tipo[j * R + i] = p.tipo }
-      }
-    }
-  }
+  for (const p of e.poli) rellenar(e, p.anillos, (k) => { bin[k] = 1; if (!tipo[k] || p.tipo === 3) tipo[k] = p.tipo })
   // cauces: franja del ancho estimado
   const mpp = L / R
   for (const ln of e.lineas) {
@@ -109,6 +91,64 @@ function rasterAgua(e: EntradaCalculo, bin: Uint8Array, tipo: Uint8Array) {
       }
     }
   }
+}
+
+/** Relleno par-impar de un polígono (anillos en metros E,S) sobre la grilla R×R. */
+function rellenar(e: EntradaCalculo, anillosES: Float32Array[], marcar: (k: number) => void) {
+  const { R, L, phi, Cx, Cz } = e
+  const anillos = anillosES.map((a) => {
+    const o = new Float32Array(a.length)
+    for (let k = 0; k < a.length; k += 2) { const [x, z] = aLocalES(a[k], a[k + 1], phi, Cx, Cz); o[k] = (x / L + 0.5) * R - 0.5; o[k + 1] = (z / L + 0.5) * R - 0.5 }
+    return o
+  })
+  let vmin = Infinity, vmax = -Infinity
+  for (const a of anillos) for (let k = 1; k < a.length; k += 2) { vmin = Math.min(vmin, a[k]); vmax = Math.max(vmax, a[k]) }
+  const j0 = Math.max(0, Math.ceil(vmin)), j1 = Math.min(R - 1, Math.floor(vmax))
+  const xs: number[] = []
+  for (let j = j0; j <= j1; j++) {
+    xs.length = 0
+    for (const a of anillos) {
+      const n = a.length / 2
+      for (let k = 0; k < n; k++) {
+        const k2 = (k + 1) % n
+        const y1 = a[k * 2 + 1], y2 = a[k2 * 2 + 1]
+        if ((y1 <= j && y2 > j) || (y2 <= j && y1 > j)) xs.push(a[k * 2] + ((j - y1) / (y2 - y1)) * (a[k2 * 2] - a[k * 2]))
+      }
+    }
+    xs.sort((u, v) => u - v)
+    for (let q = 0; q + 1 < xs.length; q += 2) {
+      const i0 = Math.max(0, Math.ceil(xs[q])), i1 = Math.min(R - 1, Math.floor(xs[q + 1]))
+      for (let i = i0; i <= i1; i++) marcar(j * R + i)
+    }
+  }
+}
+
+/** Ruido de valor barato (para variar patios: tierra, grava, concreto). */
+function hashR(i: number, j: number) { const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return h - Math.floor(h) }
+function ruidoV(x: number, z: number) {
+  const i = Math.floor(x), j = Math.floor(z), fx = x - i, fz = z - j
+  const u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz)
+  return (hashR(i, j) * (1 - u) + hashR(i + 1, j) * u) * (1 - v) + (hashR(i, j + 1) * (1 - u) + hashR(i + 1, j + 1) * u) * v
+}
+
+/**
+ * Reparto del suelo de ciudad por el color del satélite (verde = grama, gris claro = concreto, pardo = tierra
+ * apisonada, el resto grava/tierra con variación por zonas). Devuelve [grama, apisonado, grava, concreto] que suma 1.
+ */
+export function repartoUrbano(col: Color | null, x: number, z: number, out: Float32Array) {
+  const zona = ruidoV(x / 14, z / 14)
+  if (!col) { out[0] = 0.35; out[1] = 0.3 + 0.2 * zona; out[2] = 0.15; out[3] = 0.2 - 0.2 * zona + 0.2; return out }
+  const verde = sst(0.02, 0.11, col.verdor) * sst(0.06, 0.14, col.lum)
+  const claro = (1 - sst(0.08, 0.2, col.satur)) * sst(0.36, 0.55, col.lum) * (1 - verde)
+  const pardo = sst(0.02, 0.1, col.calido) * (1 - claro) * (1 - verde)
+  const resto = Math.max(0, 1 - verde - claro - pardo)
+  out[0] = verde + resto * 0.08
+  out[1] = pardo * (0.65 + 0.35 * zona) + resto * (0.3 + 0.3 * zona)
+  out[2] = pardo * (0.35 - 0.35 * zona) + resto * (0.4 - 0.2 * zona)
+  out[3] = claro + resto * 0.2
+  const s = out[0] + out[1] + out[2] + out[3] || 1
+  for (let m = 0; m < 4; m++) out[m] /= s
+  return out
 }
 
 /** Distancia (px) aproximada a la celda marcada más cercana (chamfer 3-4). */
@@ -289,8 +329,46 @@ export function calcularSuelo(e: EntradaCalculo): SalidaCalculo {
   // transiciones suaves: la cobertura es de 10 m (sin esto se ven sus cuadros)
   const radio = Math.max(1, Math.round((e.cob ? 4.5 : 1.5) / mpp))
   const S8 = desenfocar(W8, R, 8, radio)
-  const splatA = new Uint8Array(RR * 4), splatB = new Uint8Array(RR * 4)
-  const pesosMedios = new Array(8).fill(0)
+  // 5b) suelo de ciudad: la mancha "urbano" (y lo residencial de OSM) se reparte en grama, tierra apisonada,
+  // grava y concreto según la foto; la grama de OSM (parques, jardines, canchas) manda donde está
+  const usoG = new Float32Array(RR), usoR = new Float32Array(RR)
+  for (const u of e.usos ?? []) rellenar(e, u.anillos, u.tipo === 1 ? (k) => { usoG[k] = 1 } : (k) => { usoR[k] = 1 })
+  const rep = new Float32Array(RR * 4), tmp4 = new Float32Array(4)
+  for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) {
+    const k = j * R + i, o = k * 4
+    const col = e.sat ? analizarColor(e.sat[o], e.sat[o + 1], e.sat[o + 2]) : null
+    repartoUrbano(col, ((i + 0.5) / R - 0.5) * L, ((j + 0.5) / R - 0.5) * L, tmp4)
+    rep.set(tmp4, o)
+  }
+  const repS = desenfocar(rep, R, 4, Math.max(1, Math.round(1.2 / mpp)))
+  const gS = desenfocar(usoG, R, 1, Math.max(1, Math.round(1 / mpp)))
+  const rS = desenfocar(usoR, R, 1, Math.max(1, Math.round(3 / mpp)))
+  const S12 = new Float32Array(RR * 4)
+  for (let k = 0; k < RR; k++) {
+    const b = k * 8, o = k * 4
+    if (bin[k]) continue
+    // en lo residencial el pasto también es de patio (cortado) y la tierra suelta es lote
+    const resid = Math.max(rS[k], S8[b + MAT.urbano] > 0.25 ? 1 : 0) * (e.arido ? 0.6 : 1)
+    let urb = S8[b + MAT.urbano]
+    const dePasto = S8[b + MAT.pasto] * resid * 0.85, deTierra = S8[b + MAT.tierra] * resid * 0.6
+    S8[b + MAT.pasto] -= dePasto; S8[b + MAT.tierra] -= deTierra
+    urb += deTierra
+    const g = gS[k] * (1 - S8[b + MAT.bosque] * 0.5)
+    // grama de OSM: se lleva pasto, tierra y urbano
+    const aG = g * (S8[b + MAT.pasto] + S8[b + MAT.tierra] * 0.8 + urb * 0.9)
+    S8[b + MAT.pasto] *= 1 - g; S8[b + MAT.tierra] *= 1 - g * 0.8; urb *= 1 - g * 0.9
+    S8[b + MAT.urbano] = urb * 0.06 // asfalto suelto (estacionamientos); calles y banquetas son de la ciudad
+    urb *= 0.94
+    // en barrios (sobre todo en pueblos) el verde entre casas es mitad patio de tierra con monte, mitad grama
+    S12[o] = urb * repS[o] + dePasto * 0.5 + aG
+    S12[o + 1] = urb * repS[o + 1] + dePasto * 0.5
+    S12[o + 2] = urb * repS[o + 2]
+    S12[o + 3] = urb * repS[o + 3]
+  }
+  const splatA = new Uint8Array(RR * 4), splatB = new Uint8Array(RR * 4), splatC = new Uint8Array(RR * 4)
+  for (let k = 0; k < RR * 4; k++) splatC[k] = Math.round(Math.min(1, S12[k]) * 255)
+  const pesosMedios = new Array(12).fill(0)
+  for (let k = 0; k < RR; k++) for (let m = 0; m < 4; m++) pesosMedios[8 + m] += S12[k * 4 + m] / RR
   for (let k = 0; k < RR; k++) for (let m = 0; m < 8; m++) pesosMedios[m] += S8[k * 8 + m] / RR
   for (let k = 0; k < RR; k++) {
     for (let m = 0; m < 4; m++) { splatA[k * 4 + m] = Math.round(S8[k * 8 + m] * 255); splatB[k * 4 + m] = Math.round(S8[k * 8 + 4 + m] * 255) }
@@ -305,7 +383,7 @@ export function calcularSuelo(e: EntradaCalculo): SalidaCalculo {
   const fracciones: Record<string, number> = {}
   const nombres: Record<number, string> = { 0: 'tierra', 1: 'arbol', 2: 'arbusto', 3: 'pasto', 4: 'cultivo', 5: 'urbano', 6: 'desnudo', 7: 'nieve', 8: 'agua', 9: 'humedal', 10: 'manglar', 11: 'arena', 12: 'roca' }
   for (const [id, n] of conteo) fracciones[nombres[id]] = Math.round((n / RR) * 1000) / 1000
-  return { R, splatA, splatB, clase, agua, tipoAgua: tipo, nivel, alturas, fondo, fracciones, pesosMedios: pesosMedios.map((v) => Math.round(v * 1000) / 1000), hundidos }
+  return { R, splatA, splatB, splatC, clase, agua, tipoAgua: tipo, nivel, alturas, fondo, fracciones, pesosMedios: pesosMedios.map((v) => Math.round(v * 1000) / 1000), hundidos }
 }
 
 /** Nivel del agua por vértice y lecho hundido: lagos planos, ríos que bajan con el terreno y quedan bajo las orillas. */

@@ -40,7 +40,8 @@ export interface CtxSuelo {
   US: UniformsSuelo
   signal?: AbortSignal
   progreso?(fase: string, p: number): void
-  ocupacion?: { marcar(tipo: string, x: number, z: number, radio: number): void }
+  /** Ocupación compartida: se marca el agua; si trae la grilla (`g`, `n`, `paso`), se leen calles y edificios. */
+  ocupacion?: { marcar(tipo: string, x: number, z: number, radio: number): void; g?: Uint8Array; n?: number; paso?: number }
   cache?: { get(k: string): unknown; set(k: string, v: unknown): unknown }
   precarga?: Promise<Precarga>
   /** Luz del sol (para el brillo del agua). */
@@ -53,7 +54,7 @@ export interface InfoSuelo {
   fuenteCobertura: 'esa-worldcover-2021' | 'esri-io-lulc' | 'color-satelite'
   fuenteAgua: string[]
   fracciones: Record<string, number>
-  /** Peso medio por material: pasto, arena, roca, tierra, urbano, humedal, bosque, orilla. */
+  /** Peso medio por material: pasto, arena, roca, tierra, urbano, humedal, bosque, orilla, grama, apisonado, grava, concreto. */
   pesos: Record<string, number>
   hundidos: number
   ms: number
@@ -121,7 +122,7 @@ export async function crearSuelo(ctx: CtxSuelo): Promise<Suelo> {
   } catch { /* sin satélite legible: solo cobertura */ }
   const arido = ctx.bioma === 'arido'
   const { s, enWorker } = await correr({
-    L, N, R, phi: ctx.phi, Cx: ctx.Cx, Cz: ctx.Cz, B: pre.B, cob: pre.cob, poli: pre.poli, lineas: pre.lineas,
+    L, N, R, phi: ctx.phi, Cx: ctx.Cx, Cz: ctx.Cz, B: pre.B, cob: pre.cob, poli: pre.poli, lineas: pre.lineas, usos: pre.usos ?? [],
     sat, alturas: ctx.alturas.slice(), arido,
   })
   ctx.progreso?.('suelo', 0.8)
@@ -136,7 +137,7 @@ export async function crearSuelo(ctx: CtxSuelo): Promise<Suelo> {
       ctx.superficie.geometry.computeBoundingSphere()
     }
   }
-  const texA = textura(s.splatA, R), texB = textura(s.splatB, R)
+  const texA = textura(s.splatA, R), texB = textura(s.splatB, R), texC = textura(s.splatC, R)
   const aguaRGBA = new Uint8Array(R * R * 4)
   for (let k = 0; k < R * R; k++) { aguaRGBA[k * 4] = s.agua[k]; aguaRGBA[k * 4 + 1] = s.tipoAgua[k] * 85; aguaRGBA[k * 4 + 3] = 255 }
   const texAgua = textura(aguaRGBA, R)
@@ -145,6 +146,7 @@ export async function crearSuelo(ctx: CtxSuelo): Promise<Suelo> {
   const US2 = crearUniformsSueloMat(L, calidad)
   US2.uSplatA.value = texA
   US2.uSplatB.value = texB
+  US2.uSplatC.value = texC
   US2.uAguaMap.value = texAgua
   US2.uArido.value = arido ? 1 : 0
   const mat = ctx.superficie.material as THREE.MeshStandardMaterial
@@ -156,7 +158,7 @@ export async function crearSuelo(ctx: CtxSuelo): Promise<Suelo> {
   if (agua.malla) grupo.add(agua.malla)
   const satU = { value: (mat.map ?? null) as THREE.Texture | null }
   const pasto = crearPasto({
-    U: ctx.U, US: ctx.US, L, N, alturas: ctx.alturas, splatA: texA, splatB: texB, aguaMap: texAgua, satelite: satU,
+    U: ctx.U, US: ctx.US, L, N, alturas: ctx.alturas, splatA: texA, splatB: texB, splatC: texC, aguaMap: texAgua, satelite: satU,
     calidad, semilla: ctx.semilla ?? 1,
   })
   if (pasto) grupo.add(pasto.malla)
@@ -168,17 +170,32 @@ export async function crearSuelo(ctx: CtxSuelo): Promise<Suelo> {
   const esAgua = (x: number, z: number) => s.agua[idx(x, z)] >= 128
   const cobertura = (x: number, z: number): ClaseSuelo => (esAgua(x, z) ? 'agua' : CLASES[s.clase[idx(x, z)]] ?? 'tierra')
 
+  // patios, caminos, corrales y calles: sin pasto; queda tierra apisonada con borde suave (sin escalones del raster)
   const excluir = (fn: (x: number, z: number) => boolean) => {
+    const m = new Float32Array(R * R)
     let n = 0
     for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) {
-      const x = ((i + 0.5) / R - 0.5) * L, z = ((j + 0.5) / R - 0.5) * L
-      if (!fn(x, z)) continue
-      const k = (j * R + i) * 4
-      s.splatA[k + 3] = Math.min(255, s.splatA[k + 3] + s.splatA[k])
-      s.splatA[k] = 0
-      n++
+      if (fn(((i + 0.5) / R - 0.5) * L, ((j + 0.5) / R - 0.5) * L)) { m[j * R + i] = 1; n++ }
     }
-    if (n) texA.needsUpdate = true
+    if (!n) return
+    const r = Math.max(1, Math.round(0.9 / (L / R)))
+    const tmp = new Float32Array(R * R)
+    for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) {
+      let sm = 0
+      for (let d = -r; d <= r; d++) sm += m[j * R + Math.min(R - 1, Math.max(0, i + d))]
+      tmp[j * R + i] = sm / (2 * r + 1)
+    }
+    for (let j = 0; j < R; j++) for (let i = 0; i < R; i++) {
+      let sm = 0
+      for (let d = -r; d <= r; d++) sm += tmp[Math.min(R - 1, Math.max(0, j + d)) * R + i]
+      const f = Math.min(1, (sm / (2 * r + 1)) * 1.6)
+      if (f <= 0.01) continue
+      const k = (j * R + i) * 4
+      const pa = s.splatA[k] * f, gr = s.splatC[k] * f, ti = s.splatA[k + 3] * f * 0.6
+      s.splatA[k] -= pa; s.splatC[k] -= gr; s.splatA[k + 3] -= ti
+      s.splatC[k + 1] = Math.min(255, s.splatC[k + 1] + pa + gr + ti)
+    }
+    texA.needsUpdate = true; texC.needsUpdate = true
   }
   // la parcela es de escena4 (suelo vivo): sin pasto adentro ni en el bordo
   if (ctx.parcela) {
@@ -195,10 +212,30 @@ export async function crearSuelo(ctx: CtxSuelo): Promise<Suelo> {
     }
   }
 
+  // calles y edificios de la ciudad (llegan después): sin briznas debajo; se revisa la grilla compartida cada 1.5 s
+  let marcadas = 0, proxima = 0
+  const revisarOcupacion = () => {
+    const oc = ctx.ocupacion
+    if (!oc?.g || !oc.n || !oc.paso) return
+    const ahora = performance.now()
+    if (ahora < proxima) return
+    proxima = ahora + 1500
+    let c = 0
+    for (let k = 0; k < oc.g.length; k++) if (oc.g[k] === 2 || oc.g[k] === 3) c++
+    if (c === marcadas) return
+    marcadas = c
+    const { g, n, paso } = oc
+    excluir((x, z) => {
+      const i = Math.round((x + L / 2) / paso), j = Math.round((z + L / 2) / paso)
+      const v = i < 0 || j < 0 || i >= n || j >= n ? 0 : g[j * n + i]
+      return v === 2 || v === 3
+    })
+  }
+
   const solDir = new THREE.Vector3()
   const info: InfoSuelo = {
     fuenteCobertura: pre.cob?.fuente ?? 'color-satelite', fuenteAgua: pre.fuenteAgua, fracciones: s.fracciones,
-    pesos: Object.fromEntries(['pasto', 'arena', 'roca', 'tierra', 'urbano', 'humedal', 'bosque', 'orilla'].map((n, k) => [n, s.pesosMedios[k]])),
+    pesos: Object.fromEntries(['pasto', 'arena', 'roca', 'tierra', 'urbano', 'humedal', 'bosque', 'orilla', 'grama', 'apisonado', 'grava', 'concreto'].map((n, k) => [n, s.pesosMedios[k]])),
     hundidos: s.hundidos, ms: Math.round(performance.now() - t0), msDescarga: pre.ms, enWorker,
   }
   ctx.progreso?.('suelo', 1)
@@ -226,6 +263,7 @@ export async function crearSuelo(ctx: CtxSuelo): Promise<Suelo> {
       return { fraccion: Math.round((w / n) * 1000) / 1000, tipo: TIPO_AGUA[t] ?? 'lago' }
     },
     actualizar(_dt, camara) {
+      revisarOcupacion()
       if (mat.map && satU.value !== mat.map) satU.value = mat.map
       pasto?.actualizar(camara, ctx.alturaEn)
       if (ctx.sol) {
@@ -236,7 +274,7 @@ export async function crearSuelo(ctx: CtxSuelo): Promise<Suelo> {
       }
     },
     dispose() {
-      agua.dispose(); pasto?.dispose(); texA.dispose(); texB.dispose(); texAgua.dispose()
+      agua.dispose(); pasto?.dispose(); texA.dispose(); texB.dispose(); texC.dispose(); texAgua.dispose()
     },
   }
 }

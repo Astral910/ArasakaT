@@ -274,10 +274,12 @@ export async function crearCiudad(ctx: CtxCiudad, opts: OpcionesCiudad = {}): Pr
       if (f != null) tierra = f
       else if (!urbano && (region === 'latam' || region === 'africa' || region === 'colonial') && ['residential', 'unclassified', 'service', 'road'].includes(c.clase)) tierra = true
     }
-    const tipo: 0 | 1 | 3 = peatonal ? 3 : tierra ? 1 : 0
+    // empedrado: superficie de OSM o calle residencial de un centro colonial sin dato (Antigua, Cartago…)
+    const empedrado = /sett|cobblestone|paving_stones|unhewn/.test(sup) || (!sup && region === 'colonial' && urbano && ['residential', 'living_street', 'unclassified', 'tertiary'].includes(c.clase))
+    const tipo: 0 | 1 | 3 | 5 = peatonal ? 3 : empedrado ? 5 : tierra ? 1 : 0
     const mayor = ['motorway', 'trunk', 'primary', 'secondary', 'tertiary'].includes(c.clase)
     const marcas: 0 | 1 | 2 = tipo === 0 && mayor ? (['motorway', 'trunk', 'primary'].includes(c.clase) && region !== 'europa' ? 2 : 1) : 0
-    const banqueta = tipo === 0 && urbano && (mayor || ['residential', 'living_street', 'unclassified'].includes(c.clase))
+    const banqueta = (tipo === 0 || tipo === 5) && urbano && (mayor || ['residential', 'living_street', 'unclassified'].includes(c.clase))
     // remuestreo cada 1.5 m y corte en tramos: fuera de la maqueta, dentro de la parcela, sobre el agua
     const pts = c.linea.map(([la, lo]) => aLocal(la, lo))
     const tramos: P2[][] = []

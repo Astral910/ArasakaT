@@ -8,6 +8,8 @@ import { construirMaqueta, crearUniformsSuelo } from '../maqueta'
 import { orientarYRecortar } from '../recorte'
 import { cargarRelieve } from '../relieve'
 import { crearSuelo, precargarSuelo, type Suelo } from './index'
+import { crearCiudad } from '../ciudad/ciudad'
+import { construirRancho } from '../rancho'
 
 export const LUGARES: Record<string, { lat: number; lon: number; nombre: string; bioma?: Bioma }> = {
   jocotan: { lat: 14.79, lon: -89.39, nombre: 'Jocotán, Chiquimula' },
@@ -23,6 +25,12 @@ export const LUGARES: Record<string, { lat: number; lon: number; nombre: string;
   atitlan: { lat: 14.7295, lon: -91.1525, nombre: 'Lago de Atitlán, Panajachel' },
   amatitlan: { lat: 14.473, lon: -90.585, nombre: 'Lago de Amatitlán' },
   motagua: { lat: 14.9201, lon: -90.0031, nombre: 'Río Motagua, El Rancho' },
+  zona10b: { lat: 14.6000, lon: -90.5120, nombre: 'Zona 10 (calles), Ciudad de Guatemala' },
+  colonia: { lat: 14.6075, lon: -90.4835, nombre: 'Colonia residencial, zona 15, Ciudad de Guatemala' },
+  antigua: { lat: 14.5586, lon: -90.7295, nombre: 'Antigua Guatemala' },
+  jocotanpueblo: { lat: 14.8217, lon: -89.3906, nombre: 'Jocotán (pueblo), Chiquimula' },
+  achi: { lat: 8.5686, lon: -74.5572, nombre: 'Achí, Bolívar (Colombia)' },
+  amsterdam: { lat: 52.3545, lon: 4.8790, nombre: 'Ámsterdam (Oud-Zuid)' },
   costa: { lat: 13.9235, lon: -90.8125, nombre: 'Playa de Puerto San José, Escuintla' },
 }
 
@@ -31,7 +39,7 @@ declare global { interface Window { __suelo?: Record<string, unknown> } }
 const q = new URLSearchParams(location.search)
 const lugar = LUGARES[q.get('lugar') ?? ''] ?? null
 const lat = Number(q.get('lat') ?? lugar?.lat ?? 14.79), lon = Number(q.get('lon') ?? lugar?.lon ?? -89.39)
-const vista = (q.get('vista') ?? 'lejos') as 'lejos' | 'cerca' | 'ras'
+const vista = (q.get('vista') ?? 'lejos') as 'lejos' | 'cerca' | 'ras' | 'medio' | 'calle' | 'patio' | 'rancho' | 'vereda'
 const calidad = (q.get('calidad') ?? 'media') as 'alta' | 'media' | 'baja'
 const L = Number(q.get('L') ?? 320)
 if (q.get('limpio') === '1') document.body.classList.add('limpio')
@@ -73,6 +81,8 @@ const U = crearUniformsGlobales()
 const US = crearUniformsSuelo()
 US.uSkyCol.value.copy(cieloCol)
 US.uSeason.value = Number(q.get('seco') ?? 0)
+U.uWet.value = Number(q.get('mojado') ?? 0.1)
+U.uDry.value = Number(q.get('sequia') ?? 0)
 U.uDry.value = Number(q.get('sequia') ?? 0)
 U.uWind.value = Number(q.get('viento') ?? 0.35)
 U.uWet.value = Number(q.get('mojado') ?? 0.1)
@@ -122,6 +132,16 @@ async function main() {
     const sup2 = mq2.grupo.getObjectByName('superficie') as THREE.Mesh
     sup.material = sup2.material
   } else escena.add(suelo.grupo)
+  // la ciudad encima (calles con banqueta, edificios): el suelo entre casas es lo que se prueba
+  let ciudad: Awaited<ReturnType<typeof crearCiudad>> | null = null
+  if (q.get('ciudad') !== '0') {
+    hud.textContent = 'ciudad…'
+    try {
+      ciudad = await crearCiudad({ L, lat, lon, phi: rec.phi, Cx: rec.Cx, Cz: rec.Cz, alturaEn: mq.alturaEn, satelite: rec.datos.satelite, sateliteReal: rec.datos.sateliteReal, parcela, calidad, semilla: 7, U, esperaOverpass: 5000 }, { parcela, esAgua: (x, z) => suelo!.esAgua(x, z) })
+      escena.add(ciudad.grupo)
+      suelo.excluir((x, z) => ciudad!.esCalle(x, z))
+    } catch (e) { console.warn('ciudad', e) }
+  }
   const tc = performance.now()
   await renderer.compileAsync(escena, camara)
   const msCompilar = Math.round(performance.now() - tc)
@@ -152,7 +172,60 @@ async function main() {
     }
   }
   const tgt = new THREE.Vector3()
-  if (vista === 'lejos') {
+  // rancho con sus caminos de tierra (vistas rancho/vereda)
+  let rancho: ReturnType<typeof construirRancho> | null = null
+  if (vista === 'rancho' || vista === 'vereda') {
+    rancho = construirRancho(bioma, parcela, mq.alturaEn, L, null, calidad, 7, { U, esAgua: (x, z) => suelo!.esAgua(x, z), cobertura: (x, z) => suelo!.cobertura(x, z) })
+    escena.add(rancho.grupo)
+    ;(window as unknown as { __escena: THREE.Scene }).__escena = escena
+    suelo.excluir(rancho.esTierra)
+    await renderer.compileAsync(escena, camara)
+    const [hx, hz] = rancho.centro
+    const cam0 = rancho.caminos[0]
+    if (vista === 'rancho') { tgt.set(hx, mq.alturaEn(hx, hz), hz); camara.position.set(hx + 26, tgt.y + 22, hz + 30) }
+    else {
+      const a = cam0[Math.floor(cam0.length * 0.3)], b = cam0[Math.floor(cam0.length * 0.7)]
+      const d = new THREE.Vector3(b[0] - a[0], 0, b[1] - a[1]).normalize()
+      camara.position.set(a[0] - d.x * 5 + d.z * 0.6, mq.alturaEn(a[0], a[1]) + 1.7, a[1] - d.z * 5 - d.x * 0.6)
+      tgt.set(b[0], mq.alturaEn(b[0], b[1]), b[1])
+    }
+  }
+  // punto de calle más cercano al centro (fuera de la parcela) para las vistas de ciudad
+  let calle: THREE.Vector3 | null = null, dirCalle = new THREE.Vector3(1, 0, 0)
+  if (ciudad) {
+    let md = Infinity
+    for (let z = -L * 0.4; z < L * 0.4; z += 2) for (let x = -L * 0.4; x < L * 0.4; x += 2) {
+      if (!ciudad.esCalle(x, z) || Math.abs(x) < lado / 2 + 8 && Math.abs(z - cz) < lado / 2 + 8) continue
+      // calle de verdad (no un sendero): calle en un cuadro de 5 m
+      let ancha = true
+      for (const [ox, oz] of [[2.5, 0], [-2.5, 0], [0, 2.5], [0, -2.5]]) if (!ciudad.esCalle(x + ox, z + oz)) ancha = false
+      if (!ancha) continue
+      const d = Math.hypot(x, z - cz + lado)
+      if (d < md) { md = d; calle = new THREE.Vector3(x, 0, z) }
+    }
+    if (calle) {
+      let best = -1
+      for (let a = 0; a < 16; a++) {
+        const v = new THREE.Vector3(Math.cos((a / 16) * Math.PI), 0, Math.sin((a / 16) * Math.PI))
+        let n = 0
+        for (let d = -30; d <= 30; d += 3) if (ciudad.esCalle(calle.x + v.x * d, calle.z + v.z * d)) n++
+        if (n > best) { best = n; dirCalle = v }
+      }
+    }
+  }
+  if (rancho) { /* cámara ya puesta */ } else if (vista === 'medio' || vista === 'calle' || vista === 'patio') {
+    const c0 = calle ?? new THREE.Vector3(0, 0, cz - lado)
+    c0.y = mq.alturaEn(c0.x, c0.z)
+    const lat2 = new THREE.Vector3(-dirCalle.z, 0, dirCalle.x)
+    if (vista === 'medio') { tgt.copy(c0); camara.position.set(c0.x + 70, c0.y + 75, c0.z + 85) }
+    else if (vista === 'patio') { tgt.copy(c0).addScaledVector(lat2, 8); camara.position.copy(c0).addScaledVector(lat2, -16).addScaledVector(dirCalle, 18); camara.position.y = c0.y + 16 }
+    else {
+      const p = c0.clone().addScaledVector(dirCalle, -14).addScaledVector(lat2, 2.5)
+      camara.position.set(p.x, mq.alturaEn(p.x, p.z) + 2.2, p.z)
+      const a = c0.clone().addScaledVector(dirCalle, 14)
+      tgt.set(a.x, mq.alturaEn(a.x, a.z) + 0.6, a.z)
+    }
+  } else if (vista === 'lejos') {
     tgt.set(0, mq.alturaEn(0, 0), 0)
     camara.position.set(L * 0.42, tgt.y + L * 0.62, L * 0.9)
   } else if (vista === 'cerca') {
@@ -171,7 +244,7 @@ async function main() {
   sol.position.set(tgt.x - 220, tgt.y + 320, tgt.z + 160)
   sol.target.position.copy(tgt)
   const sc = sol.shadow.camera
-  const rango = vista === 'lejos' ? L * 0.75 : 60
+  const rango = vista === 'lejos' || vista === 'medio' ? L * 0.75 : 60
   sc.left = sc.bottom = -rango; sc.right = sc.top = rango; sc.near = 10; sc.far = 1200
   sc.updateProjectionMatrix()
   const i = suelo.info

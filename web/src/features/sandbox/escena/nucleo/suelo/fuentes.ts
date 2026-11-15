@@ -18,6 +18,8 @@ export interface CoberturaCruda {
 /** Polígono de agua en metros (E = este, S = sur del punto). tipo: 1 río, 2 lago, 3 mar. */
 export interface AguaPoli { anillos: Float32Array[]; tipo: 1 | 2 | 3 }
 export interface AguaLinea { pts: Float32Array; ancho: number; tipo: 1 }
+/** Uso del suelo de OSM (OpenMapTiles landcover/landuse/park): 1 grama (parque, jardín, césped, cancha) · 2 residencial/comercial (patios y lotes). */
+export interface UsoPoli { anillos: Float32Array[]; tipo: 1 | 2 }
 
 export interface Precarga {
   lat: number
@@ -26,6 +28,8 @@ export interface Precarga {
   cob: CoberturaCruda | null
   poli: AguaPoli[]
   lineas: AguaLinea[]
+  /** Grama y zonas residenciales de OSM (para separar césped, patios y lotes de la mancha "urbano"). */
+  usos?: UsoPoli[]
   fuenteAgua: string[]
   ms: number
 }
@@ -132,12 +136,12 @@ export async function aguaVectorial(lat: number, lon: number, B: number, signal?
   const ty0 = Math.floor(((Math.PI * R - b.y1) / (2 * Math.PI * R)) * n), ty1 = Math.floor(((Math.PI * R - b.y0) / (2 * Math.PI * R)) * n)
   const plantilla = await plantillaOFM(signal)
   const aM = aMetros(lat, lon)
-  const poli: AguaPoli[] = [], lineas: AguaLinea[] = []
+  const poli: AguaPoli[] = [], lineas: AguaLinea[] = [], usos: UsoPoli[] = []
   const trabajos: Promise<void>[] = []
   for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
     const url = plantilla.replace('{z}', String(z)).replace('{x}', String(tx)).replace('{y}', String(ty))
     trabajos.push(bajar(url, 5000, signal).then((bytes) => {
-      for (const r of leerMVT(bytes, ['water', 'waterway'])) {
+      for (const r of leerMVT(bytes, ['water', 'waterway', 'landcover', 'landuse', 'park'])) {
         const conv = (parte: number[]) => {
           const f = new Float32Array(parte.length)
           for (let k = 0; k < parte.length; k += 2) {
@@ -149,6 +153,13 @@ export async function aguaVectorial(lat: number, lon: number, B: number, signal?
           return f
         }
         const clase = String(r.props.class ?? '')
+        if (r.capa === 'landcover' || r.capa === 'landuse' || r.capa === 'park') {
+          if (r.tipo !== 3) continue
+          const sub = String(r.props.subclass ?? '')
+          const uso = USO_GRAMA.has(clase) || USO_GRAMA.has(sub) || r.capa === 'park' ? 1 : USO_RESID.has(clase) ? 2 : 0
+          if (uso) usos.push({ anillos: r.partes.map(conv), tipo: uso as 1 | 2 })
+          continue
+        }
         if (r.capa === 'water' && r.tipo === 3) {
           if (r.props.brunnel === 'tunnel') continue
           poli.push({ anillos: r.partes.map(conv), tipo: clase === 'ocean' ? 3 : clase === 'river' ? 1 : 2 })
@@ -161,8 +172,11 @@ export async function aguaVectorial(lat: number, lon: number, B: number, signal?
     }))
   }
   await Promise.all(trabajos)
-  return { poli, lineas }
+  return { poli, lineas, usos }
 }
+/** Clases/subclases de OpenMapTiles que son césped (landcover grass: park, garden, grass, golf, cancha…). */
+const USO_GRAMA = new Set(['grass', 'park', 'garden', 'golf_course', 'pitch', 'playground', 'recreation_ground', 'village_green', 'meadow', 'cemetery', 'stadium'])
+const USO_RESID = new Set(['residential', 'suburb', 'neighbourhood', 'commercial', 'retail', 'school', 'university', 'college', 'hospital', 'kindergarten', 'industrial'])
 
 /** Overpass: agrega los cauces con `width` real y lagunas pequeñas. Tope corto (el servicio suele estar saturado). */
 export async function aguaOverpass(lat: number, lon: number, B: number, signal?: AbortSignal) {
@@ -196,11 +210,11 @@ const memoria = new Map<string, Promise<Precarga>>()
 
 /** Arranca todas las descargas del suelo (en paralelo con el relieve). Nunca rechaza. */
 export function precargarSuelo(p: PedidoSuelo): Promise<Precarga> {
-  const clave = `suelo:${p.lat.toFixed(5)},${p.lon.toFixed(5)},${Math.round(p.B)}`
+  const clave = `suelo2:${p.lat.toFixed(5)},${p.lon.toFixed(5)},${Math.round(p.B)}`
   const enMem = memoria.get(clave)
   if (enMem) return enMem
   const t0 = performance.now()
-  const vacio: Precarga = { lat: p.lat, lon: p.lon, B: p.B, cob: null, poli: [], lineas: [], fuenteAgua: [], ms: 0 }
+  const vacio: Precarga = { lat: p.lat, lon: p.lon, B: p.B, cob: null, poli: [], lineas: [], usos: [], fuenteAgua: [], ms: 0 }
   if (p.sinRed) return Promise.resolve(vacio)
   const tarea = (async () => {
     try {
@@ -212,8 +226,8 @@ export function precargarSuelo(p: PedidoSuelo): Promise<Precarga> {
       aguaVectorial(p.lat, p.lon, p.B, p.signal),
       aguaOverpass(p.lat, p.lon, p.B, p.signal),
     ])
-    const out: Precarga = { ...vacio, cob: cob.status === 'fulfilled' ? cob.value : null }
-    if (vec.status === 'fulfilled') { out.poli.push(...vec.value.poli); out.lineas.push(...vec.value.lineas); out.fuenteAgua.push('osm-openfreemap') }
+    const out: Precarga = { ...vacio, poli: [], lineas: [], usos: [], fuenteAgua: [], cob: cob.status === 'fulfilled' ? cob.value : null }
+    if (vec.status === 'fulfilled') { out.usos!.push(...vec.value.usos); out.poli.push(...vec.value.poli); out.lineas.push(...vec.value.lineas); out.fuenteAgua.push('osm-openfreemap') }
     if (ovp.status === 'fulfilled') { out.poli.push(...ovp.value.poli); out.lineas.push(...ovp.value.lineas); out.fuenteAgua.push('osm-overpass') }
     out.ms = Math.round(performance.now() - t0)
     if (out.cob || out.fuenteAgua.length) { try { await p.cache?.set(clave, out) } catch { /* sin caché */ } }
