@@ -315,8 +315,10 @@ func (l lang) summary(p *contract.Plan, m *geo.Municipio) []string {
 		l.f("📍 %s, %s · zona NASA POWER (~50 km)", "📍 %s, %s · NASA POWER zone (~50 km)", m.Name, m.Dept),
 		l.f("🌱 Primera: sembrá entre el %s y el %s (lo más común: desde el %s, con la tierra mojada).",
 			"🌱 Primera: plant between %s and %s (most common: from %s, with moist soil).", l.date(p.VentanaPrimera.Inicio), l.date(p.VentanaPrimera.Fin), l.date(p.SiembraAqui)),
-		l.f("🌵 Canícula típica: %s al %s; la floración cae en esas fechas: es la etapa más sensible.",
-			"🌵 Typical canícula: %s to %s; flowering falls around then: the most sensitive stage.", l.date(p.CaniculaTipica.Inicio), l.date(p.CaniculaTipica.Fin)),
+	}
+	if p.CaniculaTipica.Inicio != "" { // sin lluvia bimodal no hay canícula (ronda 6: salía «Canícula típica:  al »)
+		out = append(out, l.f("🌵 Canícula típica: %s al %s; la floración cae en esas fechas: es la etapa más sensible.",
+			"🌵 Typical canícula: %s to %s; flowering falls around then: the most sensitive stage.", l.date(p.CaniculaTipica.Inicio), l.date(p.CaniculaTipica.Fin)))
 	}
 	if rec.ID == "S0" || rec.ID == "" {
 		out = append(out, l.f("✅ Lo de hoy sigue siendo buena opción: perdés %.1f de cada 10 temporadas.", "✅ What you do today remains a good option: you lose %.1f of every 10 seasons.", s0.RiesgoDe10))
