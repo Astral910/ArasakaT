@@ -28,6 +28,9 @@ type Config struct {
 	WAQR     string // WA_QR_PNG: PNG del QR mientras no está vinculado
 	WADebug  bool   // WA_DEBUG=1
 	Geo      bool   // GEOCODER=off lo apaga (nombres de lugares del mundo)
+	// CUENTAS (internal/cuentas, docs/cuentas.md)
+	CuentasDB string // CUENTAS_DB: SQLite de cuentas y terrenos (por defecto cuentas.db junto a DB_PATH)
+	DemoPass  string // DEMO_PASS: contraseña de demo@fieldshift.app (vacío = sin cuenta demo)
 }
 
 func loadConfig() Config {
@@ -55,6 +58,8 @@ func loadConfig() Config {
 		WAQR:          os.Getenv("WA_QR_PNG"),
 		WADebug:       os.Getenv("WA_DEBUG") == "1",
 		Geo:           !strings.EqualFold(os.Getenv("GEOCODER"), "off"),
+		CuentasDB:     os.Getenv("CUENTAS_DB"),
+		DemoPass:      os.Getenv("DEMO_PASS"),
 	}
 }
 

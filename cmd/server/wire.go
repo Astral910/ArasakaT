@@ -21,6 +21,7 @@ import (
 	"fieldshift/internal/channels/evolution"
 	"fieldshift/internal/channels/whatsmeow"
 	"fieldshift/internal/contract"
+	"fieldshift/internal/cuentas"
 	"fieldshift/internal/geo"
 	"fieldshift/internal/informe"
 	"fieldshift/internal/plan"
@@ -39,6 +40,7 @@ type Componentes struct {
 	Alertas  string `json:"alertas"`
 	WhatsApp string `json:"whatsapp"`
 	Twilio   string `json:"twilio"`
+	Cuentas  string `json:"cuentas"`
 }
 
 type app struct {
@@ -47,7 +49,8 @@ type app struct {
 	alertador Alertador
 	comp      Componentes
 	cerrar    []func()
-	waAdmin   http.Handler // página de vinculación de WhatsApp (solo con WA_MODO=vinculado)
+	waAdmin   http.Handler      // página de vinculación de WhatsApp (solo con WA_MODO=vinculado)
+	cuentas   *cuentas.Servicio // cuentas y terrenos; chatbot/campo: a.cuentas.UsuarioPorTelefono, a.cuentas.Requiere
 }
 
 func montar(mux *http.ServeMux, cfg Config) *app {
@@ -152,6 +155,22 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 		a.comp.WhatsApp = "evolution"
 	}
 	a.comp.Twilio = activo(d.Twilio.Activo())
+
+	// CUENTAS (internal/cuentas): /api/auth/* y /api/parcelas. Los códigos de WhatsApp salen por el
+	// mensajero del bot. Si la base no abre, el resto del servidor sigue sin cuentas.
+	cdb := cfg.CuentasDB
+	if cdb == "" {
+		cdb = filepath.Join(filepath.Dir(cfg.DBPath), "cuentas.db")
+	}
+	if cs, err := cuentas.Abrir(cuentas.Config{DBPath: cdb, Mensajero: diferido, Correo: cuentas.CorreoDesdeEnv(), DemoPass: cfg.DemoPass}); err == nil {
+		cuentas.Routes(mux, cs)
+		a.cuentas = cs
+		a.comp.Cuentas = "real"
+		a.cerrar = append(a.cerrar, func() { cs.Close() })
+	} else {
+		log.Printf("cuentas: %v → apagado", err)
+		a.comp.Cuentas = "apagado"
+	}
 
 	return a
 }

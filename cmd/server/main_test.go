@@ -25,6 +25,7 @@ func testConfig(t *testing.T) Config {
 		FixturePath: filepath.Join("..", "..", "contracts", "fixtures", "plan_jocotan.json"),
 		AdminToken:  "secreto",
 		DBPath:      filepath.Join(dir, "fs.db"),
+		CuentasDB:   ":memory:", // en Windows un .db abierto no deja borrar TempDir (los tests no cierran el app)
 	}
 }
 
@@ -205,5 +206,38 @@ func TestEvolutionCableado(t *testing.T) {
 	}
 	if rec := do(h, "GET", "/admin/whatsapp/estado.json?token=secreto", "", nil); rec.Code != 200 || !strings.Contains(rec.Body.String(), `"conectado":false`) {
 		t.Fatalf("estado: %d %s", rec.Code, rec.Body)
+	}
+}
+
+// Cuentas montadas en el servidor: demo con 3 terrenos, sesión por cookie y CSRF.
+func TestCuentasCableadas(t *testing.T) {
+	cfg := testConfig(t)
+	cfg.DemoPass = "jurado-2026"
+	h, a := newServer(cfg)
+	defer a.Close()
+	if a.cuentas == nil {
+		t.Fatal("cuentas apagado")
+	}
+	rec := do(h, "POST", "/api/auth/login", `{"usuario":"demo@fieldshift.app","contrasena":"jurado-2026"}`, map[string]string{"Content-Type": "application/json"})
+	if rec.Code != 200 {
+		t.Fatalf("login demo %d %s", rec.Code, rec.Body)
+	}
+	var v struct{ CSRF string }
+	json.Unmarshal(rec.Body.Bytes(), &v)
+	ck := rec.Result().Cookies()[0]
+	hdr := map[string]string{"Cookie": ck.Name + "=" + ck.Value}
+	rec = do(h, "GET", "/api/parcelas", "", hdr)
+	var ps struct{ Parcelas []map[string]any }
+	json.Unmarshal(rec.Body.Bytes(), &ps)
+	if rec.Code != 200 || len(ps.Parcelas) != 3 {
+		t.Fatalf("parcelas demo %d %s", rec.Code, rec.Body)
+	}
+	hdr["Content-Type"] = "application/json"
+	if rec = do(h, "POST", "/api/parcelas", `{"nombre":"x","lat":14,"lon":-90}`, hdr); rec.Code != 403 {
+		t.Fatalf("sin csrf %d", rec.Code)
+	}
+	hdr["X-CSRF-Token"] = v.CSRF
+	if rec = do(h, "POST", "/api/parcelas", `{"nombre":"x","lat":14,"lon":-90}`, hdr); rec.Code != 201 {
+		t.Fatalf("crear %d %s", rec.Code, rec.Body)
 	}
 }
