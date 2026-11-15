@@ -15,7 +15,10 @@ export const routes: RouteRecordRaw[] = [
   { path: '/my-plan', name: 'plan', component: () => import('./views/PlanView.vue') },
   { path: '/demo', name: 'demo', component: () => import('./views/Demo.vue'), meta: { bare: true } },
   { path: '/map', name: 'map', component: feature('mapa'), meta: { feature: 'map' } },
-  { path: '/alerts', name: 'alerts', component: feature('alertas'), meta: { feature: 'alerts' } },
+  // ronda 7: «Avisos» sale del menú; los avisos se configuran en el dashboard del terreno
+  { path: '/alerts', name: 'alerts', redirect: '/terrenos' },
+  { path: '/avisos', redirect: '/terrenos' },
+  { path: '/alertas', redirect: '/terrenos' },
   { path: '/how', name: 'how', component: feature('how'), meta: { feature: 'how' } },
   { path: '/sandbox', name: 'sandbox', component: feature('sandbox'), meta: { feature: 'sandbox', bare: true } },
   { path: '/informe', name: 'informe', component: feature('informe'), meta: { feature: 'informe', bare: true } },

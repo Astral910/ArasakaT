@@ -19,22 +19,47 @@ const lugar = computed(() => String(route.query.lugar ?? ''))
 const consultaSandbox = computed(() => {
   const q = { ...route.query }
   delete q.guardado
+  delete q.ir
   return q
 })
+// sandbox7: `ir=dashboard` (tarjeta final / «Ir al dashboard») → al guardar lleva directo al dashboard del terreno
+const alDashboard = route.query.ir === 'dashboard'
+function irDashboard() {
+  if (alDashboard && id.value && id.value !== '1') { router.replace(`/terrenos/${id.value}`); return true }
+  return false
+}
+/** sandbox7: no duplicar — si ya hay un terreno guardado en el mismo punto y cultivo, se reusa */
+async function existente(cuerpo: Record<string, unknown>): Promise<string> {
+  try {
+    const r = await sesion.pedir<unknown>('/api/parcelas')
+    const lista = (Array.isArray(r) ? r : ((r as { parcelas?: unknown[] } | null)?.parcelas ?? [])) as Array<Record<string, unknown>>
+    const p = lista.find((x) => Math.abs(Number(x.lat) - Number(cuerpo.lat)) < 1e-4 && Math.abs(Number(x.lon) - Number(cuerpo.lon)) < 1e-4 && (!x.cultivo || x.cultivo === cuerpo.cultivo))
+    return p?.id != null ? String(p.id) : ''
+  } catch { return '' }
+}
 const aSimulacion = computed(() => ({ path: '/sandbox', query: { ...consultaSandbox.value, ...(id.value ? { parcela: id.value } : {}) } }))
 
 onMounted(async () => {
   const cuerpo = parcelaDeRuta(consultaSandbox.value)
   if (!cuerpo) { estado.value = 'sinDatos'; return }
-  if (id.value) { estado.value = 'ok'; return }
+  if (id.value) { if (!irDashboard()) estado.value = 'ok'; return }
   if (!(await sesion.yo(true))) {
     router.replace({ path: '/entrar', query: { modo: 'registro', motivo: 'guardar', volver: route.fullPath } })
     return
   }
   estado.value = 'guardando'
+  const ya = await existente(cuerpo)
+  if (ya) {
+    id.value = ya
+    if (irDashboard()) return
+    estado.value = 'ok'
+    router.replace({ query: { ...route.query, guardado: id.value } })
+    return
+  }
   try {
     const r = await sesion.pedir<{ id?: string | number; parcela?: { id?: string | number } }>('/api/parcelas', { method: 'POST', body: JSON.stringify(cuerpo) })
     id.value = String(r?.id ?? r?.parcela?.id ?? '')
+    if (irDashboard()) return
     estado.value = 'ok'
     router.replace({ query: { ...route.query, guardado: id.value || '1' } })
   } catch (e) {

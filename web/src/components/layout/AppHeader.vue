@@ -23,13 +23,12 @@ watch(() => route.fullPath, () => { open.value = false; menuCuenta.value = false
 // En la portada el encabezado flota sobre el globo satelital (oscuro): letras claras hasta que se baja.
 const sobreMapa = computed(() => route.name === 'home' && !scrolled.value && !open.value)
 
-const base = [
+// ronda 7: Mis terrenos · Mapa de riesgo · ¿Cómo lo sabemos? (sin «Avisos»; sin sesión, Mis terrenos pide entrar)
+const links = [
+  { to: '/terrenos', key: 'nav.fields' },
   { to: '/map', key: 'nav.map' },
-  { to: '/alerts', key: 'nav.alerts' },
   { to: '/how', key: 'nav.how' },
 ]
-// con sesión, "Mis terrenos" primero en el menú (ronda 5)
-const links = computed(() => (sesion.conSesion ? [{ to: '/terrenos', key: 'nav.fields' }, ...base] : base))
 const inicial = computed(() => (sesion.usuario?.nombre || sesion.usuario?.correo || sesion.usuario?.telefono || '?').trim().charAt(0).toUpperCase())
 // "Entrar" vuelve a donde estaba (menos desde /entrar)
 const aEntrar = computed(() => ({ path: '/entrar', query: route.name === 'home' || route.name === 'entrar' ? {} : { volver: route.fullPath } }))

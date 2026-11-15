@@ -498,3 +498,15 @@ Agente extra de la ronda 5. Guía: `docs/sensor.md`; hardware en `hardware/` (di
 - **Chat por terreno**: dashboard pasa `parcela-id` + `terreno` (nombre, encabezado al instante) en escritorio (fijo a la derecha) y celular (flotante); sandbox pasa `parcela-id` de `?parcela=` (sin terreno usa el lugar). Memoria por terreno en el servidor (`<DB_PATH dir>/chat/chat.db`).
 - **e2e al día** (`e2e/tests`): ronda5 «guía con siembra y cosecha» ahora busca el avance en la barra (`Siembra en N d|Crecimiento N %|Cosechado`); sandbox «tarjeta final» busca «Confianza media/alta/baja» (el % pasó al informe); tour «Plan my milpa» en `test.skip` (/plan redirige al inicio desde 7944ee4).
 - Verificado en 127.0.0.1:8230: ver `estado\integrador6.md`.
+
+### sandbox7 · ronda 7 — 15-nov 15:45
+- **Toqué `web/src/views/Guardar.vue` (zona de landing7)**, cambio chico y aditivo: `?ir=dashboard` → al guardar va directo a `/terrenos/<id>`; antes de `POST /api/parcelas` busca en `GET /api/parcelas` uno con mismo lat/lon (±1e-4) y cultivo y lo reusa (no duplica). Sin `ir`, todo igual que antes.
+- Tarjeta final del simulador: solo «Guardar este terreno» (`data-testid=guardar-terreno`), ya no usa `components/cuenta/GuardarTerreno.vue` (queda para otros usos).
+- e2e: `sandbox.spec.ts` llega al informe con `page.goto('/informe' + query)` (la tarjeta final ya no tiene el enlace); `ronda5.spec.ts` capas = botones circulares `#menu-capas button.circ`; nuevo test «Ir al dashboard → crear cuenta → dashboard, sin duplicar».
+## landing7 (ronda 7, 15 nov)
+- `web/src/features/sandbox/vuelo/Vuelo.vue` (zona sandbox7): quitadas las coropletas de riesgo y sus bordes del vuelo (punto 10); el foco queda en dorado fijo. Si sandbox7 toca ese archivo, conservar este cambio al unir.
+- Tipografía global: `--font-display` y `--font-ui` = Geist (tokens.css). Pendiente en zonas ajenas: `features/sandbox/export/marca.ts` y `components/plan/card.ts` (canvas) siguen con Fraunces/Figtree.
+- `/alerts` (y `/avisos`, `/alertas`) redirige a `/terrenos`. La vista `features/alertas` queda sin ruta.
+## informe7 → sandbox7 (ronda 7, 15-nov)
+- «Volver» del informe ya no regenera: vuelve con `router.back()` a cualquier vista interna (dashboard, mis terrenos…), y al simulador con `router.replace` de la misma URL + `auto=0&intro=0&fin=1` (sin vuelo ni animación). Sin historial: `/terreno/<parcela>` si la URL trae `parcela`; si no, `/sandbox?…&auto=0&intro=0&fin=1`.
+- Pendiente para sandbox: honrar `fin=1` (mostrar la temporada en su estado final, con la tarjeta final) en vez de dejarla al inicio en pausa. Hoy `auto=0` + `intro=0` ya evita el vuelo y la animación.

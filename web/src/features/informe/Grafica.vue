@@ -15,7 +15,7 @@ const datos = () => { if (props.csv) bajarCSV(props.csv(), props.nombre) }
 <template>
   <section :id="id" class="bloque">
     <header class="b-cab">
-      <h2>{{ titulo }}</h2>
+      <h3>{{ titulo }}</h3>
       <div class="b-exp no-print" role="group" :aria-label="tx('exportar')">
         <button type="button" @click="png" :title="tx('bajarPng')">PNG</button>
         <button type="button" @click="vec" :title="tx('bajarSvg')">SVG</button>
@@ -31,7 +31,7 @@ const datos = () => { if (props.csv) bajarCSV(props.csv(), props.nombre) }
 <style scoped>
 .bloque { break-inside: avoid; padding: 1.1rem 0 1.2rem; border-top: 1px solid rgba(42,33,24,.13); }
 .b-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
-h2 { font-family: var(--font-display); font-size: 1.35rem; line-height: 1.15; margin: 0; }
+h3 { font-family: var(--font-display); font-size: 1rem; font-weight: 600; line-height: 1.2; margin: 0; color: #3f464d; }
 .b-exp { display: flex; gap: .25rem; flex-shrink: 0; }
 .b-exp button { font: 700 .68rem/1 var(--font-ui); letter-spacing: .06em; padding: .35rem .55rem; border-radius: 999px; border: 1px solid rgba(42,33,24,.2); background: transparent; color: #57473a; cursor: pointer; }
 .b-exp button:hover { background: #2a2118; color: #fffdf8; border-color: #2a2118; }
@@ -43,7 +43,7 @@ h2 { font-family: var(--font-display); font-size: 1.35rem; line-height: 1.15; ma
   .no-print { display: none !important; }
   .bloque { padding: 2.2mm 0 2.6mm; }
   .b-fig :deep(svg) { max-height: 56mm; }
-  h2 { font-size: 13pt; }
+  h3 { font-size: 10.5pt; }
   .b-txt { font-size: 9pt; margin: .8mm 0 1.2mm; line-height: 1.32; }
   .b-fuente { font-size: 7.5pt; }
 }

@@ -250,6 +250,7 @@ defineExpose({ enviar, abrir: () => alternar(true) })
   display: flex; flex-direction: column; width: min(380px, calc(100vw - 32px)); height: min(600px, calc(100dvh - 32px));
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); overflow: hidden;
 }
+.fs-chat:not(.flotante) { min-width: 0; min-height: 0; height: 100%; }
 .fs-chat:not(.flotante) .panel { width: 100%; height: 100%; min-height: 420px; box-shadow: var(--shadow-1); }
 
 .cab { display: flex; align-items: center; gap: 0.65rem; padding: 0.8rem 0.8rem 0.75rem 1rem; border-bottom: 1px solid var(--line); background: var(--surface-2); }
@@ -291,9 +292,9 @@ a.fuente:hover { color: var(--anil); text-decoration: underline; }
 .puntos i:nth-child(3) { animation-delay: 0.3s; }
 @keyframes salto { 0%, 80%, 100% { opacity: 0.35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 
-.sugerencias { display: flex; gap: 0.4rem; padding: 0.45rem 0.9rem 0.2rem; overflow-x: auto; scrollbar-width: none; }
+.sugerencias { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; padding: 0.45rem 0.75rem 0.2rem; }
 .sug {
-  flex: none; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.36rem 0.75rem; border-radius: 999px; cursor: pointer;
+  flex: 0 1 auto; max-width: 100%; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.36rem 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2); font-size: 0.8rem; font-weight: 600;
 }
 .sug:hover:not(:disabled) { border-color: var(--tierra-2); color: var(--tierra); }

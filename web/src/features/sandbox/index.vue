@@ -4,7 +4,7 @@
 // Ruta de LANDING: /sandbox?lat&lon&lugar&pais&cultivo&area&unidad&riego&auto=1 (ver ui/ruta.ts).
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, SkipForward, SlidersHorizontal, Layers, MessageCircle, X, Sprout, RefreshCw } from 'lucide-vue-next'
+import { ArrowLeft, SkipForward, SlidersHorizontal, MessageCircle, X, Sprout, RefreshCw } from 'lucide-vue-next'
 import Vuelo from './vuelo/Vuelo.vue'
 import Escena from './ui/Escena.vue'
 import Hud from './ui/Hud.vue'
@@ -328,15 +328,26 @@ const rango = computed<[number, number]>(() => {
 })
 const pars = computed<Parada[]>(() => (tl.value ? paradas(tl.value, rango.value[0], rango.value[1]) : []))
 let paradaActual: Parada | null = null
+let abrirEnFin = route.query.fin === '1' && !rec
+let callarFin = false
 let raf = 0
 let prev = 0
 
 /** La guía arranca en la siembra y corre sola hasta después de la cosecha. */
 function empezarGuia() {
   if (!tl.value) return
+  paradaActual = null
+  // «Volver» desde el informe (fin=1): directo al resultado, sin repetir la animación (solo la primera vez)
+  if (abrirEnFin) {
+    abrirEnFin = false
+    dia.value = rango.value[1]
+    jugando.value = false
+    callarFin = true
+    finVisible.value = true
+    return
+  }
   dia.value = rango.value[0]
   finVisible.value = false
-  paradaActual = null
   jugando.value = autoplay || rec
 }
 
@@ -377,7 +388,7 @@ function tick(now: number) {
   if (dia.value >= tl.value.dias - 1e-2) jugando.value = false
 }
 watch(jugando, (j) => { if (j) audio.value?.play(); else audio.value?.pause() })
-watch(finVisible, (f) => { if (f) audio.value?.decir('fin') })
+watch(finVisible, (f) => { if (f && !callarFin) audio.value?.decir('fin'); callarFin = false })
 watch(lang, (l) => audio.value?.setIdioma(l === 'en' ? 'en' : 'es'))
 const fraccion = computed(() => (jugando.value ? dia.value % 1 : 0.5))
 const diaEntero = computed(() => Math.floor(dia.value))
@@ -416,6 +427,7 @@ function tecla(ev: KeyboardEvent) {
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tag)) return
   if ((ev.target as HTMLElement)?.getAttribute?.('role') === 'slider') return
   if (fase.value === 'vuelo' && (ev.key === 'Escape' || ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); return saltar() }
+  if (confirmarIr.value) { if (ev.key === 'Escape') cancelarIr(); return }
   if (!tl.value || fase.value !== 'sandbox') return
   const paso = ev.shiftKey ? 30 : 1
   if (ev.key === ' ') { ev.preventDefault(); toggle() }
@@ -503,7 +515,7 @@ const consulta = computed(() => {
   const q: Record<string, string> = {}
   // la geometría del terreno viaja al informe (forma/radio/poly), con los nombres del contrato
   Object.assign(q, consultaParcela(ruta.parcela))
-  for (const [k, v] of Object.entries(route.query)) if (typeof v === 'string' && !['rec', 'intro', 'auto', 'calidad', 'vertical'].includes(k)) q[k] = v
+  for (const [k, v] of Object.entries(route.query)) if (typeof v === 'string' && !['rec', 'intro', 'auto', 'fin', 'calidad', 'vertical'].includes(k)) q[k] = v
   Object.assign(q, {
     lat: lugar.lat.toFixed(5), lon: lugar.lon.toFixed(5), cultivo: a.cultivo, area: String(a.area_valor), unidad: a.area_unidad,
     riego: String(RIEGO[a.riego]), s: mostrada.value, esc: a.escenario,
@@ -517,11 +529,37 @@ const consulta = computed(() => {
   if (ruta.parcelaId) q.parcela = ruta.parcelaId
   return q
 })
-const informe = computed(() => router.resolve({ path: '/informe', query: consulta.value }).href)
-const whatsapp = computed(() => {
-  const url = typeof location !== 'undefined' ? location.origin + informe.value : informe.value
-  return `https://wa.me/?text=${encodeURIComponent(t('waTexto', { lugar: lugar.nombre || '', frase: res.value?.frase ?? '', url }))}`
-})
+
+// ---------- ronda 7: «Guardar este terreno» / «Ir al dashboard» ----------
+// Ya guardado (?parcela=) → su dashboard. Si no, /guardar con la consulta del simulador e `ir=dashboard`:
+// con sesión guarda (POST /api/parcelas, sin duplicar) y abre el dashboard; sin sesión pasa por crear cuenta / entrar y vuelve.
+const confirmarIr = ref(false)
+const yendo = ref(false)
+const botonIr = ref<HTMLButtonElement | null>(null)
+let seguiaJugando = false
+function pedirDashboard() {
+  seguiaJugando = jugando.value
+  jugando.value = false
+  confirmarIr.value = true
+  setTimeout(() => botonIr.value?.focus({ preventScroll: true }), 50)
+}
+async function guardarYIr() {
+  if (yendo.value) return
+  yendo.value = true
+  jugando.value = false
+  try {
+    if (ruta.parcelaId) await router.push(`/terrenos/${ruta.parcelaId}`)
+    else await router.push({ path: '/guardar', query: { ...consulta.value, ir: 'dashboard' } })
+  } finally {
+    yendo.value = false
+    confirmarIr.value = false
+  }
+}
+/** Cancelar: la animación sigue donde estaba */
+function cancelarIr() {
+  confirmarIr.value = false
+  if (seguiaJugando) jugando.value = true
+}
 
 // ---------- video: exportar desde la web y modo grabación del servidor ----------
 const modsExport = import.meta.glob('./export/index.ts')
@@ -716,10 +754,7 @@ onBeforeUnmount(() => roPie?.disconnect())
       <div class="der">
         <BotonSonido v-if="audio" :audio="audio" :idioma="lang === 'en' ? 'en' : 'es'" class="chip sonido" />
         <button class="chip idioma" type="button" :aria-label="lang === 'es' ? 'English' : 'Español'" @click="setLang(lang === 'es' ? 'en' : 'es')">{{ lang === 'es' ? 'EN' : 'ES' }}</button>
-        <button v-if="fase === 'sandbox' && tl" class="chip capas" :class="{ on: capasAbierto || !!filtro }" type="button" :aria-expanded="capasAbierto" aria-controls="menu-capas" @click="capasAbierto = !capasAbierto; chatAbierto = false">
-          <Layers :size="16" /><span>{{ t('capas') }}</span>
-        </button>
-        <button v-if="fase === 'sandbox' && tl && !rec" class="chip chat" :class="{ on: chatAbierto }" type="button" :aria-expanded="chatAbierto" aria-controls="panel-chat" @click="chatAbierto = !chatAbierto; capasAbierto = false">
+        <button v-if="fase === 'sandbox' && tl && !rec" class="chip chat" :class="{ on: chatAbierto }" type="button" :aria-expanded="chatAbierto" aria-controls="panel-chat" @click="chatAbierto = !chatAbierto">
           <MessageCircle :size="16" /><span>{{ t('chat') }}</span>
         </button>
         <button v-if="fase === 'sandbox' && tl" class="chip ajustar" :class="{ on: ajustarAbierto }" type="button" :aria-expanded="ajustarAbierto" aria-controls="panel-ajustar" @click="ajustarAbierto = !ajustarAbierto">
@@ -734,7 +769,6 @@ onBeforeUnmount(() => roPie?.disconnect())
     <!-- 3 · la guía -->
     <Ajustar v-if="fase === 'sandbox' && tl" v-model="ajustes" :abierto="ajustarAbierto" :cargando="cargando" :movil="movil" :recomendada="recomendada" :origen="origen" :aviso="avisoPronostico" @cerrar="ajustarAbierto = false">
       <template #arriba><Siembra v-if="sie" :info="sie" :idioma="lang" :canicula="canicula" @elegir="elegirSiembra" /></template>
-      <BotonExportar v-if="BotonExportar && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" class="exp" />
     </Ajustar>
     <Capas v-if="fase === 'sandbox' && tl" :filtro="filtro" :abierto="capasAbierto" :idioma="lang" :de-escena="leyendaEscena" :movil="movil" @elegir="elegirFiltro" @cerrar="capasAbierto = false" />
     <Transition name="sube-chat">
@@ -757,19 +791,28 @@ onBeforeUnmount(() => roPie?.disconnect())
       <footer v-if="fase === 'sandbox' && tl && insignia" ref="pie" class="vidrio abajo-ui">
         <Guia
           :tl="tl" :bandas="bandas" :dia="dia" :fecha="fecha" :jugando="jugando" :ritmo="ritmo" :fin="finVisible || dia >= rango[1] - 0.5"
-          :linea="linea" :insignia="insignia" :compacto="movil" :textos-motor="origen !== 'ejemplo'" :ciclo="ciclo" :rango="rangoFechas ? rango : null"
-          @ir="ir" @evento="alEvento" @play="toggle" @ritmo="cambiarRitmo"
+          :linea="linea" :compacto="movil" :textos-motor="origen !== 'ejemplo'" :ciclo="ciclo" :rango="rangoFechas ? rango : null"
+          @ir="ir" @evento="alEvento" @play="toggle" @ritmo="cambiarRitmo" @dashboard="pedirDashboard"
         />
       </footer>
     </Transition>
     <Transition name="sube">
       <Final
-        v-if="finVisible && res && insignia && !ajustarAbierto" :res="res" :recomendada="mostrada" :informe="informe" :whatsapp="whatsapp" :insignia="insignia" :movil="movil"
-        :siembra="tl?.siembra" :ca="hayLugar ? enCentroamerica(lugar.lat, lugar.lon) : enGT"
-        @otra-vez="otraVez" @cerrar="finVisible = false"
-      >
-        <BotonExportar v-if="BotonExportar && grabableUI" :sandbox="grabableUI" :dia-actual="diaEntero" />
-      </Final>
+        v-if="finVisible && res && insignia && !ajustarAbierto && !confirmarIr" :res="res" :recomendada="mostrada" :movil="movil"
+        :ca="hayLugar ? enCentroamerica(lugar.lat, lugar.lon) : enGT" :guardando="yendo"
+        @guardar="guardarYIr" @cerrar="finVisible = false"
+      />
+    </Transition>
+    <Transition name="velo-ir">
+      <div v-if="confirmarIr" class="confirmar-fondo" @click.self="cancelarIr">
+        <section class="vidrio confirmar" role="alertdialog" aria-modal="true" aria-labelledby="ir-t" data-testid="confirmar-dashboard">
+          <p id="ir-t">{{ t('irAviso') }}</p>
+          <div class="botones">
+            <button type="button" class="b sec" @click="cancelarIr">{{ t('irCancelar') }}</button>
+            <button ref="botonIr" type="button" class="b prim" data-testid="confirmar-ir" :disabled="yendo" @click="guardarYIr">{{ t('irSi') }}</button>
+          </div>
+        </section>
+      </div>
     </Transition>
     <div v-if="fase === 'sandbox' && !tl" class="cargando" role="status">
       <div class="vidrio espera"><i class="pulso" aria-hidden="true" /><p><b>{{ t('motorEspera') }}</b><span>{{ t('motorEsperaS') }}</span></p></div>
@@ -778,7 +821,7 @@ onBeforeUnmount(() => roPie?.disconnect())
 </template>
 
 <style scoped>
-.sandbox { position: fixed; inset: 0; overflow: hidden; background: #05080f; color: #f4ebdb; font-family: var(--font-ui); z-index: 5; --punto-y: 44%; }
+.sandbox { position: fixed; inset: 0; overflow: hidden; overflow: clip; background: #05080f; color: #f4ebdb; font-family: var(--font-ui); z-index: 5; --punto-y: 44%; }
 .cielo { position: absolute; inset: 0; background: linear-gradient(180deg, var(--cielo-a) 0%, var(--cielo-b) 78%, #d9c7a8 100%); transition: background 1.2s ease, opacity .6s; }
 .cielo .sol { position: absolute; width: 46vmin; height: 46vmin; right: 6%; top: -10%; border-radius: 50%; background: radial-gradient(circle, rgba(255,246,214,.95) 0%, rgba(255,230,170,.35) 35%, transparent 70%); opacity: .55; transition: opacity 1.2s; }
 .calor .cielo .sol { opacity: 1; width: 70vmin; height: 70vmin; }
@@ -857,15 +900,26 @@ onBeforeUnmount(() => roPie?.disconnect())
 .franja button:focus-visible { outline: 3px solid #e0a526; outline-offset: 2px; }
 .franja.sug { border-color: rgba(224,165,38,.5); }
 .franja.ej { border-style: dashed; }
-.panel-chat { position: absolute; z-index: 12; right: 16px; bottom: calc(var(--pie-h, 130px) + 26px); width: min(360px, calc(100% - 32px)); height: min(380px, calc(100% - var(--pie-h, 130px) - 110px));
-  display: grid; grid-template-rows: auto 1fr; gap: 8px; padding: 12px 14px; border-radius: 18px; background: rgba(22,17,12,.82); border: 1px solid rgba(255,250,240,.16);
+.panel-chat { position: absolute; z-index: 12; right: 16px; bottom: calc(var(--pie-h, 130px) + 26px); width: min(380px, calc(100% - 32px)); height: min(520px, calc(100% - var(--pie-h, 130px) - 100px));
+  display: grid; grid-template-rows: auto minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 10px; border-radius: 18px; background: rgba(22,17,12,.82); border: 1px solid rgba(255,250,240,.16);
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 22px 60px rgba(0,0,0,.45); color: #f4ebdb; }
 .panel-chat header { display: flex; align-items: center; gap: 7px; font-size: .8rem; letter-spacing: .08em; text-transform: uppercase; color: #ffe7a8; }
 .panel-chat .x { margin-left: auto; border: 0; background: rgba(255,250,240,.1); color: inherit; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
-.chat-cuerpo { min-height: 0; }
+.panel-chat header { padding: 0 2px 0 6px; }
+.chat-cuerpo { min-height: 0; min-width: 0; overflow: hidden; border-radius: 14px; }
+.chat-cuerpo :deep(.panel) { min-height: 0; height: 100%; width: 100%; }
 .sube-chat-enter-active, .sube-chat-leave-active { transition: opacity .2s ease, transform .25s var(--ease); }
 .sube-chat-enter-from, .sube-chat-leave-to { opacity: 0; transform: translateY(10px); }
 .rec .franjas, .rec .capas, .rec .chat { display: none !important; }
+.confirmar-fondo { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(8,6,4,.45); padding: 16px; }
+.confirmar { width: min(400px, 100%); display: grid; gap: 16px; padding: 20px 20px 16px; background: rgba(22,17,12,.9); }
+.confirmar p { font-size: 1rem; font-weight: 600; line-height: 1.4; color: #fff6e6; }
+.confirmar .botones { display: flex; justify-content: flex-end; gap: 8px; }
+.confirmar .b { border-radius: 999px; padding: 10px 18px; font: inherit; font-weight: 800; font-size: .88rem; cursor: pointer; border: 1px solid rgba(255,250,240,.28); background: rgba(255,250,240,.08); color: #f4ebdb; }
+.confirmar .b.prim { background: #f4ebdb; color: #2a2118; border-color: #f4ebdb; }
+.confirmar .b:focus-visible { outline: 3px solid #e0a526; outline-offset: 2px; }
+.velo-ir-enter-active, .velo-ir-leave-active { transition: opacity .2s ease; }
+.velo-ir-enter-from, .velo-ir-leave-to { opacity: 0; }
 .aviso-webgl { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); z-index: 9; background: rgba(20,16,12,.85); padding: 14px 18px; border-radius: 14px; max-width: 420px; text-align: center; }
 .sube-enter-active { transition: opacity .7s ease, transform .9s var(--ease); }
 .sube-enter-from { opacity: 0; transform: translate(-50%, 24px); }
@@ -883,9 +937,9 @@ onBeforeUnmount(() => roPie?.disconnect())
 .movil .captura { left: 6vw; right: 6vw; max-width: none; bottom: calc(7vh + 30px); }
 .movil.comparar .escenas { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
 .movil.comparar .panel-escena + .panel-escena { border-left: 0; border-top: 2px solid rgba(255,231,168,.6); }
-.movil .franjas { top: 56px; width: calc(100% - 16px); }
+.movil .franjas { top: 56px; width: calc(100% - 112px); }
 .movil .franja { border-radius: 14px; font-size: .74rem; flex-wrap: wrap; }
-.movil .panel-chat { right: 8px; left: 8px; width: auto; bottom: calc(var(--pie-h, 130px) + 14px); height: min(360px, 55vh); }
+.movil .panel-chat { right: 8px; left: 8px; width: auto; bottom: calc(var(--pie-h, 130px) + 14px); height: min(460px, calc(100% - var(--pie-h, 130px) - 80px)); }
 .movil .hud-mitad { top: 52px; width: calc(100% - 20px); padding: 6px 10px; }
 .movil .panel-escena + .panel-escena .hud-mitad { top: 8px; }
 .movil .final.sube-enter-from { transform: translate(-50%, 24px); }

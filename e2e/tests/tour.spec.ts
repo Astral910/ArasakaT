@@ -26,16 +26,13 @@ test('landing: globo, pregunta del lugar y teléfono vivo', async ({ page }) => 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Where is your land\?|¿Dónde está tu terreno\?/)
   await expect(page.getByTestId('buscar-lugar')).toBeVisible()
   await shot(page, `${pre}01-landing`)
-  const log = page.getByRole('log')
-  await log.scrollIntoViewIfNeeded()
-  await expect(log).toBeVisible() // chat del teléfono (más abajo)
-  await page.waitForTimeout(1500)
-  await shot(page, `${pre}02-landing-telefono`)
+  // ronda 7: la landing ya no tiene el teléfono de WhatsApp (se vincula en el dashboard del terreno)
+  await expect(page.getByRole('log')).toHaveCount(0)
   noErrors(errors)
 })
 
 test('simulador: bot completo con video, informe PDF y PRUEBA ALERTA', async ({ page, request }) => {
-  test.skip(process.env.STATIC === '1', 'modo estático: el simulador responde en modo demo')
+  test.skip(true, 'ronda 7: la landing ya no tiene el teléfono de WhatsApp (el bot se prueba en api.spec y ronda5)')
   test.setTimeout(300_000)
   await page.goto('/?lang=es')
   await settle(page, 1000)
@@ -134,17 +131,12 @@ test('mapa de riesgo de los municipios', async ({ page }) => {
   noErrors(errors)
 })
 
-test('alertas: máquina del tiempo 2026 y panel del extensionista', async ({ page }) => {
+// ronda 7: la pestaña «Avisos» salió del menú; los avisos se configuran en el dashboard del terreno
+test('alertas: /alerts lleva a Mis terrenos', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/alerts')
-  await settle(page, 2000)
-  await expect(page.getByTestId('titular')).toContainText(/Jocotán/)
-  await expect(page.getByTestId('maquina-tiempo')).toBeVisible()
-  await expect(page.getByTestId('tabla-aciertos')).toBeVisible()
-  await page.waitForTimeout(4000) // burbujas cayendo
-  await shot(page, `${pre}16-alertas-maquina-tiempo`)
-  await page.getByTestId('panel-extensionista').scrollIntoViewIfNeeded()
-  await shot(page, `${pre}17-alertas-panel`)
+  await settle(page, 1000)
+  await expect(page).toHaveURL(/\/(terrenos|entrar)/)
   noErrors(errors)
 })
 
