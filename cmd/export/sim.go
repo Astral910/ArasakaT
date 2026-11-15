@@ -42,6 +42,13 @@ func exportSim(e *plan.Engine, out string) error {
 		return err
 	}
 	write("contracts/fixtures/sim_jocotan_pronostico.json", tl, false)
+	// ronda 5: fecha de siembra elegida (tardía) vs recomendada, con razones y riesgo por fecha
+	tl, err = e.Simulate(contract.SimRequest{Plan: contract.PlanRequest{MunicipioID: "jocotan-chiquimula", Cultivo: "milpa", Idioma: "es"},
+		Estrategia: "S0", Escenario: "pronostico", FechaSiembra: "2027-07-10"})
+	if err != nil {
+		return err
+	}
+	write("contracts/fixtures/sim_jocotan_siembra.json", tl, false)
 	// fixtures del motor global (necesitan red la primera vez; luego quedan en la caché de DATA_DIR)
 	for _, g := range []struct {
 		name     string

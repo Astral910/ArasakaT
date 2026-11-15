@@ -136,7 +136,19 @@ func (e *Engine) Env(m *geo.Municipio) SimEnv {
 }
 
 // SimulateEnv calcula la línea de tiempo (sin archivos: sirve igual en el servidor y en WebAssembly).
+// Desde/Hasta recortan el resultado.
 func SimulateEnv(env SimEnv, r contract.SimRequest) (contract.SimTimeline, error) {
+	tl, err := simulateEnv(env, r)
+	if err != nil || (r.Desde == "" && r.Hasta == "") {
+		return tl, err
+	}
+	if err := Recortar(&tl, r.Desde, r.Hasta, r.Plan.Idioma == "en"); err != nil {
+		return contract.SimTimeline{}, err
+	}
+	return tl, nil
+}
+
+func simulateEnv(env SimEnv, r contract.SimRequest) (contract.SimTimeline, error) {
 	req := Normalize(r.Plan)
 	esc := r.Escenario
 	if esc == "" {
@@ -228,9 +240,31 @@ func SimulateEnv(env SimEnv, r contract.SimRequest) (contract.SimTimeline, error
 	if !found {
 		return contract.SimTimeline{}, fmt.Errorf("estrategia %q: usar S0, S1 o S2", r.Estrategia)
 	}
+	var sb *contract.SimSiembra
+	if len(seasons) > 0 {
+		// fecha de siembra (ronda 5): riesgo con los años del escenario (todos los años base si no hay grupo)
+		var pool []int
+		for _, y := range rank {
+			if y <= 2025 && (esc != "nino" || isNino(y)) {
+				pool = append(pool, y)
+			}
+		}
+		if len(pool) == 0 {
+			pool = rank
+		}
+		sa := &siembraArgs{s: s, xs: s, Y: seasons[0].Real, labelY: seasons[0].Label, pool: pool, def: def, cfg: cfg, idioma: req.Idioma, lugar: env.Name}
+		elegida := r.FechaSiembra
+		if elegida == "" {
+			elegida = req.FechaSiembra
+		}
+		var d int
+		sb, d = evalSiembra(sa, elegida)
+		cfg.SowFixed, cfg.SowDay = true, d
+	}
 	tl := s.Timeline(def, cfg, sim.SimOptions{Lang: req.Idioma, IsNino: isNino, Seasons: seasons})
 	tl.Motor = Version
 	tl.Escenario = esc
+	tl.Siembra = sb
 	{
 		ca := confArgs{metodo: "remuestreo-enso", shown: years, probEsc: -1, horizon: horizon}
 		var pool []int
@@ -312,9 +346,19 @@ func (e *Engine) handleSimulate(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "JSON inválido: " + err.Error()})
 		return
 	}
+	q := r.URL.Query()
+	if v := q.Get("siembra"); v != "" {
+		req.FechaSiembra = v
+	}
+	if v := q.Get("desde"); v != "" {
+		req.Desde = v
+	}
+	if v := q.Get("hasta"); v != "" {
+		req.Hasta = v
+	}
 	tl, err := e.Simulate(req)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, tl)

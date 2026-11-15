@@ -733,8 +733,20 @@ func simulatePron(env SimEnv, r contract.SimRequest, req contract.PlanRequest, s
 	if err != nil {
 		return contract.SimTimeline{}, err
 	}
+	// fecha de siembra (ronda 5): la elegida o la recomendada; el ciclo sale de los grados-día
+	sa := &siembraArgs{s: s, xs: xs, Y: an.Y, labelY: an.Y, pool: an.Pool, peso: an.Peso, base: an.Base, def: def, cfg: cfg,
+		hoy: hoy, pin: &pin, nf: nf, idioma: req.Idioma, lugar: env.Name}
+	if an.Metodo == "remuestreo-enso" {
+		sa.nf = 0
+	}
+	elegida := r.FechaSiembra
+	if elegida == "" {
+		elegida = req.FechaSiembra
+	}
+	sb, sowDay := evalSiembra(sa, elegida)
+	cfg.SowFixed, cfg.SowDay = true, sowDay
 	from := xs.Idx(hoy.AddDate(0, 0, s.Shift).Year(), hoy.AddDate(0, 0, s.Shift).Month(), hoy.AddDate(0, 0, s.Shift).Day())
-	if on := xs.YearCal(an.Y).PrimeraOnset; on >= 0 && on-7 < from { // la siembra ya empezó: mostrarla (días observados)
+	if on := xs.Idx(an.Y, 1, 1) + sowDay; on-7 < from { // la siembra ya pasó: mostrarla (días observados)
 		from = on - 7
 	}
 	if from <= 0 {
@@ -748,6 +760,7 @@ func simulatePron(env SimEnv, r contract.SimRequest, req contract.PlanRequest, s
 	}
 	tl.Motor = Version
 	tl.Escenario = "pronostico"
+	tl.Siembra = sb
 	ca := confArgs{metodo: an.Metodo, shown: []int{A}, pool: an.Pool, peso: an.Peso, an: an, nf: nf, fecha: pin.Fecha, probEsc: an.ProbClase[an.Clase]}
 	if an.Metodo == "remuestreo-enso" {
 		ca.nf = 0

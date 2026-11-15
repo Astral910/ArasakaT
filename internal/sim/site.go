@@ -40,6 +40,7 @@ type Site struct {
 	rhCache, wsCache, rsCache []float64
 	cycle                     float64
 	climCache                 *Climatology
+	tclim                     [][2]float64
 }
 
 // CycleFactor alarga las etapas del cultivo con el frío (tiempo térmico, base 10 °C):
@@ -65,6 +66,90 @@ func (s *Site) CycleFactor() float64 {
 	}
 	s.cycle = math.Max(1, math.Min(1.8, f)) // maíz de altiplano: ~8 meses (variedades adaptadas)
 	return s.cycle
+}
+
+// Grados-día (ronda 5): base 10 °C y tope 30 °C (método del maíz, McMaster & Wilhelm 1997). El ciclo FAO-56
+// de cada cultivo corresponde a 24 °C de media (14 °C·d por día), la misma referencia que CycleFactor.
+const (
+	GDDBase   = 10.0
+	GDDTope   = 30.0
+	GDDPorDia = 24.0 - GDDBase
+)
+
+// GDDDia grados-día del índice i (si i cae fuera de la serie, la media de ese día del año en la climatología).
+func (s *Site) GDDDia(i int) float64 {
+	var tx, tn float64
+	if i >= 0 && i < s.N {
+		tx, tn = s.Tmax[i], s.Tmin[i]
+	} else {
+		tx, tn = s.tClim(s.Date(i).YearDay())
+	}
+	t := (math.Min(tx, GDDTope) + math.Max(tn, GDDBase)) / 2
+	return math.Max(0, t-GDDBase)
+}
+
+// tClim Tmáx y Tmín medias de un día del año (±3 días, todos los años de la serie).
+func (s *Site) tClim(doy int) (float64, float64) {
+	if s.tclim == nil {
+		var sx, sn [367]float64
+		var nn [367]int
+		for i := 0; i < s.N; i++ {
+			d := s.Date(i).YearDay()
+			sx[d] += s.Tmax[i]
+			sn[d] += s.Tmin[i]
+			nn[d]++
+		}
+		s.tclim = make([][2]float64, 367)
+		for d := 1; d <= 366; d++ {
+			ax, an, k := 0.0, 0.0, 0
+			for o := -3; o <= 3; o++ {
+				e := ((d-1+o)%366+366)%366 + 1
+				ax += sx[e]
+				an += sn[e]
+				k += nn[e]
+			}
+			if k > 0 {
+				s.tclim[d] = [2]float64{ax / float64(k), an / float64(k)}
+			} else {
+				s.tclim[d] = [2]float64{30, 20}
+			}
+		}
+	}
+	if doy < 1 || doy > 366 {
+		doy = 1
+	}
+	return s.tclim[doy][0], s.tclim[doy][1]
+}
+
+// DiasGDD días desde el índice sow hasta juntar gdd grados-día (tope 400 días).
+func (s *Site) DiasGDD(sow int, gdd float64) int {
+	acc := 0.0
+	for k := 0; k < 400; k++ {
+		acc += s.GDDDia(sow + k)
+		if acc >= gdd {
+			return k + 1
+		}
+	}
+	return 400
+}
+
+// ScaledGDD cultivo con las etapas estiradas o encogidas según los grados-día reales desde la siembra:
+// cada etapa termina cuando junta los grados-día que tendría a 24 °C (ciclo FAO-56).
+func (s *Site) ScaledGDD(c fao56.Crop, sow int) fao56.Crop {
+	day, acc := 0, 0.0
+	o := c
+	for k := range c.L {
+		target := acc + float64(c.L[k])*GDDPorDia
+		n := 0
+		for acc < target && n < 300 {
+			acc += s.GDDDia(sow + day)
+			day++
+			n++
+		}
+		// límites razonables por etapa (0.6× a 2× la duración de referencia)
+		o.L[k] = max(int(math.Round(0.6*float64(c.L[k]))), min(n, 2*c.L[k]))
+	}
+	return o
 }
 
 // Scaled cultivo con las etapas ajustadas al ciclo del lugar.
@@ -135,7 +220,7 @@ func (s *Site) WithCal(cal SeasonCal, shift int) *Site {
 	o := *s
 	o.Cal, o.Shift = cal, shift
 	o.Start = s.Start.AddDate(0, 0, shift-s.Shift)
-	o.cycle, o.climCache = 0, nil
+	o.cycle, o.climCache, o.tclim = 0, nil, nil
 	return &o
 }
 

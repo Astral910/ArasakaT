@@ -282,7 +282,11 @@ func (s *Site) Timeline(d StratDef, cfg Config, o SimOptions) contract.SimTimeli
 		tl.Anual = append(tl.Anual, contract.SimAnio{Anio: sg.ss.Label, AnioReal: y, GranoQQMZ: math.Round(grain*10) / 10,
 			MO: math.Round(OMFromSOC(soc)*100) / 100, ErosionTHa: math.Round(A*10) / 10, Perdida: lost, ElNino: nino})
 		if lost {
-			hp := pos(yo.PrimeraSow) + s.Scaled(d.Main).Season()
+			mc := s.Scaled(d.Main)
+			if c.SowFixed {
+				mc = s.ScaledGDD(d.Main, yo.PrimeraSow)
+			}
+			hp := pos(yo.PrimeraSow) + mc.Season()
 			if hp >= n {
 				hp = n - 1
 			}
