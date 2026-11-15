@@ -1,13 +1,16 @@
 package evolution
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -403,5 +406,77 @@ func TestPuntaAPuntaConElBot(t *testing.T) {
 	c.AdminHandler().ServeHTTP(w, httptest.NewRequest("GET", "/admin/whatsapp/qr.png", nil))
 	if w.Code != 200 || w.Header().Get("Content-Type") != "image/png" {
 		t.Fatalf("qr.png: %d", w.Code)
+	}
+}
+
+type pdfFalso struct{ n int }
+
+func (p *pdfFalso) PDF(context.Context, url.Values) ([]byte, error) { p.n++; return []byte("%PDF-1.7 falso"), nil }
+
+// El informe PDF sale una sola vez: ni el webhook repetido, ni el reenvío viejo tras reconectar, ni pedir
+// INFORME enseguida después del que sale solo con el plan mandan un segundo PDF.
+func TestInformeNoSeDuplica(t *testing.T) {
+	f := nuevaEvo(t)
+	c := nuevoCliente(t, f, "")
+	c.setConectado(true, "")
+	ix, err := bot.CargarMunicipios()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &bot.Bot{Planner: &bot.FixturePlanner{Municipios: ix, Path: "../../bot/testdata/plan_ejemplo.json"}, Municipios: ix,
+		Subs: bot.NewMemSuscripciones(), Sesiones: bot.NewStore(""), WebURL: "https://fs.example"}
+	pdf := &pdfFalso{}
+	mux := http.NewServeMux()
+	svc := channels.Routes(mux, channels.Deps{Bot: b, Vinculado: c, SinVideo: true, Informes: pdf, PublicURL: "https://api.fs.example"})
+	svc.Vinculado.Sync = true
+	c.OnMensaje = func(m Mensaje) { svc.Vinculado.Recibir(m.ID, m.Entrada) }
+	h := c.Handler()
+	enviar := func(id, msg, ts string) {
+		t.Helper()
+		cuerpo := strings.Replace(upsert("50255550101@s.whatsapp.net", "", msg), `"ID1"`, `"`+id+`"`, 1)
+		if ts != "" {
+			cuerpo = strings.Replace(cuerpo, `"messageType"`, `"messageTimestamp":`+ts+`,"messageType"`, 1)
+		}
+		if code := postar(t, h, c.Secreto(), cuerpo); code != 200 {
+			t.Fatalf("webhook %d", code)
+		}
+	}
+	docs := func() (n int, textos []string) {
+		for _, l := range f.tomar() {
+			switch {
+			case l.Ruta == "/message/sendMedia/fieldshift" && l.Cuerpo["mediatype"] == "document":
+				n++
+			case l.Ruta == "/message/sendText/fieldshift":
+				textos = append(textos, l.Cuerpo["text"].(string))
+			}
+		}
+		return
+	}
+	ahora := strconv.FormatInt(time.Now().Unix(), 10)
+	enviar("B1", `{"conversation":"hola"}`, ahora)
+	enviar("B2", `{"locationMessage":{"degreesLatitude":14.82,"degreesLongitude":-89.39}}`, `"`+ahora+`"`) // a veces viene como texto
+	enviar("B21", `{"conversation":"1"}`, ahora)
+	enviar("B22", `{"conversation":"2 manzanas"}`, ahora)
+	enviar("B23", `{"conversation":"Nada"}`, ahora)
+	if n, _ := docs(); n != 1 || pdf.n != 1 {
+		t.Fatalf("el plan manda el informe una vez: %d envíos, %d PDFs", n, pdf.n)
+	}
+	enviar("B3", `{"conversation":"INFORME"}`, ahora)
+	enviar("B3", `{"conversation":"INFORME"}`, ahora) // Evolution repite el mismo evento
+	n, textos := docs()
+	if n != 0 || pdf.n != 1 || len(textos) != 1 || !strings.Contains(textos[0], "ya te lo mandé") || !strings.Contains(textos[0], "https://fs.example/informe?") {
+		t.Fatalf("INFORME enseguida: %d PDFs, textos %q", n, textos)
+	}
+	viejo := strconv.FormatInt(time.Now().Add(-time.Hour).Unix(), 10)
+	enviar("B4", `{"conversation":"INFORME"}`, viejo) // reenvío de Baileys al reconectar
+	if n, textos := docs(); n != 0 || len(textos) != 0 {
+		t.Fatalf("reenvío viejo contestado: %d %q", n, textos)
+	}
+	// pasada la ventana, INFORME vuelve a mandar el PDF
+	defer func(v time.Duration) { channels.DocRepetido = v }(channels.DocRepetido)
+	channels.DocRepetido = 0
+	enviar("B5", `{"conversation":"INFORME"}`, ahora)
+	if n, _ := docs(); n != 1 || pdf.n != 2 {
+		t.Fatalf("INFORME más tarde: %d envíos, %d PDFs", n, pdf.n)
 	}
 }
