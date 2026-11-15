@@ -186,7 +186,11 @@ func (a *app) observadorSensores() func(id, idioma string) (*campo.Observacion, 
 		if idioma == "en" {
 			o.Fuente = "FieldShift field station (soil moisture 10/30 cm + rain gauge)"
 		}
+		o.NoRegarHoy, _ = e.NoRegarHoy(idioma)
 		for _, ev := range e.Eventos {
+			if ev.Tipo == "regar" { // la lámina de hoy la da la tarjeta de riego del terreno (misma agua medida); otro número confunde
+				continue
+			}
 			t := ev.Texto
 			if idioma == "en" && ev.TextoEN != "" {
 				t = ev.TextoEN

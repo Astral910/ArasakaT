@@ -387,7 +387,9 @@ func pronSite(s *sim.Site, an *analogo, pin *PronInput) (*sim.Site, func(int) st
 	for _, d := range pin.Dias {
 		fc[d.Fecha] = d
 	}
-	end := s.Idx(an.Y, 12, 31)
+	// un año más de análogo: en clima frío (Países Bajos, altiplano) el ciclo por grados-día pasa del 31 de diciembre
+	// y sin datos RunCrop da NaN → /api/simulate salía vacío y la web caía al ejemplo ilustrativo
+	end := s.Idx(an.Y+1, 12, 31)
 	n := end - s.N + 1
 	if n < 0 {
 		n = 0

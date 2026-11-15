@@ -244,7 +244,9 @@ func (s *Servicio) eventos(d Dispositivo, e *Estado, eps []Episodio, ahora time.
 	}
 
 	// 2. lluvia que no estaba pronosticada (hoy y ayer)
-	llovioHoy := porDia[hoy] >= sorpresaMinMM
+	// la de anoche cuenta igual que la de hoy: si no, pasada la medianoche salía "regá 58 mm" junto a "no regués hoy"
+	e.LluviaRecienteMM = r1(porDia[hoy] + porDia[ayer])
+	llovio := e.LluviaRecienteMM >= sorpresaMinMM
 	for _, f := range []string{ayer, hoy} {
 		obs := r1(porDia[f])
 		pron, fuente, ok := s.pronosticoDia(d, f)
@@ -273,7 +275,7 @@ func (s *Servicio) eventos(d Dispositivo, e *Estado, eps []Episodio, ahora time.
 	umbral := 1 - p
 	switch {
 	case !e.Fresco:
-	case e.FAD < umbral && !llovioHoy:
+	case e.FAD < umbral && !llovio:
 		ef := Eficiencia(d.Parcela.Riego)
 		neto := math.Min(e.DrMM, MaxNetoRiego)
 		bruto := r0(neto / ef)
@@ -329,6 +331,18 @@ func (s *Servicio) eventos(d Dispositivo, e *Estado, eps []Episodio, ahora time.
 	return ev
 }
 
+// NoRegarHoy: llovió hoy o anoche (≥ 5 mm) y el dato es fresco → qué decir en lugar de "regá X mm".
+func (e *Estado) NoRegarHoy(idioma string) (string, bool) {
+	if e == nil || !e.Fresco || e.LluviaRecienteMM < sorpresaMinMM {
+		return "", false
+	}
+	es, en := accionTrasLluvia(e)
+	if idioma == "en" {
+		return en, true
+	}
+	return es, true
+}
+
 // accionTrasLluvia qué hacer con el suelo como está.
 func accionTrasLluvia(e *Estado) (string, string) {
 	if !e.Fresco {
@@ -338,10 +352,10 @@ func accionTrasLluvia(e *Estado) (string, string) {
 		return fmt.Sprintf("No regués hoy: el suelo está saturado (%d %% del agua disponible). Revisá que drene.", int(e.AguaPct)),
 			fmt.Sprintf("Do not irrigate today: soil is saturated (%d %% of available water). Check drainage.", int(e.AguaPct))
 	}
-	if e.AguaPct < e.Umbral && e.LluviaHoyMM >= sorpresaMinMM {
+	if mm := math.Max(e.LluviaHoyMM, e.LluviaRecienteMM); e.AguaPct < e.Umbral && mm >= sorpresaMinMM {
 		// llovió pero el agua todavía no bajó a las raíces (la capa de 30 cm sigue seca)
-		return fmt.Sprintf("No regués hoy: llovió %s mm y el agua sigue bajando (10 cm al %d %%, 30 cm al %d %%). Mirá mañana: si a 30 cm sigue bajo el %d %%, regá.", mmTxt(e.LluviaHoyMM), int(e.H10.AguaPct), int(e.H30.AguaPct), int(e.Umbral)),
-			fmt.Sprintf("Do not irrigate today: %s mm of rain fell and is still soaking in (10 cm at %d %%, 30 cm at %d %%). Check tomorrow: if 30 cm is still below %d %%, irrigate.", mmTxt(e.LluviaHoyMM), int(e.H10.AguaPct), int(e.H30.AguaPct), int(e.Umbral))
+		return fmt.Sprintf("No regués hoy: llovió %s mm y el agua sigue bajando (10 cm al %d %%, 30 cm al %d %%). Mirá mañana: si a 30 cm sigue bajo el %d %%, regá.", mmTxt(mm), int(e.H10.AguaPct), int(e.H30.AguaPct), int(e.Umbral)),
+			fmt.Sprintf("Do not irrigate today: %s mm of rain fell and is still soaking in (10 cm at %d %%, 30 cm at %d %%). Check tomorrow: if 30 cm is still below %d %%, irrigate.", mmTxt(mm), int(e.H10.AguaPct), int(e.H30.AguaPct), int(e.Umbral))
 	}
 	return fmt.Sprintf("No regués hoy: el suelo está al %d %% del agua disponible.", int(e.AguaPct)),
 		fmt.Sprintf("Do not irrigate today: soil is at %d %% of available water.", int(e.AguaPct))
