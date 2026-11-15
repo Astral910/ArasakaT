@@ -4,6 +4,7 @@ import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Droplets, LogOut, Plus, TriangleAlert } from 'lucide-vue-next'
 import { lang } from '@/i18n'
+import { cargarCultivos, nombreCultivo } from '@/lib/cultivos'
 import GMapa from '../informe/graficos/GMapa.vue'
 import { decodificarPolilinea } from '../informe/geometria'
 import { listarParcelas, origen, revisarSesion, salir, usuario } from '../cuenta/api'
@@ -12,6 +13,7 @@ import { cargarHoy, lineaEstado, type Hoy } from './campo'
 import { fecha, tx } from './textos'
 
 const router = useRouter()
+void cargarCultivos()
 const route = useRoute()
 const parcelas = ref<Parcela[] | null>(null)
 const hoy = reactive<Record<string, Hoy | null>>({})
@@ -50,7 +52,7 @@ const alerta = (h?: Hoy | null) => !!h?.avisos.some((a) => a.nivel === 'mala')
         <div class="mini"><GMapa :lat="p.lat" :lon="p.lon" :forma="p.forma" :radio="p.radio" :poligono="poli(p)" :W="360" :H="190" /></div>
         <div class="cuerpo">
           <h2>{{ p.nombre }}</h2>
-          <p class="muted lugar">{{ p.lugar || `${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}` }} · {{ tx(`cultivo_${p.cultivo}`) }} · {{ p.area }} {{ tx(`unidad_${p.unidad}`) }}</p>
+          <p class="muted lugar">{{ p.lugar || `${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}` }} · {{ nombreCultivo(p.cultivo, lang === 'en') }} · {{ p.area }} {{ tx(`unidad_${p.unidad}`) }}</p>
           <p class="estado" :class="{ mal: alerta(hoy[p.id]) }">
             <template v-if="hoy[p.id]">
               <component :is="alerta(hoy[p.id]) ? TriangleAlert : Droplets" :size="17" aria-hidden="true" />

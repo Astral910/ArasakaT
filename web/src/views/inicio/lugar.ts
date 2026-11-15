@@ -15,12 +15,13 @@ export interface Lugar {
   /** el nombre coincide y (si se dio contexto) cae a < 20 km de él */
   exacto?: boolean
 }
-export type Cultivo = 'milpa' | 'maiz' | 'frijol' | 'otro'
+export type Cultivo = 'milpa' | 'maiz' | 'frijol' | 'otro' | (string & {}) // ronda 8: + catálogo mundial
 export type Unidad = 'cuerda' | 'manzana' | 'ha'
 export type Riego = 0 | 10 | 20
 export interface Respuestas { cultivo: Cultivo; area: number; unidad: Unidad; riego: Riego }
 
-export const DEFAULTS: Respuestas = { cultivo: 'milpa', area: 1, unidad: 'manzana', riego: 0 }
+// ronda 8: sin pregunta de riego; normalmente se riega y el simulador dice cuánto (se cambia en «Ajustar»)
+export const DEFAULTS: Respuestas = { cultivo: 'milpa', area: 1, unidad: 'manzana', riego: 20 }
 export const TAMANOS = [
   { id: 'pequeno', area: 1, unidad: 'cuerda' },
   { id: 'media', area: 0.5, unidad: 'manzana' },

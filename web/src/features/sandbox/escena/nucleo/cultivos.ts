@@ -205,9 +205,15 @@ export interface OpcionesCultivos {
   filtro?: UniformsFiltro
 }
 
+// ronda 8: cultivos del catálogo mundial se dibujan con la planta más parecida (gramínea, mata baja u otra)
+const PASTOS = ['rice', 'wheat', 'barley', 'oats', 'millet', 'sugarcane', 'quinoa', 'amaranth', 'sesame']
+const MATAS = ['soybean', 'peanut', 'chickpea', 'lentil', 'pea', 'cowpea', 'fava', 'potato', 'sweetpotato', 'carrot', 'onion', 'garlic', 'beet', 'tomato', 'chili', 'cabbage', 'lettuce', 'broccoli', 'spinach', 'cucumber', 'squash', 'watermelon', 'melon', 'eggplant', 'strawberry', 'cotton', 'tobacco', 'canola']
+export function parecido(c: string) { return PASTOS.includes(c) ? 'sorgo' : MATAS.includes(c) ? 'frijol' : c }
+
 export function crearCapa(cultivo: string, U: UniformsGlobales, o: OpcionesCultivos, semilla: number): Capa3D {
-  const gp = geoDe(cultivo)
-  const disp = DISPOSICION[cultivo] ?? DISPOSICION.otro
+  const vis = parecido(cultivo)
+  const gp = geoDe(vis)
+  const disp = DISPOSICION[vis] ?? DISPOSICION.otro
   const { parcela } = o
   let surco = disp.surco * ESCALA_PLANTA, entre = disp.entre * ESCALA_PLANTA
   const area = parcela.area ?? parcela.hx * 2 * parcela.hz * 2

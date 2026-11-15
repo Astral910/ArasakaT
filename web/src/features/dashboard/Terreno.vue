@@ -8,7 +8,7 @@ import { ArrowLeft, Box, Bug, ChevronDown, CircleAlert, CircleCheck, CircleQuest
 import { lang } from '@/i18n'
 import GMapa from '../informe/graficos/GMapa.vue'
 import { decodificarPolilinea } from '../informe/geometria'
-import { actualizarParcela, areaM2, borrarParcela, obtenerParcela, queryTerreno, revisarSesion } from '../cuenta/api'
+import { actualizarParcela, areaM2, borrarParcela, esInvitado, obtenerParcela, queryTerreno, revisarSesion } from '../cuenta/api'
 import type { Parcela } from '../cuenta/tipos'
 import { cargarHoy, enviarReporte, type AccionChat, type Hoy, type Reporte, type TipoReporte } from './campo'
 import { faqs, lineaPlaga } from './faq'
@@ -26,6 +26,8 @@ import { cargarTemporada, type Temporada } from './temporada'
 import { cargarSensor } from '../sensores/api'
 import { enCentroamerica, riegoTexto, semaforo, tarjetaAbono, tarjetaCanicula, tarjetaCosecha, tarjetaSiembra, type ConfDec, type SiembraDec } from '../decision/decision'
 import { t } from '@/i18n'
+import { cargarCultivos, nombreCultivo } from '@/lib/cultivos'
+void cargarCultivos()
 
 // chat del agente chatbot si ya está en el repo; si no, el stub con la misma interfaz
 const chats = import.meta.glob('../chat/ChatFieldShift.vue')
@@ -42,7 +44,9 @@ const editSiembra = ref(false)
 const nuevaSiembra = ref('')
 
 async function cargar() {
-  if (!(await revisarSesion())) { router.replace({ name: 'entrar', query: { volver: route.fullPath } }); return }
+  const conCuenta = !!(await revisarSesion())
+  invitado.value = !conCuenta
+  if (!conCuenta && !esInvitado(String(route.params.id))) { router.replace({ name: 'entrar', query: { volver: route.fullPath } }); return }
   p.value = await obtenerParcela(String(route.params.id))
   if (!p.value) { noHay.value = true; return }
   h.value = await cargarHoy(p.value, lang.value)
@@ -50,6 +54,15 @@ async function cargar() {
   const id = p.value.id
   cargarSensor(id).then((d) => { if (p.value?.id === id) conSensor.value = !!d && !d.simulado }).catch(() => {})
 }
+// ronda 8: sin cuenta se ve el dashboard igual; abajo invita a crear la cuenta para guardar el terreno
+const invitado = ref(false)
+const qCuenta = computed(() => {
+  if (!p.value) return '/entrar'
+  const q = queryTerreno(p.value)
+  delete q.parcela
+  const volver = router.resolve({ path: '/guardar', query: { ...q, ir: 'dashboard' } }).fullPath
+  return { path: '/entrar', query: { modo: 'registro', motivo: 'guardar', volver } }
+})
 // ronda 8: «Esperado vs vivido» solo con el sensor SEED conectado (con lecturas reales)
 const conSensor = ref(false)
 // ronda 8: la temporada completa del simulador (≈ 1 año) alimenta el visor 3D, el calendario y las preguntas
@@ -177,7 +190,7 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
       <header class="cab">
         <div class="titulo">
           <h1>{{ p.nombre }}</h1>
-          <p class="muted">{{ p.lugar || `${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}` }} · {{ tx(`cultivo_${p.cultivo}`) }} · {{ p.area }} {{ tx(`unidad_${p.unidad}`) }}</p>
+          <p class="muted">{{ p.lugar || `${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}` }} · {{ nombreCultivo(p.cultivo, lang === 'en') }} · {{ p.area }} {{ tx(`unidad_${p.unidad}`) }}</p>
         </div>
         <div class="acciones">
           <RouterLink :to="q3d" class="btn oscuro" data-test="ver3d"><Box :size="17" aria-hidden="true" />{{ tx('verEn3D') }}</RouterLink>
@@ -278,6 +291,12 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
             <article class="card" data-test="sensor"><TarjetaSensor :parcela-id="p.id" /></article>
             <article class="card mapa"><GMapa :lat="p.lat" :lon="p.lon" :forma="p.forma" :radio="p.radio" :poligono="poli" :W="420" :H="240" /></article>
           </div>
+
+          <aside v-if="invitado" class="invitar" data-test="invitar-cuenta">
+            <div><b>{{ lang === 'en' ? 'Want to keep this field?' : '¿Querés guardar este terreno?' }}</b>
+              <span>{{ lang === 'en' ? 'Create your free account to save it, get WhatsApp alerts and come back any day.' : 'Creá tu cuenta gratis para guardarlo, recibir avisos por WhatsApp y volver cualquier día.' }}</span></div>
+            <RouterLink :to="qCuenta" class="btn oscuro">{{ lang === 'en' ? 'Create account' : 'Crear cuenta' }}</RouterLink>
+          </aside>
 
           <footer class="pie">
             <p class="muted"><b>{{ tx('fuentes') }}:</b> {{ h.fuentes.join(' · ') }}</p>
@@ -382,4 +401,8 @@ h1 { font-size: clamp(1.9rem, 6vw, 2.8rem); }
 .mapa { padding: 0.5rem; }
 .pie { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; margin-top: 0.6rem; font-size: 0.82rem; }
 .vacio { font-size: 1.1rem; padding: 2rem 0; }
+.invitar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1rem 1.2rem; border-radius: var(--radius-lg); background: var(--ink); color: var(--bg); }
+.invitar div { display: grid; gap: 0.2rem; }
+.invitar span { font-size: 0.88rem; opacity: 0.8; }
+.invitar .btn { background: var(--maiz, #e6b54a); color: #1d1a14; border-color: transparent; }
 </style>

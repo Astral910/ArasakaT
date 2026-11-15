@@ -223,6 +223,11 @@ func cultivoNorm(c string) string {
 		return "sorgo"
 	case "otro":
 		return "otro"
+	case "", "milpa":
+		return "milpa"
+	}
+	if id := fao56.Buscar(c); id != "" { // ronda 8: catálogo mundial
+		return id
 	}
 	return "milpa"
 }

@@ -66,7 +66,7 @@ export function leerRuta(query: Record<string, unknown>): Ruta {
       percentil: (['p10', 'p50', 'p90'].includes(p ?? '') ? p : 'p50') as Percentil,
       anios: Math.max(2, Math.min(10, num(q.anios) ?? 5)),
       comparar: q.comparar === '1',
-      cultivo: (CULT.includes(q.cultivo ?? '') ? q.cultivo : 'milpa') as Ajustes['cultivo'],
+      cultivo: (CULT.includes(q.cultivo ?? '') || /^[a-z]{2,20}$/.test(q.cultivo ?? '') ? q.cultivo : 'milpa') as Ajustes['cultivo'], // ronda 8: catálogo mundial
       area_valor: Math.max(0.05, num(q.area ?? q.area_valor) ?? areaGeo ?? 1),
       area_unidad: uni,
     },

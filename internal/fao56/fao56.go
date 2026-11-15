@@ -66,6 +66,10 @@ type Crop struct {
 	YmQQMz  float64    // rendimiento de referencia sin estrés hídrico (qq/mz)
 	YmNote  string
 	IsCover bool
+	// ronda 8 (catálogo mundial): base y referencia de grados-día y ciclo realista (0 = los de siempre)
+	Tbase, Tref        float64
+	CicloMin, CicloMax int
+	Perenne            bool // un año de producción: el ciclo no se estira con los grados-día
 }
 
 // Season duración total.

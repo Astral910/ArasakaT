@@ -551,7 +551,7 @@ async function guardarYIr() {
   yendo.value = true
   jugando.value = false
   try {
-    if (ruta.parcelaId) await router.push(`/terrenos/${ruta.parcelaId}`)
+    if (ruta.parcelaId) await router.push(`/terreno/${ruta.parcelaId}`)
     else await router.push({ path: '/guardar', query: { ...consulta.value, ir: 'dashboard' } })
   } finally {
     yendo.value = false
@@ -824,7 +824,7 @@ onBeforeUnmount(() => roPie?.disconnect())
 </template>
 
 <style scoped>
-.sandbox.embed .top, .sandbox.embed .franjas, .sandbox.embed .subtitulos, .sandbox.embed .columna, .sandbox.embed :deep(.dash) { display: none !important; }
+.sandbox.embed .top, .sandbox.embed .franjas, .sandbox.embed .subtitulos, .sandbox.embed :deep(.columna), .sandbox.embed :deep(.dash) { display: none !important; }
 .sandbox { position: fixed; inset: 0; overflow: hidden; overflow: clip; background: #05080f; color: #f4ebdb; font-family: var(--font-ui); z-index: 5; --punto-y: 44%; }
 .cielo { position: absolute; inset: 0; background: linear-gradient(180deg, var(--cielo-a) 0%, var(--cielo-b) 78%, #d9c7a8 100%); transition: background 1.2s ease, opacity .6s; }
 .cielo .sol { position: absolute; width: 46vmin; height: 46vmin; right: 6%; top: -10%; border-radius: 50%; background: radial-gradient(circle, rgba(255,246,214,.95) 0%, rgba(255,230,170,.35) 35%, transparent 70%); opacity: .55; transition: opacity 1.2s; }
