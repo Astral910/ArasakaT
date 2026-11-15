@@ -206,7 +206,7 @@ class SandboxImpl implements Sandbox {
     const escala = prep.R > R_MAX ? R_MAX / prep.R : 1
     const R = prep.R * escala
     const L = Math.min(L_MAX, Math.max(p.ladoM ?? 280, R * 2 * 2.3))
-    const cz = Math.max(0, L / 2 - R - L * 0.035)
+    const cz = Math.max(0, L / 2 - R - L * 0.035 - R * 0.25)
     const cfg = CFG[this.calidad]
     this.emitir('progress', { fase: 'relieve', p: 0 })
     etapa('relieve', 0)
@@ -299,6 +299,12 @@ class SandboxImpl implements Sandbox {
     this.construirCultivos()
     cierra('vegetacion')
     this.irA(this.preset, 0)
+    this.actualizarCamara(0)
+    // shaders en paralelo (KHR_parallel_shader_compile): el primer cuadro no congela la página
+    etapa('vegetacion', 0.8)
+    try { await this.renderer.compileAsync(this.escena, this.camara) } catch { /* se compilan al dibujar */ }
+    if (ab.signal.aborted || this.desechado) return
+    cierra('shaders')
     this.listo = true
     this.cuadro(0, false)
     this.emitir('progress', { fase: 'listo', p: 1 })
