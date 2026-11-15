@@ -15,12 +15,16 @@ import type { Estrategia, SimEvento, SimTimeline } from './tipos'
 import { crearSandbox } from './nucleo/sandbox'
 import type { Bioma } from './nucleo/biomas'
 import type { ParcelaGeo } from './nucleo/ubicacion'
+import type { Filtro, LeyendaFiltro } from './nucleo/filtros/index'
+import type { Marcador, TipoMarcador } from './nucleo/siembra'
 
 export type * from './tipos'
 export type { Bioma }
 export { BIOMAS, sugerirBioma } from './nucleo/biomas'
 export type { ParcelaGeo, FormaParcela } from './nucleo/ubicacion'
 export { decodificarPolilinea, codificarPolilinea } from './nucleo/ubicacion'
+export type { Filtro, LeyendaFiltro, Marcador, TipoMarcador }
+export { FILTROS } from './nucleo/filtros/capas'
 
 /** Parámetros de la plantilla (una sola escena procedural para cualquier coordenada). */
 export interface TemplateParams {
@@ -118,6 +122,14 @@ export interface SandboxEvents {
   fps: { fps: number; calidad: Exclude<Quality, 'auto'> }
   calidad: { calidad: Exclude<Quality, 'auto'> }
   error: { mensaje: string }
+  /** Ronda 5: leyenda del filtro activo (capa null = apagado). Se reemite al cambiar de día (≤ 4 por segundo). */
+  filtro: LeyendaFiltro
+  /** Ronda 5: al pasar la línea de tiempo por un marcador de siembra, cosecha o fecha recomendada. */
+  marcador: Marcador
+  /** Ronda 5: fechas fijadas (setSiembra o timeline.siembra). */
+  siembra: { elegida: string | null; cosecha: string | null; recomendada: string | null; iSiembra: number | null; iCosecha: number | null; marcadores: Marcador[] }
+  /** Ronda 5: rango activo de la línea de tiempo (índices absolutos del timeline). */
+  rango: { desde: string | null; hasta: string | null; i0: number; i1: number }
 }
 
 export interface SandboxState {
@@ -131,6 +143,10 @@ export interface SandboxState {
   listo: boolean
   rumboCamara: number
   bioma: Bioma
+  /** Ronda 5. */
+  filtro: Filtro | null
+  siembra: { elegida: string | null; marcadores: Marcador[] }
+  rango: { desde: string | null; hasta: string | null; i0: number; i1: number }
 }
 
 export interface Sandbox {
@@ -149,6 +165,16 @@ export interface Sandbox {
   setWeatherOverride(c: Partial<ClimaVisual> | null): void
   /** Fuerza un rayo ahora (p. ej. al saltar a un marcador de tormenta). */
   rayo(): void
+  /**
+   * Ronda 5: mapa de color sobre el terreno y la parcela (fundido suave; leyenda por evento `filtro`).
+   * temperatura = estimado por zona (+ LST MODIS de referencia); humedad, estrés y erosión = motor + relieve;
+   * verdor = NDVI Sentinel-2 real (si falla, estimado y se dice). null apaga.
+   */
+  setFiltro(capa: Filtro | null, opts?: { opacidad?: number }): Promise<void>
+  /** Ronda 5: fecha de siembra elegida (AAAA-MM-DD; null = la del timeline). Marcadores 3D y animaciones. */
+  setSiembra(fecha: string | null): void
+  /** Ronda 5: limita la línea de tiempo (setDay) al rango; null = sin límite de ese lado. */
+  setRango(desde: string | null, hasta: string | null): void
   on<K extends keyof SandboxEvents>(ev: K, cb: (d: SandboxEvents[K]) => void): () => void
   /** Imagen del cuadro actual. */
   snapshot(opts?: { type?: string; quality?: number }): Promise<Blob>

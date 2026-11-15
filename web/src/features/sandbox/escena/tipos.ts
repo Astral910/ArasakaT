@@ -30,6 +30,10 @@ export interface SimRequest {
   percentil: 'p10' | 'p50' | 'p90'
   anios: number // 1..10
   semilla: number
+  /** Ronda 5 (opcionales). */
+  fecha_siembra?: string
+  desde?: string
+  hasta?: string
 }
 
 /** Estado diario de un cultivo. */
@@ -86,4 +90,47 @@ export interface SimTimeline {
   pendiente_pct: number
   notas: string[]
   motor: string
+  /** Ronda 5: fecha de siembra elegida vs recomendada (motor5). */
+  siembra?: SimSiembra
+  /** Ronda 5: si se pidió desde/hasta, qué parte se devolvió. */
+  rango?: SimRango
+}
+
+export interface RazonSiembra {
+  codigo: string
+  severidad: 'ok' | 'ojo' | 'mala' | string
+  texto: string
+  texto_en?: string
+  fuente?: string
+}
+
+export interface RiesgoFecha { fecha: string; prob_perdida: number; cosecha_p50: number; cosecha?: string }
+
+export interface SimSiembra {
+  elegida: string
+  recomendada: string
+  ventana_ini?: string
+  ventana_fin?: string
+  cosecha_elegida: string
+  cosecha_recomendada?: string
+  dias_ciclo_elegida?: number
+  dias_ciclo_recomendada?: number
+  recomendable?: boolean
+  veredicto?: 'ok' | 'ojo' | 'mala' | string
+  texto?: string
+  texto_en?: string
+  razones?: RazonSiembra[]
+  riesgo_por_fecha?: RiesgoFecha[]
+  cultivo?: string
+  escenarios?: boolean
+  fuentes?: string[]
+}
+
+export interface SimRango {
+  desde: string
+  hasta: string
+  dia_inicial: number
+  escenarios?: boolean
+  nota?: string
+  nota_en?: string
 }
