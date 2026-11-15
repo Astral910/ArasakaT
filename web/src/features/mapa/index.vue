@@ -1,13 +1,17 @@
 <script setup lang="ts">
-// Mapa de riesgo para extensionistas: 340 municipios en relieve 3D, ranking, filtros, CSV y capa "rayos X".
+// Mapa de riesgo para extensionistas: 342 municipios en relieve 3D + regiones de Mesoamérica y del mundo con la misma
+// escala; clic en cualquier punto sin polígono = riesgo de ese punto (/api/sitio). Ranking del país o zona visible.
 import { ref, computed, shallowRef, onMounted, onBeforeUnmount, watch } from 'vue'
-import { Download, Search, Layers, Mountain, ScanEye, ShieldAlert, MapPin } from 'lucide-vue-next'
+import { Download, Search, Layers, Mountain, ScanEye, ShieldAlert, MapPin, Globe, LoaderCircle } from 'lucide-vue-next'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { t } from './textos'
 import { numero } from './comun/idioma'
 import EtiquetaDato from './comun/EtiquetaDato.vue'
 import RayosX from './RayosX.vue'
 import { cargarRiesgo, cargarGeo, descargar, type Geo } from './cargar'
+import { cargarRegiones, filasVisibles, vistaGuatemala, leerSitio, paisEn, type Regiones, type FilaRegion, type Punto } from './mundo'
+import { api } from '@/api/client'
+import { lang } from '@/i18n'
 import { DEM, SATELITE, GT } from './capas'
 import { cargarMaplibre, hayWebGL } from './comun/maplibre'
 import {
@@ -30,6 +34,18 @@ const seleccion = ref<string | null>(null)
 const contenedor = ref<HTMLDivElement | null>(null)
 const mapa = shallowRef<any>(null)
 const geo = shallowRef<Geo | null>(null)
+// mundo
+const regiones = shallowRef<Regiones | null>(null)
+const modo = ref<'gt' | 'mundo'>('gt')
+const filasVista = shallowRef<FilaRegion[]>([])
+const paisVista = ref<string | null>(null)
+const selReg = ref<FilaRegion | null>(null)
+const hoverR = ref<{ r: FilaRegion; x: number; y: number } | null>(null)
+const punto = ref<Punto | null>(null)
+const puntoCargando = ref(false)
+const fichaEl = ref<HTMLElement | null>(null)
+let ml: any = null
+let marca: any = null
 
 const porId = computed(() => new Map((datos.value?.filas ?? []).map((f) => [f.id, f])))
 const filtradas = computed(() => (datos.value ? filtrar(datos.value.filas, { q: q.value, depto: depto.value, nivel: nivelF.value }) : []))
@@ -37,6 +53,32 @@ const lista = computed(() => ranking(filtradas.value, metrica.value))
 const deptos = computed(() => (datos.value ? departamentos(datos.value.filas) : []))
 const escala = computed(() => (metrica.value === 'riesgo' ? ESCALA_RIESGO : ESCALA_LLUVIA))
 const sel = computed(() => (seleccion.value ? porId.value.get(seleccion.value) ?? null : null))
+const enMundo = computed(() => modo.value === 'mundo')
+/** Fuera de Guatemala solo hay riesgo de hoy: el ranking y la leyenda del mundo siempre van en riesgo. */
+const metricaVista = computed<Metrica>(() => (enMundo.value ? 'riesgo' : metrica.value))
+const regPorId = computed(() => new Map((regiones.value?.filas ?? []).map((r) => [r.id, r])))
+const nombreR = (r: FilaRegion) => (lang.value === 'en' ? r.nombreEN : r.nombre)
+const paisR = (r: FilaRegion) => (lang.value === 'en' ? r.paisEN : r.pais)
+const listaReg = computed(() => {
+  const qq = q.value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return filasVista.value.filter((r) =>
+    (!nivelF.value || nivel(r.riesgo) === nivelF.value) &&
+    (!qq || `${nombreR(r)} ${paisR(r)}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(qq)))
+})
+type FilaVista = { id: string; nombre: string; sub: string; ancho: number; color: string; valor: string; reg?: FilaRegion }
+const filasRanking = computed<FilaVista[]>(() =>
+  enMundo.value
+    ? listaReg.value.map((r) => ({ id: r.id, nombre: nombreR(r), sub: r.esGT ? t('reg.gt') : paisR(r), ancho: r.riesgo * 10, color: colorDe(ESCALA_RIESGO, r.riesgo), valor: numero(r.riesgo, 1), reg: r }))
+    : lista.value.map((f) => ({
+        id: f.id, nombre: f.nombre, sub: f.depto, color: colorFila(f), valor: etiquetaValor(f),
+        ancho: metrica.value === 'riesgo' ? f.riesgo * 10 : Math.min(100, f.lluvia2026Pct ?? 0),
+      })),
+)
+const tituloRanking = computed(() => {
+  if (!enMundo.value) return t('ranking')
+  const r = paisVista.value ? filasVista.value[0] : null
+  return r ? t('ranking.de', { p: paisR(r) }) : t('ranking.visible')
+})
 const reducido = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 // En 2040 solo tiene sentido la métrica de riesgo.
@@ -47,6 +89,14 @@ async function recargar() {
   pintar()
 }
 watch(horizonte, recargar)
+watch([horizonte, metrica], () => {
+  const m = mapa.value
+  if (m?.getLayer('reg-relleno')) m.setPaintProperty('reg-relleno', 'fill-opacity', opacidadReg())
+})
+function opacidadReg(): any {
+  const tenue = horizonte.value !== '2026' || metrica.value !== 'riesgo'
+  return ['case', ['boolean', ['feature-state', 'hover'], false], 0.9, tenue ? 0.22 : 0.62]
+}
 watch([metrica, filtradas], pintar)
 
 function colorFila(f: FilaRiesgo) {
@@ -74,6 +124,7 @@ async function iniciarMapa() {
   try {
     if (!hayWebGL()) throw new Error('sin webgl')
     maplibregl = await cargarMaplibre()
+    ml = maplibregl
   } catch {
     sinWebGL.value = true
     cargandoMapa.value = false
@@ -104,17 +155,28 @@ async function iniciarMapa() {
     dragRotate: true,
   })
   mapa.value = m
+  if (import.meta.env.DEV || new URLSearchParams(location.search).has('e2e')) (window as any).__mapaRiesgo = m
   m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right')
   m.addControl(new maplibregl.AttributionControl({ compact: true }), 'top-right')
   m.on('error', () => { /* una tesela que falla no rompe la vista */ })
   m.on('load', async () => {
     m.setTerrain({ source: 'dem', exaggeration: 1.35 })
+    const reg = cargarRegiones()
     try {
       geo.value = await cargarGeo()
     } catch {
       cargandoMapa.value = false
       return
     }
+    regiones.value = await reg
+    // el mundo debajo de Guatemala, misma escala de colores (Guatemala la pintan sus municipios)
+    m.addSource('regiones', { type: 'geojson', data: regiones.value.geo, promoteId: 'id' })
+    m.addLayer({ id: 'reg-relleno', type: 'fill', source: 'regiones', paint: { 'fill-color': ['get', 'color'], 'fill-opacity': opacidadReg() } })
+    m.addLayer({ id: 'reg-borde', type: 'line', source: 'regiones', paint: { 'line-color': '#fffaf2', 'line-width': 0.5, 'line-opacity': 0.75 } })
+    m.addLayer({
+      id: 'reg-sel', type: 'line', source: 'regiones',
+      paint: { 'line-color': tinta, 'line-width': ['case', ['boolean', ['feature-state', 'sel'], false], 2.4, ['boolean', ['feature-state', 'hover'], false], 1.4, 0] },
+    })
     m.addSource('municipios', { type: 'geojson', data: geo.value, promoteId: 'id' })
     m.addLayer({
       id: 'relleno', type: 'fill', source: 'municipios',
@@ -149,15 +211,116 @@ async function iniciarMapa() {
       hover.value = null
       m.getCanvas().style.cursor = ''
     })
-    m.on('click', 'relleno', (e: any) => {
+    let ultimoR: string | null = null
+    m.on('mousemove', 'reg-relleno', (e: any) => {
       const id = e.features?.[0]?.properties?.id as string | undefined
-      if (id) elegir(id, false)
+      if (!id) return
+      if (ultimoR && ultimoR !== id) m.setFeatureState({ source: 'regiones', id: ultimoR }, { hover: false })
+      ultimoR = id
+      m.setFeatureState({ source: 'regiones', id }, { hover: true })
+      m.getCanvas().style.cursor = 'pointer'
+      const r = regPorId.value.get(id)
+      if (r) hoverR.value = { r, x: e.point.x, y: e.point.y }
     })
+    m.on('mouseleave', 'reg-relleno', () => {
+      if (ultimoR) m.setFeatureState({ source: 'regiones', id: ultimoR }, { hover: false })
+      ultimoR = null
+      hoverR.value = null
+      m.getCanvas().style.cursor = ''
+    })
+    // municipio, región o, si no hay polígono, el riesgo de ese punto con el motor
+    m.on('click', (e: any) => {
+      if (rayos.value) return
+      const f = m.queryRenderedFeatures(e.point, { layers: ['relleno', 'reg-relleno'] })[0]
+      const id = f?.properties?.id as string | undefined
+      if (f && id) {
+        if (f.layer.id === 'relleno') elegir(id, false)
+        else { const r = regPorId.value.get(id); if (r) elegirRegion(r, false) }
+        return
+      }
+      consultarPunto(e.lngLat.lat, e.lngLat.lng)
+    })
+    m.on('moveend', actualizarVista)
+    actualizarVista()
     m.once('idle', () => (cargandoMapa.value = false))
   })
 }
 
+function limpiarSel() {
+  const m = mapa.value
+  if (m && selReg.value && !selReg.value.esGT) m.setFeatureState({ source: 'regiones', id: selReg.value.id }, { sel: false })
+  selReg.value = null
+  punto.value = null
+  puntoCargando.value = false
+  marca?.remove()
+  marca = null
+}
+const verFicha = () => requestAnimationFrame(() => fichaEl.value?.scrollIntoView?.({ block: 'nearest', behavior: reducido ? 'auto' : 'smooth' }))
+
+function elegirRegion(r: FilaRegion, volar = true) {
+  if (r.esGT) { verGuatemala(); return }
+  const m = mapa.value
+  limpiarSel()
+  if (m && seleccion.value) m.setFeatureState({ source: 'municipios', id: seleccion.value }, { sel: false })
+  seleccion.value = null
+  selReg.value = r
+  m?.setFeatureState({ source: 'regiones', id: r.id }, { sel: true })
+  if (m && volar) m.flyTo({ center: [r.lon, r.lat], zoom: Math.max(m.getZoom(), 4.6), pitch: 0, bearing: 0, duration: reducido ? 0 : 1800, essential: true })
+  verFicha()
+}
+
+/** Punto sin polígono (o fuera de los mapas): el motor calcula su riesgo con NASA POWER (8–15 s si es nuevo). */
+let pedido = 0
+async function consultarPunto(lat: number, lon: number) {
+  const m = mapa.value
+  const n = ++pedido
+  limpiarSel()
+  if (m && seleccion.value) m.setFeatureState({ source: 'municipios', id: seleccion.value }, { sel: false })
+  seleccion.value = null
+  punto.value = { lat, lon }
+  puntoCargando.value = true
+  if (m && ml) {
+    const el = document.createElement('div')
+    el.className = 'marca-punto'
+    marca = new ml.Marker({ element: el }).setLngLat([lon, lat]).addTo(m)
+  }
+  verFicha()
+  try {
+    const r = await api.get<any>(`/api/sitio?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`, undefined, 45_000)
+    if (n === pedido) punto.value = leerSitio(r, lat, lon)
+  } catch { /* la ficha avisa que no hubo respuesta */ }
+  if (n === pedido) puntoCargando.value = false
+}
+
+/** Qué país o zona se ve: el ranking del panel se adapta. */
+function actualizarVista() {
+  const m = mapa.value
+  if (!m || !regiones.value) return
+  const c = m.getCenter()
+  const z = m.getZoom()
+  if (vistaGuatemala(c.lng, c.lat, z)) { modo.value = 'gt'; return }
+  modo.value = 'mundo'
+  const b = m.getBounds()
+  const ancho = b.getEast() - b.getWest()
+  const envolver = (x: number) => ((((x + 180) % 360) + 360) % 360) - 180
+  const caja = ancho >= 360
+    ? { oeste: -180, sur: b.getSouth(), este: 180, norte: b.getNorth() }
+    : { oeste: envolver(b.getWest()), sur: b.getSouth(), este: envolver(b.getEast()), norte: b.getNorth() }
+  const r = filasVisibles(regiones.value.filas, caja, paisEn(regiones.value.geo, c.lng, c.lat), z)
+  filasVista.value = r.filas
+  paisVista.value = r.pais
+}
+
+function verMundoGT() {
+  const m = mapa.value
+  if (!m) return
+  if (enMundo.value) { verGuatemala(); return }
+  const w = m.getContainer().clientWidth
+  m.flyTo({ center: [-40, 12], zoom: Math.max(0.4, Math.log2(w / 300)), pitch: 0, bearing: 0, duration: reducido ? 0 : 2200, essential: true })
+}
+
 function elegir(id: string, volar = true) {
+  limpiarSel()
   const m = mapa.value
   if (m && seleccion.value) m.setFeatureState({ source: 'municipios', id: seleccion.value }, { sel: false })
   seleccion.value = id
@@ -174,6 +337,12 @@ function verGuatemala() {
 watch(satelite, (s) => mapa.value?.setLayoutProperty('sat', 'visibility', s ? 'visible' : 'none'))
 
 function exportar() {
+  if (enMundo.value) {
+    const fila = (x: (string | number)[]) => x.map((v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v)).join(',')
+    const txt = [fila(['region', 'pais', 'riesgo_de_10', 'metodo', 'lat', 'lon', 'fuente']), ...listaReg.value.map((r) => fila([nombreR(r), paisR(r), r.riesgo, r.metodo, r.lat, r.lon, r.fuente]))].join('\n')
+    descargar('fieldshift_riesgo_mundo_2026.csv', txt)
+    return
+  }
   if (!datos.value) return
   descargar(`fieldshift_riesgo_${horizonte.value}.csv`, aCSV(datos.value, lista.value))
 }
@@ -182,7 +351,7 @@ const etiquetaValor = (f: FilaRiesgo) =>
   metrica.value === 'riesgo' ? numero(f.riesgo, 1) : f.lluvia2026Pct != null ? `${f.lluvia2026Pct}%` : '—'
 
 const leyenda = computed(() =>
-  metrica.value === 'riesgo'
+  metricaVista.value === 'riesgo'
     ? [
         { c: ESCALA_RIESGO[0].color, l: '0–1' }, { c: ESCALA_RIESGO[1].color, l: '1–2' }, { c: ESCALA_RIESGO[2].color, l: '2–3' },
         { c: ESCALA_RIESGO[3].color, l: '3–4.5' }, { c: ESCALA_RIESGO[4].color, l: '4.5+' },
@@ -198,7 +367,7 @@ onMounted(async () => {
   datos.value = await cargarRiesgo(horizonte.value)
   iniciarMapa()
 })
-onBeforeUnmount(() => mapa.value?.remove())
+onBeforeUnmount(() => { marca?.remove(); mapa.value?.remove() })
 </script>
 
 <template>
@@ -212,8 +381,9 @@ onBeforeUnmount(() => mapa.value?.remove())
       <div class="controles-mapa">
         <button class="chip" :class="{ on: rayos }" data-testid="btn-rayos" @click="rayos = !rayos"><ScanEye :size="16" /> {{ t('rayos') }}</button>
         <button class="chip" :class="{ on: satelite }" @click="satelite = !satelite"><Layers :size="16" /> {{ t('satelite') }}</button>
-        <button class="chip" @click="verGuatemala"><Mountain :size="16" /> {{ t('vistaGT') }}</button>
+        <button class="chip" :class="{ on: enMundo }" data-testid="btn-mundo" :aria-pressed="enMundo" @click="verMundoGT"><Globe :size="16" /> {{ t('vistaMundo') }}</button>
       </div>
+      <div v-if="puntoCargando" class="punto-carga" role="status" data-testid="punto-cargando-mapa"><LoaderCircle :size="16" class="gira" /> {{ t('punto.cargando') }}</div>
 
       <div v-if="hover && !rayos" class="tip" :style="{ left: hover.x + 'px', top: hover.y + 'px' }" data-testid="tip">
         <strong>{{ hover.f.nombre }}</strong><span class="depto">{{ hover.f.depto }}</span>
@@ -225,8 +395,14 @@ onBeforeUnmount(() => mapa.value?.remove())
         <EtiquetaDato :texto="datos?.calidad === 'ejemplo' ? t('calidad.ejemplo') : datos?.calidad === 'motor' ? t('calidad.motor') + ' · NASA POWER' : 'NASA POWER · ' + (datos?.periodo ?? '')" :aviso="datos?.calidad === 'ejemplo'" />
       </div>
 
+      <div v-if="hoverR && !rayos && !hover" class="tip" :style="{ left: hoverR.x + 'px', top: hoverR.y + 'px' }" data-testid="tip-region">
+        <strong>{{ nombreR(hoverR.r) }}</strong><span class="depto">{{ paisR(hoverR.r) }}</span>
+        <div class="tip-v"><span class="punto" :style="{ background: colorDe(ESCALA_RIESGO, hoverR.r.riesgo) }" />{{ t('tip.riesgo', { v: numero(hoverR.r.riesgo, 1) }) }}</div>
+        <EtiquetaDato :texto="hoverR.r.metodo === 'motor' ? t('reg.motor') : t('reg.grueso')" />
+      </div>
+
       <div class="leyenda" aria-label="Legend">
-        <div class="leyenda-t">{{ metrica === 'riesgo' ? t('leyenda.riesgo') : t('leyenda.lluvia') }}</div>
+        <div class="leyenda-t">{{ metricaVista === 'riesgo' ? t('leyenda.riesgo') : t('leyenda.lluvia') }}</div>
         <div class="leyenda-b">
           <span v-for="(s, i) in leyenda" :key="i" class="paso"><i :style="{ background: s.c }" />{{ s.l }}</span>
         </div>
@@ -236,7 +412,7 @@ onBeforeUnmount(() => mapa.value?.remove())
     <aside class="panel">
       <p class="eyebrow">{{ t('eyebrow') }}</p>
       <h2>{{ t('titulo') }}</h2>
-      <p class="sub">{{ t('sub', { n: datos?.filas.length ?? 340 }) }}</p>
+      <p class="sub">{{ enMundo ? t('sub.mundo') : t('sub', { n: datos?.filas.length ?? 340 }) }}</p>
 
       <div class="grupo" role="group" :aria-label="t('horizonte')">
         <span class="lbl">{{ t('horizonte') }}</span>
@@ -251,7 +427,11 @@ onBeforeUnmount(() => mapa.value?.remove())
         </div>
       </div>
 
-      <div v-if="datos" class="calidad" :class="datos.calidad">
+      <p v-if="enMundo && (horizonte !== '2026' || metrica !== 'riesgo')" class="nota-mundo">{{ t('nota.soloHoy') }}</p>
+      <div v-if="enMundo" class="calidad motor">
+        <div><strong>{{ t('calidad.mundo') }}</strong><p>{{ t('nota.mundo') }}</p></div>
+      </div>
+      <div v-else-if="datos" class="calidad" :class="datos.calidad">
         <ShieldAlert v-if="datos.calidad !== 'motor'" :size="16" />
         <div>
           <strong>{{ t('calidad.' + datos.calidad) }}</strong>
@@ -259,7 +439,36 @@ onBeforeUnmount(() => mapa.value?.remove())
         </div>
       </div>
 
-      <div v-if="sel" class="ficha" data-testid="ficha-municipio">
+      <div v-if="punto" ref="fichaEl" class="ficha" data-testid="ficha-punto">
+        <div class="ficha-cab">
+          <MapPin :size="18" />
+          <div><strong>{{ punto.nombre ?? t('punto.titulo') }}</strong><span class="num">{{ punto.lat.toFixed(3) }}, {{ punto.lon.toFixed(3) }}</span></div>
+          <span v-if="!puntoCargando && !punto.mar && punto.riesgo != null" class="nivel" :class="nivel(punto.riesgo)">{{ t(nivel(punto.riesgo)) }}</span>
+        </div>
+        <div v-if="puntoCargando" class="cargando-punto" role="status" data-testid="punto-cargando"><LoaderCircle :size="18" class="gira" /> {{ t('punto.cargando') }}</div>
+        <p v-else-if="punto.mar" class="dato" data-testid="punto-mar">{{ t('punto.mar') }}</p>
+        <template v-else-if="punto.riesgo != null">
+          <div class="grande num">{{ numero(punto.riesgo, 1) }}<small>/10</small></div>
+          <p class="dato">{{ t('tip.riesgo', { v: numero(punto.riesgo, 1) }) }}</p>
+          <p v-if="punto.resumen" class="dato">{{ lang === 'en' ? punto.resumenEN ?? punto.resumen : punto.resumen }}</p>
+          <EtiquetaDato :texto="(punto.motor ?? 'Field Shift') + ' · NASA POWER 2001–2025'" />
+        </template>
+        <p v-else class="dato" data-testid="punto-error">{{ t('punto.error') }}</p>
+      </div>
+
+      <div v-if="selReg" ref="fichaEl" class="ficha" data-testid="ficha-region">
+        <div class="ficha-cab">
+          <MapPin :size="18" />
+          <div><strong>{{ nombreR(selReg) }}</strong><span>{{ paisR(selReg) }}</span></div>
+          <span class="nivel" :class="nivel(selReg.riesgo)">{{ t(nivel(selReg.riesgo)) }}</span>
+        </div>
+        <div class="grande num">{{ numero(selReg.riesgo, 1) }}<small>/10</small></div>
+        <p class="dato">{{ t('tip.riesgo', { v: numero(selReg.riesgo, 1) }) }}</p>
+        <p class="dato">{{ selReg.metodo === 'motor' ? t('reg.motor.largo') : t('reg.grueso.largo') }}</p>
+        <EtiquetaDato :texto="selReg.fuente + ' · ' + (regiones?.periodo ?? '2001–2025')" />
+      </div>
+
+      <div v-if="sel" ref="fichaEl" class="ficha" data-testid="ficha-municipio">
         <div class="ficha-cab">
           <MapPin :size="18" />
           <div><strong>{{ sel.nombre }}</strong><span>{{ sel.depto }}</span></div>
@@ -281,9 +490,9 @@ onBeforeUnmount(() => mapa.value?.remove())
       </div>
 
       <div class="filtros">
-        <label class="buscar"><Search :size="16" /><input v-model="q" :placeholder="t('buscar')" data-testid="buscar" /></label>
-        <div class="fila2">
-          <select v-model="depto" :aria-label="t('todos')"><option value="">{{ t('todos') }}</option><option v-for="d in deptos" :key="d" :value="d">{{ d }}</option></select>
+        <label class="buscar"><Search :size="16" /><input v-model="q" :placeholder="enMundo ? t('buscar.mundo') : t('buscar')" data-testid="buscar" /></label>
+        <div class="fila2" :class="{ uno: enMundo }">
+          <select v-if="!enMundo" v-model="depto" :aria-label="t('todos')"><option value="">{{ t('todos') }}</option><option v-for="d in deptos" :key="d" :value="d">{{ d }}</option></select>
           <select v-model="nivelF" :aria-label="t('nivel.todos')">
             <option value="">{{ t('nivel.todos') }}</option><option value="alto">{{ t('alto') }}</option><option value="medio">{{ t('medio') }}</option><option value="bajo">{{ t('bajo') }}</option>
           </select>
@@ -291,16 +500,16 @@ onBeforeUnmount(() => mapa.value?.remove())
       </div>
 
       <div class="rank-cab">
-        <div><h3>{{ t('ranking') }}</h3><span>{{ t('ranking.sub', { n: lista.length }) }}</span></div>
+        <div><h3 data-testid="ranking-titulo">{{ tituloRanking }}</h3><span>{{ enMundo ? t('ranking.reg', { n: listaReg.length }) : t('ranking.sub', { n: lista.length }) }}</span></div>
         <button class="btn" data-testid="exportar" @click="exportar"><Download :size="16" /> {{ t('exportar') }}</button>
       </div>
       <ol class="ranking" data-testid="ranking">
-        <li v-for="(f, i) in lista.slice(0, 60)" :key="f.id" :class="{ on: f.id === seleccion }">
-          <button @click="elegir(f.id)">
+        <li v-for="(f, i) in filasRanking.slice(0, 60)" :key="f.id" :class="{ on: f.id === seleccion || f.id === selReg?.id }">
+          <button @click="f.reg ? elegirRegion(f.reg) : elegir(f.id)">
             <span class="pos num">{{ i + 1 }}</span>
-            <span class="nom"><strong>{{ f.nombre }}</strong><small>{{ f.depto }}</small></span>
-            <span class="barra"><i :style="{ width: (metrica === 'riesgo' ? f.riesgo * 10 : Math.min(100, f.lluvia2026Pct ?? 0)) + '%', background: colorFila(f) }" /></span>
-            <span class="val num">{{ etiquetaValor(f) }}</span>
+            <span class="nom"><strong>{{ f.nombre }}</strong><small>{{ f.sub }}</small></span>
+            <span class="barra"><i :style="{ width: f.ancho + '%', background: f.color }" /></span>
+            <span class="val num">{{ f.valor }}</span>
           </button>
         </li>
       </ol>
@@ -405,6 +614,19 @@ select { font: inherit; font-size: .88rem; padding: 9px 10px; border-radius: 12p
 :deep(.maplibregl-ctrl-bottom-right) { z-index: 3; }
 :deep(.maplibregl-ctrl-group) { border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-1) !important; }
 
+.punto-carga {
+  position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; gap: 8px; align-items: center;
+  padding: 8px 14px; border-radius: 999px; background: var(--ink, #2a2118); color: var(--bg, #f5efe4); font-weight: 650; font-size: .88rem; box-shadow: var(--shadow-1);
+}
+.cargando-punto { display: flex; gap: 8px; align-items: center; color: var(--ink-2, #57473a); font-weight: 600; padding: 6px 0; }
+.gira { animation: gira 1s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+.nota-mundo { margin: 0; font-size: .84rem; color: var(--ink-3); }
+.fila2.uno { grid-template-columns: 1fr; }
+:global(.marca-punto) {
+  width: 22px; height: 22px; border-radius: 50%; background: var(--surface, #fffaf2); border: 5px solid var(--ink, #2a2118);
+  box-shadow: 0 0 0 3px rgba(255, 250, 242, .8), 0 4px 12px rgba(0, 0, 0, .35);
+}
 @media (min-width: 960px) {
   .fs-mapa { grid-template-columns: 1fr 400px; height: calc(100dvh - 56px); }
   .lienzo { height: auto; }
@@ -413,5 +635,6 @@ select { font: inherit; font-size: .88rem; padding: 9px 10px; border-radius: 12p
 }
 @media (prefers-reduced-motion: reduce) {
   .gl, .barra i { transition: none; }
+  .gira { animation: none; }
 }
 </style>

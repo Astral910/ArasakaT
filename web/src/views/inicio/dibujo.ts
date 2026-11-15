@@ -43,12 +43,16 @@ export class Dibujo {
   private rMark: Marker | null = null
   private vMarks: Marker[] = []
   private cursor: LatLon | null = null
+  private etiqueta: Marker | null = null
 
-  constructor(private m: MlMap, private ml: Ml, private alCambiar: (e: EstadoDibujo) => void, private textos: { punto: string; centro: string; radio: string; vertice: (n: number) => string }) {
+  constructor(private m: MlMap, private ml: Ml, private alCambiar: (e: EstadoDibujo) => void, private textos: { punto: string; centro: string; radio: string; vertice: (n: number) => string; area: (m2: number) => string }) {
     m.addSource('parcela', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-    m.addLayer({ id: 'parcela-fill', type: 'fill', source: 'parcela', filter: ['==', ['get', 'k'], 'area'], paint: { 'fill-color': ['case', ['get', 'agua'], '#e5484d', '#f2c75c'], 'fill-opacity': 0.28 } })
-    m.addLayer({ id: 'parcela-borde', type: 'line', source: 'parcela', filter: ['==', ['get', 'k'], 'area'], layout: { 'line-join': 'round' }, paint: { 'line-color': ['case', ['get', 'agua'], '#ff8a80', '#fff3c4'], 'line-width': 3 } })
-    m.addLayer({ id: 'parcela-traza', type: 'line', source: 'parcela', filter: ['==', ['get', 'k'], 'traza'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#fff3c4', 'line-width': 2.5, 'line-dasharray': [2, 1.5] } })
+    // Nítido sobre cualquier satélite: relleno amarillo semitransparente, casco oscuro debajo de un borde grueso claro.
+    const area = ['==', ['get', 'k'], 'area'] as any
+    m.addLayer({ id: 'parcela-fill', type: 'fill', source: 'parcela', filter: area, paint: { 'fill-color': ['case', ['get', 'agua'], '#ff5a5f', '#ffd23f'], 'fill-opacity': 0.34 } })
+    m.addLayer({ id: 'parcela-casco', type: 'line', source: 'parcela', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#10151c', 'line-opacity': 0.75, 'line-width': ['case', ['==', ['get', 'k'], 'area'], 8, 6] } })
+    m.addLayer({ id: 'parcela-borde', type: 'line', source: 'parcela', filter: area, layout: { 'line-join': 'round' }, paint: { 'line-color': ['case', ['get', 'agua'], '#ff8a80', '#ffe066'], 'line-width': 4 } })
+    m.addLayer({ id: 'parcela-traza', type: 'line', source: 'parcela', filter: ['==', ['get', 'k'], 'traza'], layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#ffffff', 'line-width': 3, 'line-dasharray': [2, 1.2] } })
     m.on('click', this.clic)
     m.on('mousemove', this.mover)
   }
@@ -81,6 +85,8 @@ export class Dibujo {
     this.limpiarMarcas()
     this.pin?.remove()
     this.pin = null
+    this.etiqueta?.remove()
+    this.etiqueta = null
     this.pintar()
   }
   /** El clic en el mapa lo usa el dibujo (y no el globo). */
@@ -215,12 +221,35 @@ export class Dibujo {
     if (this.activo && this.forma === 'poligono') {
       if (this.cerrado && this.verts.length >= 3) f.push({ type: 'Feature', properties: { k: 'area', agua: this.aguaVisible }, geometry: { type: 'Polygon', coordinates: [anillo(this.verts)] } })
       else if (this.verts.length) {
-        const pts = [...this.verts, ...(this.cursor ? [this.cursor] : [])].map((q) => [q[1], q[0]])
-        f.push({ type: 'Feature', properties: { k: 'traza' }, geometry: { type: 'LineString', coordinates: pts } })
-        if (this.verts.length >= 3) f.push({ type: 'Feature', properties: { k: 'area', agua: this.aguaVisible }, geometry: { type: 'Polygon', coordinates: [anillo(this.verts)] } })
+        // en vivo: la línea y el relleno siguen al mouse hasta el próximo vértice
+        const vivo = [...this.verts, ...(this.cursor ? [this.cursor] : [])]
+        f.push({ type: 'Feature', properties: { k: 'traza' }, geometry: { type: 'LineString', coordinates: vivo.map((q) => [q[1], q[0]]) } })
+        if (vivo.length >= 3) f.push({ type: 'Feature', properties: { k: 'area', agua: this.aguaVisible }, geometry: { type: 'Polygon', coordinates: [anillo(vivo)] } })
       }
     }
+    this.rotular()
     src.setData({ type: 'FeatureCollection', features: f } as any)
+  }
+
+  /** Área junto al dibujo (m², cuerdas, manzanas), en vivo con el mouse. */
+  private rotular() {
+    let m2 = 0
+    let en: LatLon | null = null
+    let abajo = false
+    if (this.activo && this.forma === 'circulo') { m2 = Math.PI * this.radio ** 2; en = this.centro; abajo = true }
+    if (this.activo && this.forma === 'poligono') {
+      const vivo = this.cerrado ? this.verts : [...this.verts, ...(this.cursor ? [this.cursor] : [])]
+      if (vivo.length >= 3) { m2 = areaPoligono(vivo); en = centroide(vivo) }
+    }
+    if (!en || !m2) { this.etiqueta?.remove(); this.etiqueta = null; return }
+    if (!this.etiqueta) {
+      const d = document.createElement('div')
+      d.className = 'etiqueta-area'
+      d.setAttribute('data-testid', 'area-mapa')
+      this.etiqueta = new this.ml.Marker({ element: d, anchor: 'center' })
+    }
+    this.etiqueta.getElement().textContent = this.textos.area(m2)
+    this.etiqueta.setOffset([0, abajo ? 38 : 0]).setLngLat([en[1], en[0]]).addTo(this.m)
   }
 
   private avisar() { this.alCambiar(this.estado) }
@@ -230,7 +259,7 @@ export class Dibujo {
     const p = this.poligonoActual()
     if (p.length < 3) return
     const lats = p.map((q) => q[0]), lons = p.map((q) => q[1])
-    this.m.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding: pad, maxZoom: 18.5, duration: 600 })
+    this.m.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]], { padding: pad, maxZoom: this.m.getMaxZoom(), duration: 600 })
   }
 
   /** Puntos a revisar en agua: centro + rejilla dentro de la forma. */
