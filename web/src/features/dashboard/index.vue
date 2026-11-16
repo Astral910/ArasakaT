@@ -38,7 +38,7 @@ const alerta = (h?: Hoy | null) => !!h?.avisos.some((a) => a.nivel === 'mala')
   <section class="mis container">
     <header class="cab">
       <div>
-        <p class="eyebrow">{{ usuario ? tx('hola', { nombre: usuario.nombre }) : 'Field Shift' }}</p>
+        <p class="eyebrow">{{ usuario ? tx('hola', { nombre: usuario.nombre }) : 'SeedView' }}</p>
         <h1>{{ tx('misTerrenos') }}</h1>
       </div>
       <button class="salir" type="button" @click="cerrar"><LogOut :size="16" aria-hidden="true" />{{ tx('salir') }}</button>

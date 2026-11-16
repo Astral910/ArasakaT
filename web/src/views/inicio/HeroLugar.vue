@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import BuscarCultivo from './BuscarCultivo.vue'
 // Hero de una sola pantalla: "¿Dónde está tu terreno?" → 3 preguntas en chips (con valores por defecto) → /sandbox?…&auto=1.
 // Camino mínimo: escribir el lugar y elegirlo (o tocar el mapa / usar mi ubicación) + 1 toque en "Ver mi temporada".
 // Ronda 4: búsqueda exacta (colonias, residenciales, aldeas…), punto exacto con un clic en el satélite y, aparte,
 // "Dibujar mi terreno exacto" (círculo o polígono) con el área calculada y aviso si cae en agua.
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute, RouterLink } from 'vue-router'
-import { Search, LocateFixed, MapPin, Play, X, Loader2, SlidersHorizontal, ShieldCheck, PenLine, Undo2, Check, Trash2, Crosshair, Circle, Hexagon, Droplets, CalendarDays, Sparkles, CircleCheck, TriangleAlert, OctagonAlert } from 'lucide-vue-next'
+import { Search, LocateFixed, MapPin, Play, X, Loader2, SlidersHorizontal, PenLine, Undo2, Check, Trash2, Crosshair, Circle, Hexagon, Droplets, CalendarDays, Sparkles, CircleCheck, TriangleAlert, OctagonAlert } from 'lucide-vue-next'
 import GloboFondo from './GloboFondo.vue'
 import { usePlanStore } from '@/stores/plan'
 import { t, lang } from '@/i18n'
@@ -244,6 +243,37 @@ const puedeDeshacer = computed(() => { void est.value; return !!globo.value?.pue
 
 // ---------- 3 preguntas ----------
 const cultivo = ref<Cultivo>(DEFAULTS.cultivo)
+// ronda 8: solo los cultivos de siempre; al elegir el lugar el motor dice cuál conviene más ahí
+const cultivos: Cultivo[] = ['milpa', 'maiz', 'frijol', 'otro']
+const recomendado = ref<Cultivo | null>(null)
+const porQueRec = ref('')
+let pedidoRec = 0
+async function recomendar(lat: number, lon: number) {
+  const n = ++pedidoRec
+  recomendado.value = null; porQueRec.value = ''
+  const base = (import.meta.env.VITE_API_BASE as string | undefined) ?? ''
+  const uno = async (c: Cultivo) => {
+    try {
+      const r = await fetch(`${base}/api/simulate?resumen=1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan: { lat, lon, cultivo: c }, estrategia: 'S0', escenario: 'pronostico', riego_mm_semana: 20 }) })
+      const j = await r.json() as { siembra?: { viable?: { ok: boolean; texto?: string; texto_en?: string } }; confianza?: { prob_perdida?: number } }
+      return { c, ok: j.siembra?.viable?.ok !== false, p: j.confianza?.prob_perdida ?? 1, v: j.siembra?.viable }
+    } catch { return null }
+  }
+  const rs = (await Promise.all((['milpa', 'maiz', 'frijol'] as Cultivo[]).map(uno))).filter((x) => x !== null)
+  if (n !== pedidoRec || !rs.length) return
+  const buenos = rs.filter((x) => x.ok).sort((a, b) => a.p - b.p + (a.c === 'milpa' ? -0.03 : 0))
+  if (!buenos.length) {
+    const v = rs[0].v
+    porQueRec.value = (lang.value === 'en' ? 'None of these crops thrives here. ' : 'Ninguno de estos cultivos prospera aquí. ') + (lang.value === 'en' ? v?.texto_en ?? '' : v?.texto ?? '')
+    return
+  }
+  const b = buenos[0]
+  recomendado.value = b.c
+  cultivo.value = b.c
+  const diez = Math.round(b.p * 10)
+  porQueRec.value = lang.value === 'en' ? `${t('ini.crop.' + b.c)} has the lowest risk here: harvest lost in ${diez} of 10 similar seasons.` : `${t('ini.crop.' + b.c)} es lo que menos riesgo tiene aquí: se pierde la cosecha en ${diez} de cada 10 temporadas parecidas.`
+}
+watch(() => (lugar.value ? `${lugar.value.lat.toFixed(3)},${lugar.value.lon.toFixed(3)}` : ''), (k) => { if (k && lugar.value) recomendar(lugar.value.lat, lugar.value.lon) })
 const riego = ref<Riego>(DEFAULTS.riego)
 const tamano = ref<'pequeno' | 'media' | 'una' | 'mas'>('una')
 const areaMas = ref<string>('2')
@@ -353,7 +383,6 @@ defineExpose({ elegir })
 
     <div class="container ini-wrap">
       <div class="ini-card" :class="{ elegido: !!lugar, dibujo: dibujando }">
-        <p v-if="!dibujando" class="eyebrow">{{ t('ini.eyebrow') }}</p>
         <h1 v-if="!dibujando" id="ini-titulo">{{ t('ini.title') }}</h1>
 
         <!-- 1 · LUGAR -->
@@ -437,7 +466,12 @@ defineExpose({ elegir })
 
           <div class="preg" role="group" aria-labelledby="pq-cultivo">
             <span id="pq-cultivo" class="pq">{{ t('ini.q.crop') }}</span>
-            <BuscarCultivo v-model="cultivo" />
+            <div class="chips">
+              <button v-for="c in cultivos" :key="c" type="button" class="chip" :class="{ on: cultivo === c, rec: recomendado === c }" :aria-pressed="cultivo === c" :data-testid="'cultivo-' + c" @click="cultivo = c">
+                {{ t('ini.crop.' + c) }}<span v-if="recomendado === c" class="rec-tag">{{ lang === 'en' ? 'Best here' : 'Recomendado' }}</span>
+              </button>
+            </div>
+            <p v-if="porQueRec" class="rec-txt" data-testid="cultivo-recomendado"><Sparkles aria-hidden="true" />{{ porQueRec }}</p>
           </div>
           <div v-if="conForma && areaDibujo" class="preg" role="group" aria-labelledby="pq-tam">
             <span id="pq-tam" class="pq">{{ t('ini.q.sizeDrawn') }}</span>
@@ -511,7 +545,6 @@ defineExpose({ elegir })
           <template v-if="aviso"><Droplets v-if="aviso === 'aguaParcela' || aviso === 'aguaParcial'" class="a-ic" aria-hidden="true" />{{ t('ini.msg.' + aviso) }}</template>
           <template v-else-if="sinRed && !lugar">{{ t('ini.msg.offline') }}</template>
         </p>
-        <p v-if="!lugar" class="priv"><ShieldCheck aria-hidden="true" />{{ t('ini.privacy') }}</p>
       </div>
     </div>
     <a v-if="!dibujando" href="#mas" class="bajar">{{ t('ini.more') }}</a>
@@ -522,19 +555,27 @@ defineExpose({ elegir })
 .ini { position: relative; height: 100svh; min-height: 560px; margin-top: -68px; overflow: hidden; color: #fff; isolation: isolate; }
 .velo { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(7, 13, 23, 0.72) 0%, rgba(7, 13, 23, 0.35) 38%, transparent 60%); }
 .ini-wrap { position: relative; height: 100%; display: flex; align-items: center; padding-top: 68px; pointer-events: none; }
-.ini-card { pointer-events: auto; width: min(520px, 100%); display: flex; flex-direction: column; gap: 0.85rem; padding: 1.6rem 1.6rem 1.2rem; border-radius: 26px;
-  /* ronda 7: liquid glass — translúcido, desenfoque saturado, borde fino claro con reflejo y sombra suave */
-  background: radial-gradient(120% 60% at 12% 0%, rgba(255, 255, 255, 0.16), transparent 55%), linear-gradient(155deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 38%, rgba(12, 18, 28, 0.34) 100%), rgba(12, 18, 28, 0.32);
-  backdrop-filter: blur(26px) saturate(1.8); -webkit-backdrop-filter: blur(26px) saturate(1.8);
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38), inset 0 -1px 0 rgba(255, 255, 255, 0.06), 0 24px 60px rgba(0, 0, 0, 0.32), 0 2px 10px rgba(0, 0, 0, 0.18); }
+.ini-card { position: relative; pointer-events: auto; width: min(520px, 100%); display: flex; flex-direction: column; gap: 0.95rem; padding: 1.9rem 1.8rem 1.5rem; border-radius: 30px; isolation: isolate;
+  /* ronda 8: liquid glass — vidrio grueso: refracción (blur + saturación + brillo), luz especular arriba, borde con reflejo en degradé y grano */
+  background:
+    radial-gradient(140% 70% at 10% -10%, rgba(255, 255, 255, 0.28), transparent 50%),
+    radial-gradient(90% 60% at 100% 110%, rgba(120, 220, 190, 0.16), transparent 60%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 45%, rgba(8, 14, 24, 0.30) 100%);
+  backdrop-filter: blur(22px) saturate(2.1) brightness(1.06) contrast(1.05); -webkit-backdrop-filter: blur(22px) saturate(2.1) brightness(1.06) contrast(1.05);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.55), inset 0 -18px 40px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 30px 80px rgba(0, 0, 0, 0.42), 0 4px 14px rgba(0, 0, 0, 0.22); }
+.ini-card::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1.4px; pointer-events: none; z-index: -1;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.12) 30%, rgba(255, 255, 255, 0.04) 55%, rgba(160, 240, 210, 0.55) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.ini-card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1; opacity: 0.09; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"); }
 .eyebrow { color: #f2c75c; margin: 0; }
-h1 { font-size: clamp(2.1rem, 4.6vw, 3.3rem); line-height: 1.06; letter-spacing: -0.025em; color: #fff; margin: 0; text-wrap: balance; }
+h1 { font-family: 'Bricolage Grotesque Variable', var(--font-display), sans-serif; font-weight: 800; font-size: clamp(2.4rem, 5.2vw, 3.8rem); line-height: 0.98; letter-spacing: -0.035em; margin: 0; text-wrap: balance;
+  background: linear-gradient(180deg, #ffffff 30%, #d9f5e8 100%); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 0 2px 30px rgba(0, 0, 0, 0.18); }
 .elegido h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
 .sub { color: rgba(255, 255, 255, 0.84); font-size: 1.04rem; margin: 0; }
 
 .buscador { position: relative; }
-.buscador input { width: 100%; font: inherit; font-size: 1.1rem; padding: 0.95rem 2.8rem 0.95rem 3rem; min-height: 58px; border-radius: 16px; border: 2px solid transparent; background: #fffaf2; color: #2a2118; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+.buscador input { width: 100%; font: inherit; font-size: 1.1rem; padding: 0.95rem 2.8rem 0.95rem 3rem; min-height: 58px; border-radius: 16px; border: 2px solid transparent; background: #ffffff; color: #1d1a14; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
 .buscador input::placeholder { color: #7b6d5e; }
 .buscador input:focus-visible { outline: none; border-color: #f2c75c; box-shadow: 0 0 0 4px rgba(242, 199, 92, 0.35); }
 .buscador input[aria-invalid='true'] { border-color: #f08a6a; }
@@ -563,6 +604,10 @@ h1 { font-size: clamp(2.1rem, 4.6vw, 3.3rem); line-height: 1.06; letter-spacing:
 .preg { display: flex; flex-direction: column; gap: 0.4rem; }
 .pq { font-weight: 700; font-size: 0.95rem; color: rgba(255, 255, 255, 0.92); }
 .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip.rec { border-color: #f5c84c; display: inline-flex; align-items: center; }
+.rec-tag { margin-left: 0.4rem; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.12rem 0.45rem; border-radius: 999px; background: #f5c84c; color: #2a2112; vertical-align: 1px; }
+.rec-txt { display: flex; gap: 0.4rem; align-items: flex-start; font-size: 0.84rem; line-height: 1.4; color: rgba(255, 255, 255, 0.85); margin-top: 0.15rem; }
+.rec-txt svg { width: 15px; height: 15px; flex: none; color: #f5c84c; margin-top: 2px; }
 .chip { font: inherit; font-weight: 650; font-size: 0.95rem; padding: 0.5rem 0.85rem; min-height: 44px; border-radius: 999px; border: 1.5px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.06); color: #fff; cursor: pointer; transition: all 160ms var(--ease); }
 .chip:hover { border-color: rgba(255, 255, 255, 0.6); }
 .chip.on { background: #fffaf2; color: #2a2118; border-color: #fffaf2; }

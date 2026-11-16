@@ -8,7 +8,7 @@ import { t } from '@/i18n'
     <HuipilBand :h="12" />
     <div class="container inner">
       <div class="col brand">
-        <div class="row"><BrandMark :size="30" /><strong>Field Shift</strong></div>
+        <div class="row"><BrandMark :size="30" /><strong>SeedView</strong></div>
         <p class="muted">{{ t('footer.honest') }}</p>
       </div>
       <nav class="col links" aria-label="Footer">

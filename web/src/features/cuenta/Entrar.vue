@@ -41,7 +41,7 @@ async function demo() {
 <template>
   <section class="entrar">
     <div class="tarjeta">
-      <p class="eyebrow">Field Shift</p>
+      <p class="eyebrow">SeedView</p>
       <h1>{{ tx(registro ? 'registroTitulo' : 'entrarTitulo') }}</h1>
       <p class="sub muted">{{ tx(registro ? 'registroSub' : 'entrarSub') }}</p>
 

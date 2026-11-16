@@ -103,7 +103,7 @@ onMounted(async () => {
       <template v-else>
         <h1>{{ t('cta.save') }}</h1>
         <p class="err" role="alert">{{ t('guardar.sinDatos') }}</p>
-        <RouterLink to="/" class="sec"><ArrowLeft aria-hidden="true" />Field Shift</RouterLink>
+        <RouterLink to="/" class="sec"><ArrowLeft aria-hidden="true" />SeedView</RouterLink>
       </template>
     </div>
   </section>

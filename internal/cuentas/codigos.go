@@ -43,9 +43,9 @@ func (s *Servicio) PedirVinculoWhatsApp(uid, tel string) error {
 	if err != nil {
 		return err
 	}
-	msg := fmt.Sprintf("Field Shift: tu código para vincular este WhatsApp a tu cuenta es *%s*. Vence en 15 minutos. Si no lo pediste, ignorá este mensaje.", c)
+	msg := fmt.Sprintf("SeedView: tu código para vincular este WhatsApp a tu cuenta es *%s*. Vence en 15 minutos. Si no lo pediste, ignorá este mensaje.", c)
 	if u.Idioma == "en" {
-		msg = fmt.Sprintf("Field Shift: your code to link this WhatsApp to your account is *%s*. It expires in 15 minutes. If you didn't ask for it, ignore this message.", c)
+		msg = fmt.Sprintf("SeedView: your code to link this WhatsApp to your account is *%s*. It expires in 15 minutes. If you didn't ask for it, ignore this message.", c)
 	}
 	if err := s.mensajero.EnviarTexto(strings.TrimPrefix(t, "+"), msg); err != nil {
 		log.Printf("cuentas: no pude mandar el código a %s: %v", Enmascarar(t), err)
@@ -148,10 +148,10 @@ func (s *Servicio) Recuperar(ident string) (string, error) {
 		return "", err
 	}
 	if canal == "correo" {
-		cuerpo := fmt.Sprintf("Tu código para restablecer la contraseña de Field Shift es %s.\nVence en 15 minutos. Si no lo pediste, ignorá este correo.\n\nYour Field Shift password reset code is %s (expires in 15 minutes).\n", c, c)
-		err = s.correo.Enviar(u.Correo, "Field Shift · código para restablecer tu contraseña", cuerpo)
+		cuerpo := fmt.Sprintf("Tu código para restablecer la contraseña de SeedView es %s.\nVence en 15 minutos. Si no lo pediste, ignorá este correo.\n\nYour SeedView password reset code is %s (expires in 15 minutes).\n", c, c)
+		err = s.correo.Enviar(u.Correo, "SeedView · código para restablecer tu contraseña", cuerpo)
 	} else {
-		err = s.mensajero.EnviarTexto(strings.TrimPrefix(tel, "+"), fmt.Sprintf("Field Shift: tu código para restablecer la contraseña es *%s*. Vence en 15 minutos. / Your password reset code is *%s*.", c, c))
+		err = s.mensajero.EnviarTexto(strings.TrimPrefix(tel, "+"), fmt.Sprintf("SeedView: tu código para restablecer la contraseña es *%s*. Vence en 15 minutos. / Your password reset code is *%s*.", c, c))
 	}
 	if err != nil {
 		log.Printf("cuentas: recuperar por %s falló para %s: %v", canal, u.ID, err)
@@ -207,7 +207,7 @@ func (c *SMTP) Enviar(para, asunto, cuerpo string) error {
 	if strings.ContainsAny(para+asunto, "\r\n") {
 		return errors.New("encabezado inválido")
 	}
-	msg := "From: Field Shift <" + c.De + ">\r\nTo: " + para + "\r\nSubject: " + asunto +
+	msg := "From: SeedView <" + c.De + ">\r\nTo: " + para + "\r\nSubject: " + asunto +
 		"\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n" + strings.ReplaceAll(cuerpo, "\n", "\r\n")
 	addr := net.JoinHostPort(c.Host, c.Puerto)
 	var auth smtp.Auth

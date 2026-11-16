@@ -451,7 +451,7 @@ onBeforeUnmount(() => { marca?.remove(); mapa.value?.remove() })
           <div class="grande num">{{ numero(punto.riesgo, 1) }}<small>/10</small></div>
           <p class="dato">{{ t('tip.riesgo', { v: numero(punto.riesgo, 1) }) }}</p>
           <p v-if="punto.resumen" class="dato">{{ lang === 'en' ? punto.resumenEN ?? punto.resumen : punto.resumen }}</p>
-          <EtiquetaDato :texto="(punto.motor ?? 'Field Shift') + ' · NASA POWER 2001–2025'" />
+          <EtiquetaDato :texto="(punto.motor ?? 'SeedView') + ' · NASA POWER 2001–2025'" />
         </template>
         <p v-else class="dato" data-testid="punto-error">{{ t('punto.error') }}</p>
       </div>

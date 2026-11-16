@@ -105,7 +105,7 @@ func Nuevo(cfg Config) (*Cliente, error) {
 		db.Close()
 		return nil, fmt.Errorf("whatsapp: base de la sesión: %w", err)
 	}
-	store.DeviceProps.Os = proto.String("Field Shift")
+	store.DeviceProps.Os = proto.String("SeedView")
 	return &Cliente{Cfg: cfg, cont: cont, db: db, log: lg, estado: Estado{Actualizado: time.Now()}}, nil
 }
 

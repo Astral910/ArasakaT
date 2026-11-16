@@ -43,7 +43,7 @@ function loop(t0: number) {
     if (!girar || !m) return
     const dt = Math.min(0.1, (ts - prev) / 1000)
     prev = ts
-    if (!m.isMoving()) { const c = m.getCenter(); m.setCenter([c.lng + dt * 2.2, c.lat]) }
+    if (!m.isMoving()) { const c = m.getCenter(); m.setCenter([c.lng + dt * 1.6, c.lat]) }
     raf = requestAnimationFrame(paso)
   }
   raf = requestAnimationFrame(paso)
@@ -97,6 +97,8 @@ function areaTexto(m2: number) {
 }
 
 /** Satélite ⇄ calles (Esri World Street Map) para ubicar el terreno por las calles. */
+// ronda 8: sin botón Satélite/Calles (siempre satélite); se deja la función por si se vuelve a usar
+void ((v: boolean) => verCalles(v))
 function verCalles(v: boolean) {
   calles.value = v
   const m = map.value
@@ -122,10 +124,11 @@ onMounted(() => {
     ml.setWorkerUrl((wk as { default: string }).default)
     if (!el.value) return
     const movil = innerWidth < 760
+    const zoomFinal = movil ? 1.35 : innerHeight > 820 ? 2.55 : 2.35
     const m = new ml.Map({
       container: el.value,
       center: props.inicio,
-      zoom: movil ? 1.05 : innerHeight > 820 ? 2.15 : 1.95,
+      zoom: zoomFinal - 0.8, // ronda 8: entra más chico y crece (transición) hasta un globo más grande
       attributionControl: false,
       maxPitch: 70,
       maxZoom: 18,
@@ -191,8 +194,16 @@ onMounted(() => {
         if (quiere && !m.getTerrain()) m.setTerrain({ source: 'dem', exaggeration: 1.3 })
         else if (!quiere && m.getTerrain()) m.setTerrain(null)
       })
+      // ronda 8: el globo gira lento y suave hasta que el usuario lo toca
+      const tocar = () => parar()
+      m.getCanvas().addEventListener('pointerdown', tocar, { once: true })
+      m.getCanvas().addEventListener('wheel', tocar, { once: true, passive: true })
       if (pendiente) { const p = pendiente; pendiente = null; p() }
-      else if (girar) loop(performance.now())
+      else {
+        if (!reduce) m.easeTo({ zoom: zoomFinal, duration: 2600, easing: (k) => 1 - Math.pow(1 - k, 3) })
+        else m.setZoom(zoomFinal)
+        if (girar) loop(performance.now())
+      }
     })
     m.on('error', () => { /* teselas caídas: el globo sigue con lo que tenga */ })
   }
@@ -230,10 +241,6 @@ defineExpose({
     <div class="planeta" aria-hidden="true"><span /></div>
     <div ref="el" class="lienzo" role="application" :aria-label="t('ini.mapAria')" />
     <div v-if="calles" class="velo" aria-hidden="true" />
-    <div v-if="listo && cerca" class="capas" role="radiogroup" :aria-label="t('ini.layer.aria')">
-      <button type="button" role="radio" :aria-checked="!calles" :class="{ on: !calles }" data-testid="btn-satelite" @click="verCalles(false)">{{ t('ini.layer.sat') }}</button>
-      <button type="button" role="radio" :aria-checked="calles" :class="{ on: calles }" data-testid="btn-calles" @click="verCalles(true)">{{ t('ini.layer.streets') }}</button>
-    </div>
   </div>
 </template>
 

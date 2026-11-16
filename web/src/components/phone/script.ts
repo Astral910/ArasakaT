@@ -35,8 +35,8 @@ export function guion(plan: Plan, lang: Lang): Paso[] {
   return [
     { wait: 500, msg: { from: 'user', tipo: 'text', texto: es ? 'Hola' : 'Hi' } },
     { wait: 1100, msg: { from: 'bot', tipo: 'location_request', texto: es
-      ? 'Hola 👋 Soy *Field Shift*. Te ayudo a planear tu milpa con datos de satélites de la NASA. Mandá tu *ubicación* 📍 o escribí tu municipio.'
-      : 'Hi 👋 I\'m *Field Shift*. I help you plan your milpa with NASA satellite data. Send your *location* 📍 or type your municipality.' } },
+      ? 'Hola 👋 Soy *SeedView*. Te ayudo a planear tu milpa con datos de satélites de la NASA. Mandá tu *ubicación* 📍 o escribí tu municipio.'
+      : 'Hi 👋 I\'m *SeedView*. I help you plan your milpa with NASA satellite data. Send your *location* 📍 or type your municipality.' } },
     { wait: 1300, msg: { from: 'user', tipo: 'location', texto: m } },
     { wait: 1000, msg: { from: 'bot', tipo: 'buttons', texto: es ? `*${m}* ✅\n¿Qué sembrás?` : `*${m}* ✅\nWhat do you plant?`,
       botones: [{ id: 'milpa', title: 'Milpa' }, { id: 'maiz', title: es ? 'Maíz' : 'Maize' }, { id: 'frijol', title: es ? 'Frijol' : 'Beans' }] } },

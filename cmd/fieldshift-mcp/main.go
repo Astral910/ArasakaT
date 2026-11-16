@@ -81,7 +81,7 @@ func servir(in io.Reader, out io.Writer, ejecutar func(string, map[string]any) (
 				"protocolVersion": p.ProtocolVersion,
 				"capabilities":    map[string]any{"tools": map[string]any{"listChanged": false}},
 				"serverInfo":      map[string]any{"name": "fieldshift", "version": "1.0.0"},
-				"instructions":    "Herramientas de Field Shift: plan, simulación, riego de hoy, reportes del agricultor, plagas y acciones de pantalla.",
+				"instructions":    "Herramientas de SeedView: plan, simulación, riego de hoy, reportes del agricultor, plagas y acciones de pantalla.",
 			}
 		case "ping":
 			r.Result = map[string]any{}
@@ -109,7 +109,7 @@ func llamar(api, token, nombre string, args map[string]any) (string, bool) {
 	b, _ := json.Marshal(chat.LlamadaHerramienta{Token: token, Nombre: nombre, Args: args})
 	res, err := cliente.Post(api+"/api/chat/herramienta", "application/json", bytes.NewReader(b))
 	if err != nil {
-		return "servidor Field Shift no responde: " + err.Error(), true
+		return "servidor SeedView no responde: " + err.Error(), true
 	}
 	defer res.Body.Close()
 	var v struct {

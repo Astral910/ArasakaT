@@ -385,7 +385,7 @@ func (b *Bot) saludo(se *Sesion) []Salida {
 	se.Paso = PasoUbicacion
 	nombre := b.Nombre
 	if nombre == "" {
-		nombre = "Field Shift"
+		nombre = "SeedView"
 	}
 	return []Salida{{Tipo: "location_request", Texto: t(se.Idioma, "saludo", nombre)}}
 }

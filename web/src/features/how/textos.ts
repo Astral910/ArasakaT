@@ -4,7 +4,7 @@ export const t = crearT({
   en: {
     eyebrow: 'How do we know?',
     titulo: 'Every number comes from somewhere you can check.',
-    bajada: 'Field Shift supports decisions; it does not replace the farmer or the extension worker. Here is the data behind it, how well it worked on past seasons, and what it cannot do yet.',
+    bajada: 'SeedView supports decisions; it does not replace the farmer or the extension worker. Here is the data behind it, how well it worked on past seasons, and what it cannot do yet.',
     'nav.datos': 'Data', 'nav.validacion': 'Validation', 'nav.ia': 'AI vs statistics', 'nav.incertidumbre': 'Uncertainty', 'nav.limites': 'Limitations', 'nav.siguientes': 'Next steps',
     datos: 'NASA data, and what each one is for',
     'datos.sub': 'The engine calculates; AI only explains. No number comes from a language model.',
@@ -55,7 +55,7 @@ export const t = crearT({
   es: {
     eyebrow: '¿Cómo lo sabemos?',
     titulo: 'Cada número sale de un lugar que podés revisar.',
-    bajada: 'Field Shift apoya decisiones; no reemplaza al agricultor ni al extensionista. Aquí están los datos detrás, qué tan bien funcionó en temporadas pasadas y lo que todavía no puede hacer.',
+    bajada: 'SeedView apoya decisiones; no reemplaza al agricultor ni al extensionista. Aquí están los datos detrás, qué tan bien funcionó en temporadas pasadas y lo que todavía no puede hacer.',
     'nav.datos': 'Datos', 'nav.validacion': 'Validación', 'nav.ia': 'IA vs estadística', 'nav.incertidumbre': 'Incertidumbre', 'nav.limites': 'Limitaciones', 'nav.siguientes': 'Siguientes pasos',
     datos: 'Datos de la NASA y para qué sirve cada uno',
     'datos.sub': 'El motor calcula; la IA solo explica. Ningún número sale de un modelo de lenguaje.',

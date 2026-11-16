@@ -131,7 +131,7 @@ const es = {
   enviarWa: 'Enviar por WhatsApp',
   'e.pronostico': 'Temporada que viene (pronóstico)',
   avisoPronostico: 'Sin conexión al servidor del pronóstico: se muestra el año típico calculado por el motor en tu navegador.',
-  waTexto: 'Field Shift · {lugar}: {frase} Informe técnico: {url}',
+  waTexto: 'SeedView · {lugar}: {frase} Informe técnico: {url}',
 }
 type K = keyof typeof es
 const en: Record<K, string> = {
@@ -265,7 +265,7 @@ const en: Record<K, string> = {
   enviarWa: 'Send via WhatsApp',
   'e.pronostico': 'Season ahead (forecast)',
   avisoPronostico: 'The forecast server is offline: showing the typical year computed by the engine in your browser.',
-  waTexto: 'Field Shift · {lugar}: {frase} Technical report: {url}',
+  waTexto: 'SeedView · {lugar}: {frase} Technical report: {url}',
 }
 
 export const t = crearT({ es, en })

@@ -1,5 +1,5 @@
 export const en: Record<string, string> = {
-  'brand': 'Field Shift',
+  'brand': 'SeedView',
   'nav.plan': 'Detailed plan',
   'nav.map': 'Risk map',
   'nav.alerts': 'Alerts',
@@ -17,7 +17,7 @@ export const en: Record<string, string> = {
 
   'hero.eyebrow': 'NASA Space Apps 2026 · Field Shift challenge · Guatemala',
   'hero.title': 'Plan your milpa with NASA satellites, on the phone you already have.',
-  'hero.sub': 'Field Shift compares three ways to rotate your crops, tells you when to plant, how much risk you run and what happens to your soil. Then it walks with you all season on WhatsApp and warns you before the canícula arrives.',
+  'hero.sub': 'SeedView compares three ways to rotate your crops, tells you when to plant, how much risk you run and what happens to your soil. Then it walks with you all season on WhatsApp and warns you before the canícula arrives.',
   'hero.ctaPlan': 'Plan my milpa',
   'hero.ctaWa': 'Try it on WhatsApp',
   'hero.free': 'Free · Works on any phone · English & Spanish',
@@ -41,7 +41,7 @@ export const en: Record<string, string> = {
 
   'preview.eyebrow': 'Your plan, at a glance',
   'preview.title': 'Not a prediction of your exact plot. A clear comparison for your area.',
-  'preview.d': 'Field Shift works at municipality and climate-zone level, with ranges instead of single numbers. It supports your extension agent; it doesn\'t replace them.',
+  'preview.d': 'SeedView works at municipality and climate-zone level, with ranges instead of single numbers. It supports your extension agent; it doesn\'t replace them.',
   'preview.cta': 'See the Jocotán example',
 
   'data.eyebrow': 'Built on NASA Earth data',
@@ -64,7 +64,7 @@ export const en: Record<string, string> = {
   'wa.note': 'Production number with Meta: next step (needs business verification).',
   'wa.sim': 'Or use the simulator on this page: same bot, same answers.',
 
-  'phone.title': 'Field Shift',
+  'phone.title': 'SeedView',
   'phone.online': 'online',
   'phone.typing': 'typing…',
   'phone.placeholder': 'Message',
@@ -200,10 +200,10 @@ export const en: Record<string, string> = {
   'plan.origin.approx': 'Closest pre-computed plan (milpa, rainfed, food, 2026)',
   'plan.origin.fixture': 'Example: Jocotán plan (no offline data for this place)',
   'plan.recalc': 'Recalculating…',
-  'plan.waText': 'My Field Shift plan for {m}:',
+  'plan.waText': 'My SeedView plan for {m}:',
   'plan.waRisk': '{n} of 10 seasons lost',
   'plan.waMore': 'See the full plan:',
-  'plan.card.footer': 'Field Shift · NASA Earth data · Supports your extension agent',
+  'plan.card.footer': 'SeedView · NASA Earth data · Supports your extension agent',
   'plan.dataTag.risk': 'NASA POWER + IMERG · FAO-56',
   'plan.dataTag.soil': 'Soil model · SRTM slope',
 
@@ -219,7 +219,7 @@ export const en: Record<string, string> = {
   'ph.alerts': '2026 time machine: when the system would have warned, on top of real rainfall.',
   'ph.how': 'Data sources, validation, AI vs statistics and limitations.',
 
-  'demo.title': 'Field Shift in 30 seconds',
+  'demo.title': 'SeedView in 30 seconds',
   'demo.start': 'Start',
   'demo.restart': 'Restart',
   'demo.c1': 'A farmer in Jocotán shares a location on WhatsApp',
@@ -233,7 +233,7 @@ export const en: Record<string, string> = {
   'demo.preliminar': 'preliminary backtest',
   'demo.end1': 'Free · on WhatsApp',
   'demo.end2': 'for 3.4 million people facing hunger',
-  'demo.end3': 'Field Shift · NASA Space Apps 2026 · Guatemala',
+  'demo.end3': 'SeedView · NASA Space Apps 2026 · Guatemala',
   'demo.example': 'Example data shown until the engine is connected',
   'demo.backtestNote': 'Backtest on archived forecasts',
 
@@ -244,7 +244,7 @@ export const en: Record<string, string> = {
 
   'notfound': 'This page doesn\'t exist.',
   'notfound.home': 'Go home',
-  'ini.eyebrow': "Field Shift · NASA satellites",
+  'ini.eyebrow': "SeedView · NASA satellites",
   'ini.title': "Where is your land?",
   'ini.sub': "Type the place and see how your season may turn out, with NASA satellite data.",
   'ini.search': "Neighbourhood, village, estate or city…",
@@ -340,11 +340,11 @@ export const en: Record<string, string> = {
   'ini.msg.revisando': "Checking it isn't water…",
   'ini.msg.aguaParcela': "Your land falls on water (river, lake or sea). Move it onto land to continue.",
   'ini.msg.aguaParcial': "Part of the land touches water; we'll use the part on land.",
-  'ini.more': "More from Field Shift",
+  'ini.more': "More from SeedView",
   'ini.ex.map': "Risk map",
   "ini.ex.map.d": "Guatemala's 342 municipalities, colored by risk of losing the harvest.",
   'ini.ex.time': "Time machine",
-  'ini.ex.time.d': "What Field Shift would have warned during the real 2026 season.",
+  'ini.ex.time.d': "What SeedView would have warned during the real 2026 season.",
   'ini.ex.ext': "Extension worker",
   'ini.ex.ext.d': "A panel for technicians who support many families.",
   'ini.ex.how': "How do we know?",
@@ -365,7 +365,7 @@ export const en: Record<string, string> = {
   'ini.when.harvestRec': "Planting on {s}, you harvest around {c}.",
   'ini.when.free': "You can keep your date anyway.",
   'ini.when.est': "Estimated from the engine's rain calendar (NASA POWER 2001–2025)",
-  'ini.when.motor': "Field Shift engine",
+  'ini.when.motor': "SeedView engine",
   'ini.when.none': "No connection to the engine: we can't check that date right now. You can go on anyway.",
   'ini.when.pickHint': "Pick the day on the calendar.",
   // round 5 · account

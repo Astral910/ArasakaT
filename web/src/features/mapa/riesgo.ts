@@ -82,7 +82,7 @@ export function normalizar(crudo: Crudo, horizonte: Horizonte, base?: FilaRiesgo
     .filter((f): f is FilaRiesgo => !!f)
   return {
     horizonte,
-    fuente: crudo.fuente ?? 'Field Shift engine · FAO-56 with NASA POWER',
+    fuente: crudo.fuente ?? 'SeedView engine · FAO-56 with NASA POWER',
     periodo: crudo.periodo ?? (horizonte === '2026' ? '2001–2025' : '2031–2050 · NEX-GDDP-CMIP6'),
     metodo: crudo.metodo,
     calidad: crudo.ejemplo ? 'ejemplo' : crudo.preliminar ? 'preliminar' : 'motor',

@@ -147,7 +147,7 @@ function estadoHud() {
   <div class="pv">
     <canvas ref="lienzo" class="lienzo" data-testid="escena3d" />
     <div v-if="hud" class="hud arriba">
-      <div class="marca">Field Shift · <b>sandbox 3D</b> <span class="aviso">{{ fuenteTl }}</span></div>
+      <div class="marca">SeedView · <b>sandbox 3D</b> <span class="aviso">{{ fuenteTl }}</span></div>
       <div class="fila">
         <span class="dato">{{ fecha || '—' }}</span>
         <template v-if="estadoHud()">

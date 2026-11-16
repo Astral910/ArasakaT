@@ -1,4 +1,4 @@
-// Command server es el binario único de Field Shift: API del motor, bot
+// Command server es el binario único de SeedView: API del motor, bot
 // (simulador y webhooks de WhatsApp), alertas con su scheduler y el front Vue embebido.
 package main
 
@@ -45,7 +45,7 @@ func main() {
 		defer cancel()
 		srv.Shutdown(sc)
 	}()
-	log.Printf("Field Shift escuchando en http://%s (motor=%s bot=%s alertas=%s)", cfg.Addr, a.comp.Motor, a.comp.Bot, a.comp.Alertas)
+	log.Printf("SeedView escuchando en http://%s (motor=%s bot=%s alertas=%s)", cfg.Addr, a.comp.Motor, a.comp.Bot, a.comp.Alertas)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
