@@ -196,7 +196,7 @@ function llegada() {
 function abrirDibujo(acercar = true) {
   dibujando.value = true
   if (forma.value !== 'poligono') ponerForma('poligono') // ronda 8: solo polígono
-  if (acercar && conForma.value) globo.value?.plano(padding())
+  globo.value?.plano(padding(), acercar && conForma.value) // vista de arriba (sin inclinación) para dibujar
 }
 function ponerForma(f: Forma) {
   forma.value = f
