@@ -47,7 +47,12 @@ const PREG = computed(() => {
     pq: [razon('canicula_floracion'), L('Sale de la lluvia diaria de NASA POWER 2001–2025, suavizada ±7 días: el tramo de julio–agosto que llueve bastante menos que antes y después.',
       'From NASA POWER daily rain 2001–2025, smoothed ±7 days: the July–August stretch with much less rain than before and after.')].filter(Boolean),
   })
-  if (k?.cosecha) out.push({
+  if (k?.inviable) out.push({
+    id: 'cosecha', icono: Wheat, q: L('¿Cuándo cosecho?', 'When do I harvest?'),
+    a: L('No se va a poder cosechar', 'It will not be harvested'),
+    pq: [k.inviable, k.muere ? L(`En la simulación la plantación se muere cerca del ${fecha(k.muere)}.`, `In the simulation the crop dies around ${fecha(k.muere)}.`) : ''].filter(Boolean),
+  })
+  else if (k?.cosecha) out.push({
     id: 'cosecha', icono: Wheat, q: L('¿Cuándo cosecho?', 'When do I harvest?'),
     a: L(`Si sembrás el ${fecha(k.siembra!)}, cosechás cerca del ${fecha(k.cosecha)}`, `If you sow on ${fecha(k.siembra!)}, you harvest around ${fecha(k.cosecha)}`) + (tarjeta('cosecha') ? ` · ${tarjeta('cosecha')!.texto}` : ''),
     pq: [razon('ciclo'), razon('exceso_cosecha')].filter(Boolean),

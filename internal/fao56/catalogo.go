@@ -101,6 +101,7 @@ var catalogo = map[string]entrada{
 	"oilpalm":   {"Palma africana", "Oil palm", "perenne", []string{"palma", "palma africana", "palma de aceite", "oil palm"}, [4]int{60, 60, 180, 65}, [3]float64{0.95, 1.00, 1.00}, [2]float64{0.7, 1.1}, 0.65, [4]float64{0.4, 0.5, 1.0, 0.6}, 15, 27, 15000, [2]int{300, 365}, true},
 	"olive":     {"Olivo", "Olive", "perenne", []string{"olivo", "aceituna", "olive"}, [4]int{30, 90, 60, 90}, [3]float64{0.65, 0.70, 0.70}, [2]float64{1.2, 1.7}, 0.65, [4]float64{0.4, 0.5, 1.0, 0.6}, 7, 20, 2500, [2]int{240, 365}, true},
 	"tea":       {"Té", "Tea", "perenne", []string{"te", "tea"}, [4]int{60, 60, 180, 65}, [3]float64{0.95, 1.00, 1.00}, [2]float64{0.9, 1.5}, 0.40, [4]float64{0.4, 0.5, 1.0, 0.6}, 12, 22, 2000, [2]int{300, 365}, true},
+	"coconut":   {"Coco (cocotero)", "Coconut", "perenne", []string{"coco", "cocotero", "palma de coco", "coconut"}, [4]int{60, 60, 180, 65}, [3]float64{0.95, 1.00, 1.00}, [2]float64{0.7, 1.1}, 0.65, [4]float64{0.4, 0.5, 1.0, 0.6}, 15, 27, 8000, [2]int{300, 365}, true},
 	"apple":     {"Manzana", "Apple", "perenne", []string{"manzana", "manzano", "apple"}, [4]int{20, 70, 90, 30}, [3]float64{0.45, 0.95, 0.70}, [2]float64{1.0, 2.0}, 0.50, [4]float64{0.4, 0.5, 1.0, 0.6}, 6, 18, 20000, [2]int{150, 240}, true},
 }
 

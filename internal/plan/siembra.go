@@ -312,6 +312,7 @@ func evalSiembra(a *siembraArgs, elegida string) (*contract.SimSiembra, int) {
 		out.Texto = "El cultivo no madura bien aquí: el calor no alcanza para completar el ciclo. " + out.Texto
 		out.TextoEN = "The crop does not mature well here: there is not enough heat to complete the cycle. " + out.TextoEN
 	}
+	viabilidad(a, out, el) // ronda 8: si no prospera, lo dice primero (reemplaza el texto)
 	// razones concretas de la fecha elegida (comparadas con la recomendada)
 	add := func(cod, sv, es, en, f string) {
 		out.Razones = append(out.Razones, contract.RazonSiembra{Codigo: cod, Severidad: sv, Texto: es, TextoEN: en, Fuente: f})

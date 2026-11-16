@@ -122,7 +122,7 @@ func TestMundoCuatroLugares(t *testing.T) {
 					ciclo = r
 				}
 			}
-			if s.NoMadura != strings.Contains(ciclo.Texto, "no madura bien aquí") || s.NoMadura != strings.HasPrefix(s.Texto, "El cultivo no madura bien aquí") {
+			if s.NoMadura != strings.Contains(ciclo.Texto, "no madura bien aquí") || s.NoMadura != (strings.HasPrefix(s.Texto, "El cultivo no madura bien aquí") || strings.Contains(s.Texto, "no madura bien")) {
 				t.Fatalf("aviso «no madura» incoherente: %v · %q · %q", s.NoMadura, ciclo.Texto, s.Texto)
 			}
 			if p.ca && s.NoMadura {
