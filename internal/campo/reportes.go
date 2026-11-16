@@ -15,7 +15,7 @@ import (
 // Tipos de reporte del agricultor.
 var TiposReporte = map[string]bool{"lluvia": true, "riego": true, "plaga": true, "enfermedad": true, "siembra": true, "cosecha": true, "otro": true}
 
-// LluviaCualitativa "poca / normal / mucha" → mm estimados (regla de Field Shift, estimado): clases de intensidad
+// LluviaCualitativa "poca / normal / mucha" → mm estimados (regla de SeedView, estimado): clases de intensidad
 // diaria habituales en meteorología — débil < 10 mm (poca ≈ 5), moderada 10–25 mm (normal ≈ 15),
 // fuerte > 25–30 mm (mucha ≈ 35). "nada" = 0.
 var LluviaCualitativa = map[string]float64{"nada": 0, "no": 0, "poca": 5, "poco": 5, "normal": 15, "regular": 15, "mucha": 35, "mucho": 35,

@@ -43,7 +43,7 @@ func (c *Cliente) AdminHandler() http.Handler {
 var pagina = template.Must(template.New("wa").Parse(`<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="refresh" content="{{if .Conectado}}30{{else}}5{{end}}">
-<title>Field Shift · WhatsApp vinculado</title>
+<title>SeedView · WhatsApp vinculado</title>
 <style>
 body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#0b1f17;color:#eef6f0;margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center}
 main{max-width:460px;padding:28px;text-align:center}
@@ -54,7 +54,7 @@ h1{font-size:1.35rem;margin:0 0 6px} p{color:#b9d3c3;line-height:1.45}
 .cod{font:700 2rem ui-monospace,Consolas,monospace;letter-spacing:.18em;background:#12382a;border-radius:12px;padding:12px 16px;margin:10px 0}
 ol{text-align:left;color:#d7e8dd;line-height:1.6} small{color:#86a593}
 </style></head><body><main>
-<h1>🌽 Field Shift · WhatsApp vinculado</h1>
+<h1>🌽 SeedView · WhatsApp vinculado</h1>
 {{if .Conectado}}
   <p><span class="ok">✅ Vinculado y conectado</span></p>
   <p>Número: <b>{{.Numero}}</b>. Escribile <b>hola</b> desde otro teléfono; <b>PRUEBA ALERTA</b> manda una alerta real.</p>

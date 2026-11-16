@@ -127,7 +127,7 @@ defineExpose({ play, openAlert })
 
         <Transition name="drop">
           <button v-if="notif" class="notif" type="button" @click="openAlert">
-            <span class="napp"><BrandMark :size="22" /> WhatsApp · Field Shift <em>{{ t('phone.alertNow') }}</em></span>
+            <span class="napp"><BrandMark :size="22" /> WhatsApp · SeedView <em>{{ t('phone.alertNow') }}</em></span>
             <strong>{{ t('phone.notifTitle') }}</strong>
             <span>{{ t('phone.notifBody', { d: av.dias, f: fechaLarga(av.inicio, lang), p: av.prob10 }) }}</span>
           </button>

@@ -50,14 +50,14 @@ type Riesgo struct {
 	Reportado  bool   `json:"reportado,omitempty"`
 }
 
-// Fuentes (referencias reales; las reglas numéricas son simplificaciones de Field Shift: estimado).
+// Fuentes (referencias reales; las reglas numéricas son simplificaciones de SeedView: estimado).
 const (
 	FuenteCogollero = "FAO (2018) Manejo integrado del gusano cogollero (guía para escuelas de campo); Prasanna et al. (2018) Fall Armyworm in Africa: a guide for IPM, CIMMYT; umbral 10.9 °C y ≈559 °C·día por generación: Hogg, Pitre y Anderson (1982), Environmental Entomology 11"
 	FuenteGallina   = "Ortega C., A. (1987) Insectos nocivos del maíz: guía para su identificación en el campo, CIMMYT; King y Saunders (1984) Las plagas invertebradas de cultivos anuales alimenticios en América Central, CATIE; MAGA Guatemala"
 	FuenteAsfalto   = "Hock, Kranz y Renfro (1995) Studies on the epidemiology of the tar spot disease complex of maize in Mexico, Plant Pathology 44 (CIMMYT); CIMMYT (2004) Enfermedades del maíz: guía para su identificación en el campo; ICTA Guatemala"
 	FuenteFrijol    = "Schwartz y Pastor-Corrales (eds., 1989) Problemas de producción del frijol en los trópicos, CIAT; ICTA Guatemala (manejo del frijol)"
 	FuenteMazorca   = "CIMMYT (2004) Enfermedades del maíz: guía para su identificación en el campo (pudriciones de mazorca por Stenocarpella y Fusarium); FAO, prevención de micotoxinas en granos; ICTA (dobla)"
-	FuenteGenerica  = "Sin modelo en Field Shift: consultá al extensionista del MAGA o al ICTA de tu zona"
+	FuenteGenerica  = "Sin modelo en SeedView: consultá al extensionista del MAGA o al ICTA de tu zona"
 )
 
 func pick(en bool, es, eng string) string {

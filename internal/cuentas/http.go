@@ -342,7 +342,7 @@ func (s *Servicio) hVincular(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"modo": "bot", "codigo": c, "expira": exp.UTC().Format(time.RFC3339),
-			"texto": "Mandale al bot de Field Shift por WhatsApp: VINCULAR " + c})
+			"texto": "Mandale al bot de SeedView por WhatsApp: VINCULAR " + c})
 		return
 	}
 	if err := s.PedirVinculoWhatsApp(u.ID, b.Telefono); err != nil {

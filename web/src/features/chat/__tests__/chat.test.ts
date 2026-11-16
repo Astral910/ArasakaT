@@ -6,7 +6,7 @@ import { setLang } from '@/i18n'
 
 const respuesta = {
   respuesta: 'Abro el simulador del 1 de julio al 1 de agosto.',
-  fuentes: [{ titulo: 'FAO-56', url: 'https://www.fao.org/3/x0490s/x0490s00.htm' }, { titulo: 'Motor Field Shift' }],
+  fuentes: [{ titulo: 'FAO-56', url: 'https://www.fao.org/3/x0490s/x0490s00.htm' }, { titulo: 'Motor SeedView' }],
   acciones: [{ tipo: 'abrir_simulacion', params: { desde: '2026-07-01', hasta: '2026-08-01', url: '/sandbox?desde=2026-07-01&hasta=2026-08-01' } }],
   conversacion: 'c1', motor: 'claude', ms: 1200,
 }

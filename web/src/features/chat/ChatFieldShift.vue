@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Asistente de Field Shift (ronda 5): flotante, ES/EN, con sugerencias, fuentes y acciones.
+// Asistente de SeedView (ronda 5): flotante, ES/EN, con sugerencias, fuentes y acciones.
 // Ronda 6: un asistente por terreno (memoria en el servidor por parcelaId); el encabezado dice «Asistente de …».
 // POST /api/chat/asistente → {respuesta, fuentes, acciones}. Las acciones se emiten (`accion`) para que la
 // pantalla las ejecute (dashboard, simulador); si nadie escucha, el botón de la acción navega al /sandbox.
@@ -189,7 +189,7 @@ defineExpose({ enviar, abrir: () => alternar(true) })
           <span class="marca" aria-hidden="true"><Sprout :size="18" /></span>
           <div class="cab-txt">
             <strong v-if="nombre" class="cab-nombre" :title="tx('tituloDe', { nombre })">{{ tx('tituloDe', { nombre }) }}</strong>
-            <strong v-else>{{ tx('titulo') }} <span class="fs">Field Shift</span></strong>
+            <strong v-else>{{ tx('titulo') }} <span class="fs">SeedView</span></strong>
             <small>{{ tx('sub') }}</small>
           </div>
           <button v-if="mensajes.length && !parcelaId" class="icono" type="button" :title="tx('nuevo')" :aria-label="tx('nuevo')" @click="nueva"><RotateCcw :size="16" /></button>

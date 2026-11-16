@@ -409,14 +409,14 @@ func Bienvenida(idioma, parcela, lugar string) string {
 		if donde != "" {
 			donde = " *" + donde + "*"
 		}
-		return "Hi! 👋 You just linked your field" + donde + " with SEED · Field Shift.\n\n" +
+		return "Hi! 👋 You just linked your field" + donde + " with SeedView.\n\n" +
 			"From now on I'll warn you here about heavy rain, dry spells and the midsummer drought, when to water, and pests.\n\n" +
 			"Write *today* to know if you should water, or ask me anything (e.g. \"will it rain on October 20?\")."
 	}
 	if donde != "" {
 		donde = " *" + donde + "*"
 	}
-	return "¡Hola! 👋 Acabás de vincular tu terreno" + donde + " con SEED · Field Shift.\n\n" +
+	return "¡Hola! 👋 Acabás de vincular tu terreno" + donde + " con SeedView.\n\n" +
 		"Desde ahora te aviso por aquí de lluvia fuerte, rachas secas y canícula, cuándo regar y plagas.\n\n" +
 		"Escribí *hoy* para saber si regar, o preguntame lo que quieras (por ejemplo: «¿va a llover el 20 de octubre?»)."
 }

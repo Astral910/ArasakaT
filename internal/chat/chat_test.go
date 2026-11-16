@@ -122,7 +122,7 @@ func claudeFalso(args []string) int {
 		}
 	}
 	out, _ := json.Marshal(map[string]any{"type": "result", "subtype": "success", "is_error": false, "session_id": sid,
-		"result": texto + "\nFuentes: FAO-56 https://www.fao.org/3/x0490s/x0490s00.htm | Motor Field Shift"})
+		"result": texto + "\nFuentes: FAO-56 https://www.fao.org/3/x0490s/x0490s00.htm | Motor SeedView"})
 	os.Stdout.Write(out)
 	return 0
 }
@@ -346,7 +346,7 @@ func TestParseRango(t *testing.T) {
 }
 
 func TestSepararFuentes(t *testing.T) {
-	txt, fs := separarFuentes("Regá 5 mm hoy.\n\nFuentes: FAO-56 https://www.fao.org/3/x0490s/x0490s00.htm | [CIMMYT](https://maizedoctor.org/es/) | Motor Field Shift")
+	txt, fs := separarFuentes("Regá 5 mm hoy.\n\nFuentes: FAO-56 https://www.fao.org/3/x0490s/x0490s00.htm | [CIMMYT](https://maizedoctor.org/es/) | Motor SeedView")
 	if txt != "Regá 5 mm hoy." || len(fs) != 3 || fs[0].URL != "https://www.fao.org/3/x0490s/x0490s00.htm" || fs[1].Titulo != "CIMMYT" || fs[2].URL != "" {
 		t.Fatalf("%q %+v", txt, fs)
 	}

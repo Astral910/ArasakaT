@@ -96,7 +96,7 @@ onBeforeUnmount(() => { stop(); window.removeEventListener('resize', fit) })
       <img class="relief" :src="pub('img/relieve-gt.webp')" alt="" :class="{ dim: escena >= 2 }" />
 
       <header class="top">
-        <BrandMark :size="48" /><span>Field Shift</span>
+        <BrandMark :size="48" /><span>SeedView</span>
         <span class="tag">NASA Space Apps 2026 · Guatemala</span>
       </header>
 

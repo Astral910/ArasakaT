@@ -300,7 +300,7 @@ func (h *Herramientas) simular(t *Turno, args map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	t.Fuente(Fuente{Titulo: map[bool]string{true: "Field Shift engine (FAO-56 water balance, NASA POWER climate)", false: "Motor Field Shift (balance hídrico FAO-56, clima NASA POWER)"}[t.Pedido.Contexto.Idioma == "en"], URL: "https://power.larc.nasa.gov/"})
+	t.Fuente(Fuente{Titulo: map[bool]string{true: "SeedView engine (FAO-56 water balance, NASA POWER climate)", false: "Motor SeedView (balance hídrico FAO-56, clima NASA POWER)"}[t.Pedido.Contexto.Idioma == "en"], URL: "https://power.larc.nasa.gov/"})
 	return resumenRango(tl, desde, hasta), nil
 }
 
@@ -409,7 +409,7 @@ func (h *Herramientas) riegoHoy(ctx context.Context, t *Turno, parcela string) (
 	if parcela != "" && h.Campo != nil {
 		if r, err := h.Campo.Hoy(ctx, t.Usuario, parcela); err == nil {
 			t.Fuente(fuentesDe(r)...)
-			t.Fuente(Fuente{Titulo: "Field Shift · balance de agua del terreno"})
+			t.Fuente(Fuente{Titulo: "SeedView · balance de agua del terreno"})
 			return r, nil
 		} else if !errors.Is(err, ErrSinCampo) {
 			return nil, err
@@ -647,7 +647,7 @@ func (h *Herramientas) plagas(ctx context.Context, t *Turno, parcela, texto stri
 		if r, err := h.Campo.Hoy(ctx, t.Usuario, parcela); err == nil {
 			if ps, ok := r["plagas"]; ok {
 				t.Fuente(fuentesDe(map[string]any{"plagas": ps})...)
-				return map[string]any{"plagas": ps, "fuente": "Field Shift · campo"}, nil
+				return map[string]any{"plagas": ps, "fuente": "SeedView · campo"}, nil
 			}
 		}
 	}

@@ -126,6 +126,6 @@ func main() {
 		sid = "ses-e2e"
 	}
 	out, _ := json.Marshal(map[string]any{"type": "result", "subtype": "success", "is_error": false, "session_id": sid,
-		"result": texto + "\nFuentes: FAO-56 https://www.fao.org/3/x0490s/x0490s00.htm | Motor Field Shift"})
+		"result": texto + "\nFuentes: FAO-56 https://www.fao.org/3/x0490s/x0490s00.htm | Motor SeedView"})
 	os.Stdout.Write(out)
 }

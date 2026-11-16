@@ -1,4 +1,4 @@
-// Package chat: asistente de Field Shift (dashboard, simulador y WhatsApp). El cerebro es Claude Code
+// Package chat: asistente de SeedView (dashboard, simulador y WhatsApp). El cerebro es Claude Code
 // CLI (`claude -p`) con la cuenta del dueño para la demo; en producción va la API de Anthropic con
 // clave propia (docs/chat.md). Las herramientas (plan, simular, riego_hoy, registrar_reporte, plagas,
 // abrir_simulacion…) corren en este proceso; cmd/fieldshift-mcp es solo el puente MCP (stdio → HTTP).

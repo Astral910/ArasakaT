@@ -21,7 +21,7 @@ func nuevoBot(t *testing.T) (*Bot, *MemSuscripciones) {
 		Municipios: ix,
 		Subs:       subs,
 		Sesiones:   NewStore(filepath.Join(t.TempDir(), "sesiones.json")),
-		Nombre:     "Field Shift",
+		Nombre:     "SeedView",
 		WebURL:     "https://fieldshift.example",
 		Ahora:      func() time.Time { return time.Date(2026, 11, 14, 10, 0, 0, 0, time.UTC) },
 	}
@@ -57,7 +57,7 @@ func TestConversacionCompletaConUbicacion(t *testing.T) {
 	say := func(e Entrada) []Salida { e.Tel = tel; return b.Responder(e) }
 
 	out := say(Entrada{Texto: "hola"})
-	debe(t, out, "Soy Field Shift", "ubicación")
+	debe(t, out, "Soy SeedView", "ubicación")
 	if out[0].Tipo != "location_request" {
 		t.Fatalf("esperaba location_request, %s", out[0].Tipo)
 	}

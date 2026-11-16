@@ -294,7 +294,7 @@ const conseguir = computed(() => productos.value.slice(0, 2).map((p) => p.titulo
 <template>
   <div class="inf" :class="{ print: consulta.print }" :lang="lang">
     <nav v-if="!consulta.print" class="barra no-print">
-      <span class="marca">Field Shift</span>
+      <span class="marca">SeedView</span>
       <div class="acc">
         <RouterLink :to="otroIdioma" class="btn ghost">{{ lang === 'es' ? 'English' : 'Español' }}</RouterLink>
         <a :href="guiaHref" class="btn ghost volver" @click.prevent="volver">{{ tx('volver') }}</a>
@@ -727,7 +727,7 @@ const conseguir = computed(() => productos.value.slice(0, 2).map((p) => p.titulo
             <li>{{ tx('lim1') }}</li><li>{{ tx('lim2') }}</li><li>{{ tx('lim3') }}</li><li>{{ tx('lim4') }}</li>
           </ul>
           <p class="ext">{{ tx('extensionista') }}</p>
-          <p class="chico muted">Field Shift · NASA Space Apps Challenge 2026 · {{ tx('generado', { fecha: generado }) }}</p>
+          <p class="chico muted">SeedView · NASA Space Apps Challenge 2026 · {{ tx('generado', { fecha: generado }) }}</p>
         </section>
         </template>
       </details>

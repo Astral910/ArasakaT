@@ -10,7 +10,7 @@ const html = computed(() => aHTML(props.texto))
   <div class="wa" data-testid="burbuja-wa">
     <div class="wa-cab">
       <span class="avatar">🌽</span>
-      <div><strong>{{ remitente ?? 'Field Shift' }}</strong><small>WhatsApp</small></div>
+      <div><strong>{{ remitente ?? 'SeedView' }}</strong><small>WhatsApp</small></div>
     </div>
     <div class="wa-fondo">
       <div class="burbuja">

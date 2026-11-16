@@ -115,7 +115,7 @@ var L10n = txt{
 	"datos":       {"Datos: ", "Data: "},
 	"consulta":    {"Consultá con tu extensionista antes de decidir.", "Check with your local extension agent before deciding."},
 	"ejemplo":     {"DATOS DE EJEMPLO", "SAMPLE DATA"},
-	"marca":       {"Field Shift · NASA Space Apps 2026", "Field Shift · NASA Space Apps 2026"},
+	"marca":       {"SeedView · NASA Space Apps 2026", "SeedView · NASA Space Apps 2026"},
 }
 
 func (x txt) get(L, k string) string {

@@ -25,7 +25,7 @@ defineProps<{ plan: Plan }>()
         </li>
       </ul>
     </div>
-    <div class="ft">Field Shift · NASA POWER + IMERG</div>
+    <div class="ft">SeedView · NASA POWER + IMERG</div>
   </div>
 </template>
 <style scoped>

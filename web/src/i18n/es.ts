@@ -1,5 +1,5 @@
 export const es: Record<string, string> = {
-  'brand': 'Field Shift',
+  'brand': 'SeedView',
   'nav.plan': 'Plan detallado',
   'nav.map': 'Mapa de riesgo',
   'nav.alerts': 'Avisos',
@@ -17,7 +17,7 @@ export const es: Record<string, string> = {
 
   'hero.eyebrow': 'NASA Space Apps 2026 · Reto Field Shift · Guatemala',
   'hero.title': 'Planeá tu milpa con satélites de la NASA, en el teléfono que ya tenés.',
-  'hero.sub': 'Field Shift compara tres formas de rotar tus cultivos, te dice cuándo sembrar, cuánto riesgo corrés y cómo queda tu suelo. Después te acompaña toda la temporada por WhatsApp y te avisa antes de que llegue la canícula.',
+  'hero.sub': 'SeedView compara tres formas de rotar tus cultivos, te dice cuándo sembrar, cuánto riesgo corrés y cómo queda tu suelo. Después te acompaña toda la temporada por WhatsApp y te avisa antes de que llegue la canícula.',
   'hero.ctaPlan': 'Planear mi milpa',
   'hero.ctaWa': 'Probalo en WhatsApp',
   'hero.free': 'Gratis · En cualquier teléfono · Español e inglés',
@@ -41,7 +41,7 @@ export const es: Record<string, string> = {
 
   'preview.eyebrow': 'Tu plan, de un vistazo',
   'preview.title': 'No es la predicción de tu parcela exacta. Es una comparación clara para tu zona.',
-  'preview.d': 'Field Shift trabaja a nivel de municipio y zona climática, con rangos en vez de un solo número. Apoya a tu extensionista; no lo reemplaza.',
+  'preview.d': 'SeedView trabaja a nivel de municipio y zona climática, con rangos en vez de un solo número. Apoya a tu extensionista; no lo reemplaza.',
   'preview.cta': 'Ver el ejemplo de Jocotán',
 
   'data.eyebrow': 'Hecho con datos de la Tierra de la NASA',
@@ -64,7 +64,7 @@ export const es: Record<string, string> = {
   'wa.note': 'Número de producción con Meta: siguiente paso (requiere verificar el negocio).',
   'wa.sim': 'O usá el simulador de esta página: el mismo bot, las mismas respuestas.',
 
-  'phone.title': 'Field Shift',
+  'phone.title': 'SeedView',
   'phone.online': 'en línea',
   'phone.typing': 'escribiendo…',
   'phone.placeholder': 'Mensaje',
@@ -200,10 +200,10 @@ export const es: Record<string, string> = {
   'plan.origin.approx': 'Plan precalculado más cercano (milpa, temporal, comida, 2026)',
   'plan.origin.fixture': 'Ejemplo: plan de Jocotán (sin datos sin conexión para este lugar)',
   'plan.recalc': 'Recalculando…',
-  'plan.waText': 'Mi plan de Field Shift para {m}:',
+  'plan.waText': 'Mi plan de SeedView para {m}:',
   'plan.waRisk': '{n} de 10 temporadas perdidas',
   'plan.waMore': 'Ver el plan completo:',
-  'plan.card.footer': 'Field Shift · Datos de la Tierra de la NASA · Apoya a tu extensionista',
+  'plan.card.footer': 'SeedView · Datos de la Tierra de la NASA · Apoya a tu extensionista',
   'plan.dataTag.risk': 'NASA POWER + IMERG · FAO-56',
   'plan.dataTag.soil': 'Modelo de suelo · pendiente SRTM',
 
@@ -219,7 +219,7 @@ export const es: Record<string, string> = {
   'ph.alerts': 'Máquina del tiempo 2026: cuándo habría avisado el sistema, sobre la lluvia real.',
   'ph.how': 'Fuentes de datos, validación, IA vs estadística y limitaciones.',
 
-  'demo.title': 'Field Shift en 30 segundos',
+  'demo.title': 'SeedView en 30 segundos',
   'demo.start': 'Empezar',
   'demo.restart': 'Repetir',
   'demo.c1': 'Alguien que siembra en Jocotán comparte su ubicación por WhatsApp',
@@ -233,7 +233,7 @@ export const es: Record<string, string> = {
   'demo.preliminar': 'backtest preliminar',
   'demo.end1': 'Gratis · en WhatsApp',
   'demo.end2': 'para 3.4 millones de personas que enfrentan hambre',
-  'demo.end3': 'Field Shift · NASA Space Apps 2026 · Guatemala',
+  'demo.end3': 'SeedView · NASA Space Apps 2026 · Guatemala',
   'demo.example': 'Datos de ejemplo hasta conectar el motor',
   'demo.backtestNote': 'Backtest con pronósticos archivados',
 
@@ -244,7 +244,7 @@ export const es: Record<string, string> = {
 
   'notfound': 'Esta página no existe.',
   'notfound.home': 'Ir al inicio',
-  'ini.eyebrow': "Field Shift · satélites NASA",
+  'ini.eyebrow': "SeedView · satélites NASA",
   'ini.title': "¿Dónde está tu terreno?",
   'ini.sub': "Escribí el lugar y mirá cómo puede venir tu temporada, con datos de satélites de la NASA.",
   'ini.search': "Colonia, aldea, residencial o ciudad…",
@@ -340,11 +340,11 @@ export const es: Record<string, string> = {
   'ini.msg.revisando': "Revisando que no sea agua…",
   'ini.msg.aguaParcela': "Tu terreno cae en agua (río, lago o mar). Movelo a tierra para seguir.",
   'ini.msg.aguaParcial': "Parte del terreno toca agua; seguimos con lo que está en tierra.",
-  'ini.more': "Más de Field Shift",
+  'ini.more': "Más de SeedView",
   'ini.ex.map': "Mapa de riesgo",
   'ini.ex.map.d': "342 municipios de Guatemala, coloreados por riesgo de perder la cosecha.",
   'ini.ex.time': "Máquina del tiempo",
-  'ini.ex.time.d': "Qué hubiera avisado Field Shift en la temporada real de 2026.",
+  'ini.ex.time.d': "Qué hubiera avisado SeedView en la temporada real de 2026.",
   'ini.ex.ext': "Extensionista",
   'ini.ex.ext.d': "Panel para técnicos que acompañan a varias familias.",
   'ini.ex.how': "¿Cómo lo sabemos?",
@@ -365,7 +365,7 @@ export const es: Record<string, string> = {
   'ini.when.harvestRec': "Sembrando el {s}, cosechás cerca del {c}.",
   'ini.when.free': "Podés seguir con tu fecha igual.",
   'ini.when.est': "Estimado con el calendario de lluvias del motor (NASA POWER 2001–2025)",
-  'ini.when.motor': "Motor Field Shift",
+  'ini.when.motor': "Motor SeedView",
   'ini.when.none': "Sin conexión al motor: ahora no podemos revisar esa fecha. Podés seguir igual.",
   'ini.when.pickHint': "Elegí el día en el calendario.",
   // ronda 5 · cuenta

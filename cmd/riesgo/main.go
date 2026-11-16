@@ -41,7 +41,7 @@ var (
 	// geoBoundaries no lista India en la API (frontera en disputa); el archivo gbOpen sí existe
 	extraADM0 = map[string]string{"IND": "https://github.com/wmgeolab/geoBoundaries/raw/main/releaseData/gbOpen/IND/ADM0/geoBoundaries-IND-ADM0_simplified.geojson"}
 	fuenteGB  = "geoBoundaries gbOpen (CC BY 4.0 / licencias de cada país), simplificado"
-	fuenteMot = "NASA POWER diario 2001–2025 (celda 0.5°×0.625°) + motor FAO-56/FAO-33 de Field Shift (Monte Carlo, milpa de temporal S0)"
+	fuenteMot = "NASA POWER diario 2001–2025 (celda 0.5°×0.625°) + motor FAO-56/FAO-33 de SeedView (Monte Carlo, milpa de temporal S0)"
 )
 
 func defaultCache() string {
@@ -227,7 +227,7 @@ func main() {
 	for _, r := range meso {
 		p := &r.f.Props
 		if r.gtProm != nil {
-			set(p, *r.gtProm, "municipios-gt", 0, "Promedio de los municipios de Guatemala (NASA POWER + SRTM, motor Field Shift)")
+			set(p, *r.gtProm, "municipios-gt", 0, "Promedio de los municipios de Guatemala (NASA POWER + SRTM, motor SeedView)")
 			continue
 		}
 		var v []float64
@@ -240,7 +240,7 @@ func main() {
 			set(p, math.NaN(), "motor", 0, "NASA POWER: serie no confiable en esta celda")
 			continue
 		}
-		set(p, mean(v), "motor", len(v), conERA5(r, "NASA POWER 2001–2025 + motor Field Shift (FAO-56/FAO-33)"))
+		set(p, mean(v), "motor", len(v), conERA5(r, "NASA POWER 2001–2025 + motor SeedView (FAO-56/FAO-33)"))
 	}
 	notaM := "Milpa/maíz de temporal sin riego (S0, lo de hoy), igual que el mapa de Guatemala. Riesgo = temporadas perdidas (grano < 70 %) de cada 10. Un punto por región (hasta 3 en regiones grandes), nivel zona climática, no parcela. Suelo típico y altura de la celda NASA POWER (sin SRTM fuera de Guatemala). Guatemala = promedio de sus municipios."
 	notaMEN := "Rain-fed milpa/maize with no irrigation (S0, today's practice), same as the Guatemala map. Risk = lost seasons (grain < 70 %) out of 10. One point per region (up to 3 in large regions): climate-zone level, not a plot. Typical soil and NASA POWER cell elevation (no SRTM outside Guatemala). Guatemala = average of its municipalities."
@@ -261,7 +261,7 @@ func main() {
 		}
 		for _, r := range world {
 			if a, ok := mesoPais[r.f.Props.ISO]; ok && a[1] > 0 {
-				set(&r.f.Props, a[0]/a[1], "motor-adm1", 0, "Promedio por área de sus regiones (motor Field Shift)")
+				set(&r.f.Props, a[0]/a[1], "motor-adm1", 0, "Promedio por área de sus regiones (motor SeedView)")
 				continue
 			}
 			var v []float64
@@ -284,9 +284,9 @@ func main() {
 			}
 			switch {
 			case nm == len(v):
-				set(&r.f.Props, mean(v), "motor", len(v), conERA5(r, "NASA POWER 2001–2025 + motor Field Shift (FAO-56/FAO-33)"))
+				set(&r.f.Props, mean(v), "motor", len(v), conERA5(r, "NASA POWER 2001–2025 + motor SeedView (FAO-56/FAO-33)"))
 			case nm > 0:
-				set(&r.f.Props, mean(v), "mixto", len(v), conERA5(r, "NASA POWER 2001–2025 + motor Field Shift y balance FAO-56/FAO-33 (grueso)"))
+				set(&r.f.Props, mean(v), "mixto", len(v), conERA5(r, "NASA POWER 2001–2025 + motor SeedView y balance FAO-56/FAO-33 (grueso)"))
 			default:
 				set(&r.f.Props, mean(v), "grueso", len(v), conERA5(r, "NASA POWER 2001–2025 + balance FAO-56/FAO-33 (indicador grueso)"))
 			}

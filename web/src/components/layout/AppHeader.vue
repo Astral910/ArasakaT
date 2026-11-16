@@ -42,9 +42,9 @@ async function salir() {
 <template>
   <header class="hdr" :class="{ scrolled, open, sobre: sobreMapa }">
     <div class="container bar">
-      <RouterLink to="/" class="brand" aria-label="Field Shift">
+      <RouterLink to="/" class="brand" aria-label="SeedView">
         <BrandMark />
-        <span class="name">Field Shift</span>
+        <span class="name">SeedView</span>
       </RouterLink>
       <nav class="links" :aria-label="t('nav.menu')">
         <RouterLink v-for="l in links" :key="l.to" :to="l.to" class="lnk">{{ t(l.key) }}</RouterLink>
@@ -87,7 +87,7 @@ async function salir() {
 .hdr { position: sticky; top: 0; z-index: 50; transition: background-color 250ms var(--ease), box-shadow 250ms var(--ease), backdrop-filter 250ms; }
 .hdr.scrolled, .hdr.open { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 1px 0 var(--line); }
 .bar { display: flex; align-items: center; gap: 1.5rem; height: 68px; }
-.brand { display: flex; white-space: nowrap; flex: none; align-items: center; gap: 0.6rem; text-decoration: none; font-family: var(--font-display); font-weight: 650; font-size: 1.28rem; letter-spacing: -0.01em; }
+.brand { display: flex; white-space: nowrap; flex: none; align-items: center; gap: 0.6rem; text-decoration: none; font-family: 'Bricolage Grotesque Variable', var(--font-display); font-weight: 800; font-size: 1.36rem; letter-spacing: -0.03em; }
 .links { display: flex; gap: 0.25rem; margin-left: auto; }
 .lnk { text-decoration: none; padding: 0.5rem 0.85rem; border-radius: 999px; font-weight: 600; font-size: 0.95rem; color: var(--ink-2); transition: background-color 200ms; }
 .lnk:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); }
