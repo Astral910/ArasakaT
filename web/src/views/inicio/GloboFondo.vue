@@ -104,12 +104,12 @@ function verCalles(v: boolean) {
 }
 
 /** Vista cenital para dibujar sin perspectiva. */
-function plano(pad: Pad) {
+function plano(pad: Pad, acercar = true) {
   const m = map.value
   if (!m) return
   // de cerca (≈ 1 m por píxel) y centrado en el punto: un terreno de 1 manzana se ve de ~80 px
   const c = dibujo?.estado.centro
-  m.easeTo({ pitch: 0, bearing: 0, padding: pad, zoom: Math.max(m.getZoom(), 17.6), ...(c ? { center: [c[1], c[0]] as [number, number] } : {}), duration: reduce ? 0 : 800 })
+  m.easeTo({ pitch: 0, bearing: 0, padding: pad, zoom: acercar ? Math.max(m.getZoom(), 17.6) : m.getZoom(), ...(c ? { center: [c[1], c[0]] as [number, number] } : {}), duration: reduce ? 0 : 800 })
 }
 
 onMounted(() => {
