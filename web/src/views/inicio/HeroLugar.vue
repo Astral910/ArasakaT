@@ -98,7 +98,7 @@ async function buscar(s: string, conNominatim: boolean) {
 
 // ---------- parcela ----------
 const dibujando = ref(false)
-const forma = ref<Forma>('punto')
+const forma = ref<Forma>('poligono')
 const est = ref<EstadoDibujo | null>(null)
 const marcado = ref(false) // el usuario tocó el mapa o dibujó: va el punto exacto
 const agua = ref<Agua>('desconocido')
@@ -113,7 +113,7 @@ function elegir(l: Lugar, zoom?: number) {
   aviso.value = '' // el pedido de marcar ya está bajo el lugar (ini.mark.hintAprox): no repetirlo abajo
   marcado.value = false
   dibujando.value = false
-  forma.value = 'punto'
+  forma.value = 'poligono'
   agua.value = 'desconocido'
   llego.value = false
   globo.value?.volarA({ lat: l.lat, lon: l.lon, extent: zoom ? undefined : l.extent, zoom: zoom ?? (l.aproximado ? 14.5 : undefined) }, padding())
@@ -239,7 +239,7 @@ const resumenForma = computed(() => {
   if (s.forma === 'poligono') return t('ini.draw.sum.poligono', { n: s.vertices })
   return t('ini.draw.sum.punto')
 })
-const conForma = computed(() => forma.value !== 'punto' && !!est.value && est.value.forma !== 'punto')
+const conForma = computed(() => !!est.value && est.value.forma === 'poligono' && est.value.completa) // ronda 8: terreno = polígono cerrado
 const puedeDeshacer = computed(() => { void est.value; return !!globo.value?.puedeDeshacer() })
 
 // ---------- 3 preguntas ----------
@@ -634,7 +634,7 @@ h1 { font-size: clamp(2.1rem, 4.6vw, 3.3rem); line-height: 1.06; letter-spacing:
 .a-ic { display: inline-block; width: 18px; height: 18px; flex: none; margin-top: 1px; margin-right: 0.35rem; vertical-align: -3px; }
 .seg-b:focus-visible, .d-b:focus-visible, .dibujar:focus-visible, .d-radio input:focus-visible { outline: 3px solid #f2c75c; outline-offset: 2px; }
 .dibujando .velo { opacity: 0.35; }
-.editar-medida { margin-left: 0.5rem; background: none; border: 0; color: var(--maiz, #e6b54a); font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; padding: 0; }
+.editar-medida { margin-left: 0.5rem; display: inline-flex; align-items: center; padding: 0.3rem 0.8rem; border-radius: 999px; border: 1.5px solid var(--maiz, #e6b54a); background: rgb(230 181 74 / 0.14); color: var(--maiz, #e6b54a); font: inherit; font-size: 0.85rem; font-weight: 750; cursor: pointer; }
 @media (max-width: 760px) {
   .ini-card.dibujo { gap: 0.5rem; padding: 0.85rem 0.9rem 0.75rem; }
   .d-tit { font-size: 1.15rem; }
