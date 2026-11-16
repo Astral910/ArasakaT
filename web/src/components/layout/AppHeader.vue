@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Moon, Sun, Menu, X, Languages, LogIn, LogOut, LayoutGrid, UserRound, MapPinned } from 'lucide-vue-next'
+import { Moon, Sun, Menu, X, Languages, LogIn, LogOut, LayoutGrid, UserRound } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useSesion } from '@/stores/sesion'
 import { useI18n } from '@/i18n'
@@ -24,6 +24,8 @@ watch(() => route.fullPath, () => { open.value = false; menuCuenta.value = false
 const sobreMapa = computed(() => route.name === 'home' && !scrolled.value && !open.value)
 
 // ronda 7: Mis terrenos · Mapa de riesgo · ¿Cómo lo sabemos? (sin «Avisos»; sin sesión, Mis terrenos pide entrar)
+// ronda 8: «Seleccionar terreno» vuelve al buscador; si ya estás en el inicio, la página se recarga
+function seleccionar() { if (route.name === 'home') location.assign('/'); else router.push('/') }
 const links = [
   { to: '/terrenos', key: 'nav.fields' },
   { to: '/map', key: 'nav.map' },
@@ -47,10 +49,10 @@ async function salir() {
         <span class="name">SeedView</span>
       </RouterLink>
       <nav class="links" :aria-label="t('nav.menu')">
+        <a href="/" class="lnk" data-testid="nav-seleccionar" @click.prevent="seleccionar">{{ lang === 'en' ? 'Select field' : 'Seleccionar terreno' }}</a>
         <RouterLink v-for="l in links" :key="l.to" :to="l.to" class="lnk">{{ t(l.key) }}</RouterLink>
       </nav>
       <div class="tools">
-        <RouterLink :to="{ path: '/', query: { elegir: '1' } }" class="sel-terreno" data-testid="nav-seleccionar"><MapPinned aria-hidden="true" /><span>{{ lang === 'en' ? 'Select field' : 'Seleccionar terreno' }}</span></RouterLink>
         <RouterLink v-if="sesion.cargado && !sesion.conSesion" :to="aEntrar" class="tool entrar" data-testid="nav-entrar"><LogIn aria-hidden="true" /><span>{{ t('nav.login') }}</span></RouterLink>
         <div v-else-if="sesion.conSesion" class="cta-cuenta">
           <button class="tool avatar" type="button" :aria-label="t('nav.account')" :aria-expanded="menuCuenta" aria-haspopup="menu" data-testid="nav-cuenta" @click="menuCuenta = !menuCuenta">{{ inicial }}</button>
@@ -76,6 +78,7 @@ async function salir() {
     </div>
     <Transition name="fade">
       <nav v-if="open" class="mobile container" :aria-label="t('nav.menu')">
+        <a href="/" class="mlnk" @click.prevent="seleccionar(); open = false">{{ lang === 'en' ? 'Select field' : 'Seleccionar terreno' }}</a>
         <RouterLink v-for="l in links" :key="l.to" :to="l.to" class="mlnk">{{ t(l.key) }}</RouterLink>
         <RouterLink v-if="sesion.conSesion" to="/cuenta" class="mlnk">{{ t('nav.account') }}</RouterLink>
         <button v-if="sesion.conSesion" type="button" class="mlnk msalir" @click="salir">{{ t('nav.logout') }}</button>
