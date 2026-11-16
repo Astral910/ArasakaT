@@ -78,7 +78,7 @@ export class Dibujo {
   activar(centro: LatLon) {
     this.activo = true
     this.centro = centro
-    this.setForma('punto')
+    this.setForma('poligono') // ronda 8: sin punto; el terreno siempre se dibuja como polígono
   }
   desactivar() {
     this.activo = false

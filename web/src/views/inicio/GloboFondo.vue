@@ -50,6 +50,7 @@ function loop(t0: number) {
 }
 
 /** Vuela al lugar elegido y deja la parcela lista para marcar (punto en el centro). */
+let volando = false
 async function volarA(d: Destino, pad: Pad) {
   parar()
   const m = map.value
@@ -62,7 +63,8 @@ async function volarA(d: Destino, pad: Pad) {
     const cam = m.cameraForBounds([[w, s], [e, n]], { padding: pad })
     if (cam?.zoom) zoom = Math.max(15, Math.min(17.5, cam.zoom))
   }
-  dibujo?.activar([d.lat, d.lon])
+  volando = true // ronda 8: durante el vuelo los clics no dibujan ni eligen otro punto
+  dibujo?.desactivar()
   // nunca más cerca que la foto real del lugar (si no, se ve borroso)
   zoomNativo(d.lat, d.lon).then((z) => {
     m.setMaxZoom(z)
@@ -82,7 +84,7 @@ async function volarA(d: Destino, pad: Pad) {
   m.once('moveend', () => {
     nombres('visible')
     let hecho = false
-    const fin = () => { if (!hecho) { hecho = true; emit('llego') } }
+    const fin = () => { if (!hecho) { hecho = true; volando = false; dibujo?.activar([d.lat, d.lon]); emit('llego') } }
     if (m.areTilesLoaded()) fin()
     else { m.once('idle', fin); setTimeout(fin, 2500) }
   })
@@ -172,7 +174,7 @@ onMounted(() => {
     m.setPadding(movil ? { top: 60, bottom: Math.round(innerHeight * 0.42), left: 0, right: 0 } : { top: 40, bottom: 0, left: Math.min(innerWidth * 0.42, 560), right: 0 })
     if (import.meta.env.DEV || new URLSearchParams(location.search).has('e2e')) (window as any).__globo = m
     for (const ev of ['mousedown', 'touchstart', 'wheel', 'dragstart'] as const) m.on(ev, parar)
-    m.on('click', (e) => { if (!dibujo?.usaClics) emit('pick', { lat: e.lngLat.lat, lon: e.lngLat.lng }) })
+    m.on('click', (e) => { if (!volando && !dibujo?.usaClics) emit('pick', { lat: e.lngLat.lat, lon: e.lngLat.lng }) })
     m.on('load', () => {
       // La atribución arranca plegada (botón ⓘ): abierta tapaba la tarjeta en el celular.
       el.value?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show')
