@@ -19,6 +19,7 @@ export interface Temporada {
     cosecha_elegida?: string; cosecha_recomendada?: string; dias_ciclo_elegida?: number
     texto?: string; texto_en?: string; razones?: RazonSim[]
     canicula?: { ini: string; fin: string; dias: number; etapa?: string; floracion?: string; fuente?: string } | null
+    viable?: { ok: boolean; codigo?: string; texto?: string; texto_en?: string } | null
     [k: string]: unknown
   } | null
 }
@@ -39,12 +40,30 @@ export async function cargarTemporada(x: { lat: number; lon: number; cultivo: st
 
 export const fechaDia = (tp: Temporada, dia: number) => sumarDias(tp.inicio, dia)
 
+/** ronda 8: ¿prospera? null = sí; si no, el porqué en el idioma */
+export function inviable(tp: Temporada | null): string | null {
+  const v = tp?.siembra?.viable
+  return v && !v.ok ? (en() ? v.texto_en ?? v.texto ?? '' : v.texto ?? '') : null
+}
+/** el día en que la planta se muere en la simulación (evento «perdida» o salud del cultivo en ~0) */
+export function muerte(tp: Temporada, siembra?: string): string | undefined {
+  const ev = (tp.eventos ?? []).find((e) => e.tipo === 'perdida')
+  if (ev) return fechaDia(tp, ev.dia)
+  const capas = (tp as unknown as { capas?: { cultivo: string; etapa?: number[]; salud?: number[] }[] }).capas ?? []
+  const c = capas[0]
+  if (!c?.salud || !c.etapa) return undefined
+  const d0 = siembra ? diasEntre(tp.inicio, siembra) : c.etapa.findIndex((x) => x >= 0)
+  for (let d = Math.max(0, d0 + 5); d < c.salud.length; d++) if (c.etapa[d] >= 0 && c.salud[d] <= 0.05) return fechaDia(tp, d)
+  return undefined
+}
+
 /** fechas clave de la temporada */
 export function claves(tp: Temporada) {
   const s = tp.siembra ?? {}
   const siembra = s.elegida ?? s.recomendada
   const cosecha = s.cosecha_elegida ?? s.cosecha_recomendada
-  return { siembra, cosecha, canicula: s.canicula ?? null, lluvias: inicioLluvias(tp, siembra) }
+  const noVa = inviable(tp)
+  return { siembra, cosecha: noVa ? undefined : cosecha, muere: noVa ? muerte(tp, siembra) ?? cosecha : undefined, inviable: noVa, canicula: s.canicula ?? null, lluvias: inicioLluvias(tp, siembra) }
 }
 
 /** inicio de lluvias (regla tipo Sivakumar, simplificada): primer día con ≥ 20 mm en 3 días sin 7 días secos
@@ -119,14 +138,16 @@ export function marcas(tp: Temporada, cultivo: string): Map<string, MarcaDia[]> 
   const c = claves(tp)
   if (c.siembra) add(c.siembra, { tipo: 'siembra', nivel: 'siembra', texto: L('Sembrá hoy (fecha del simulador)', 'Sow today (simulator date)') })
   if (c.cosecha) add(c.cosecha, { tipo: 'cosecha', nivel: 'cosecha', texto: L('Cosecha / tapisca', 'Harvest') })
+  if (c.muere) add(c.muere, { tipo: 'muere', nivel: 'mala', texto: L('La plantación se muere: no habrá cosecha', 'The crop dies: no harvest') })
   if (c.lluvias) add(c.lluvias, { tipo: 'lluvias', nivel: 'ok', texto: L('Empiezan las lluvias (según el simulador)', 'Rains start (per the simulator)'), prob })
   if (c.canicula) {
     const n = diasEntre(c.canicula.ini, c.canicula.fin)
     for (let k = 0; k <= n; k++) add(sumarDias(c.canicula.ini, k), { tipo: 'canicula', nivel: 'ojo', texto: L('Canícula: casi sin lluvia, guardá agua', 'Midsummer drought: little rain, save water') })
   }
   if (c.siembra) {
-    const ciclo = c.cosecha ? diasEntre(c.siembra, c.cosecha) : 120
-    for (const l of labores(cultivo, ciclo)) add(sumarDias(c.siembra, l.d), { tipo: 'labor', nivel: l.nivel, texto: en() ? l.texto[1] : l.texto[0] })
+    const fin = c.cosecha ?? c.muere
+    const ciclo = fin ? diasEntre(c.siembra, fin) : 120
+    for (const l of labores(cultivo, ciclo)) if (!c.muere || l.d < ciclo) add(sumarDias(c.siembra, l.d), { tipo: 'labor', nivel: l.nivel, texto: en() ? l.texto[1] : l.texto[0] })
   }
   return m
 }
@@ -138,7 +159,8 @@ export function guiaDelDia(tp: Temporada | null, f: string): string {
   const hasta = diasEntre(f, c.siembra)
   if (hasta > 14) return L(`Faltan ${hasta} días para sembrar: prepará abono orgánico y conservá el rastrojo`, `${hasta} days to sowing: prepare compost and keep the crop residue`)
   if (hasta > 0) return L(`Faltan ${hasta} días para sembrar: tené listo el terreno y la semilla`, `${hasta} days to sowing: get the field and seed ready`)
-  if (c.cosecha && f <= c.cosecha) {
+  if (c.inviable && (!c.muere || f >= c.muere)) return L('Aquí este cultivo no da cosecha: probá otro cultivo (el simulador te dice cuál prospera)', 'This crop gives no harvest here: try another crop (the simulator tells you which one thrives)')
+  if ((c.cosecha && f <= c.cosecha) || (c.muere && f < c.muere)) {
     const d = -hasta
     return L(`Día ${d} del cultivo: revisá la humedad del suelo y si hay plagas`, `Crop day ${d}: check soil moisture and pests`)
   }
@@ -152,7 +174,7 @@ export function ventana(tipo: 'siembra' | 'lluvias' | 'canicula' | 'cosecha' | '
     case 'siembra': return c.siembra ? { desde: sumarDias(c.siembra, -7), hasta: sumarDias(c.siembra, 30) } : null
     case 'lluvias': return c.lluvias ? { desde: sumarDias(c.lluvias, -10), hasta: sumarDias(c.lluvias, 25) } : null
     case 'canicula': return c.canicula ? { desde: sumarDias(c.canicula.ini, -5), hasta: sumarDias(c.canicula.fin, 5) } : null
-    case 'cosecha': return c.cosecha ? { desde: sumarDias(c.cosecha, -30), hasta: sumarDias(c.cosecha, 3) } : null
+    case 'cosecha': return c.cosecha ? { desde: sumarDias(c.cosecha, -30), hasta: sumarDias(c.cosecha, 3) } : c.muere ? { desde: sumarDias(c.muere, -25), hasta: sumarDias(c.muere, 5) } : null
     case 'dia': return f ? { desde: sumarDias(f, -3), hasta: sumarDias(f, 10) } : null
   }
 }

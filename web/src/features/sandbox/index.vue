@@ -75,6 +75,8 @@ const saltarIntro = !rec && (reducido || !ruta.intro)
 const autoplay = (route.query.auto as string | undefined) !== '0' && !reducido
 // ronda 8: visor 3D incrustado en el dashboard (iframe): sin barra de arriba, sin tarjeta final, en bucle
 const embed = route.query.embed === '1'
+// ronda 8: si el cultivo no prospera aquí (frío, calor, helada, sequía), la tarjeta final lo dice con el porqué
+const inviable = computed(() => { const v = (tl.value as { siembra?: { viable?: { ok: boolean; texto?: string; texto_en?: string } } } | null)?.siembra?.viable; return v && !v.ok ? (lang.value === 'en' ? v.texto_en ?? v.texto ?? '' : v.texto ?? '') : '' })
 const fase = ref<Fase>(saltarIntro ? 'sandbox' : 'vuelo')
 const progreso = ref(0)
 const mapaVivo = ref(!saltarIntro)
@@ -802,7 +804,7 @@ onBeforeUnmount(() => roPie?.disconnect())
     <Transition name="sube">
       <Final
         v-if="!embed && finVisible && res && insignia && !ajustarAbierto && !confirmarIr" :res="res" :recomendada="mostrada" :movil="movil"
-        :ca="hayLugar ? enCentroamerica(lugar.lat, lugar.lon) : enGT" :guardando="yendo"
+        :ca="hayLugar ? enCentroamerica(lugar.lat, lugar.lon) : enGT" :guardando="yendo" :inviable="inviable"
         @guardar="guardarYIr" @cerrar="finVisible = false"
       />
     </Transition>

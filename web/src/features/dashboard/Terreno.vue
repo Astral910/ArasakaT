@@ -22,7 +22,7 @@ import { diaSemana, fmt, tx } from './textos'
 import Avisos from './Avisos.vue'
 import ProximosDias from './ProximosDias.vue'
 import Temporada3D from './Temporada3D.vue'
-import { cargarTemporada, type Temporada } from './temporada'
+import { cargarTemporada, inviable, type Temporada } from './temporada'
 import { cargarSensor } from '../sensores/api'
 import { enCentroamerica, riegoTexto, semaforo, tarjetaAbono, tarjetaCanicula, tarjetaCosecha, tarjetaSiembra, type ConfDec, type SiembraDec } from '../decision/decision'
 import { t } from '@/i18n'
@@ -69,6 +69,7 @@ const conSensor = ref(false)
 const tp = ref<Temporada | null>(null)
 const cargandoTp = ref(false)
 const diaSel = ref<string | null>(null)
+const noVa = computed(() => { void lang.value; return inviable(tp.value) })
 onMounted(cargar)
 
 // granjero6: decisiones del motor (POST /api/simulate?resumen=1: siembra + confianza; sin datos → sin tarjetas)
@@ -207,6 +208,11 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
           <!-- 0 · AVISOS (dashboard7: arriba, compacto) -->
           <Avisos :parcela="p" :alertas="alertasNotif" />
 
+          <article v-if="noVa" class="card nocosecha" data-test="no-cosecha" role="alert">
+            <TriangleAlert :size="26" aria-hidden="true" />
+            <div><b>{{ lang === 'en' ? 'This crop will not be harvested here' : 'Este cultivo no se va a poder cosechar aquí' }}</b><p>{{ noVa }}</p></div>
+          </article>
+
           <!-- 1 · HOY -->
           <article class="card hoy" data-test="hoy" data-tour="hoy">
             <p class="eyebrow">{{ tx('hoy') }} · {{ diaSemana(h.fecha) }} <span class="semaforo" :class="luz" data-test="semaforo"><i />{{ t(`dec.sem_${luz}`) }}</span></p>
@@ -251,7 +257,8 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
               <button type="submit" class="btn oscuro">{{ tx('guardar') }}</button>
               <button type="button" class="btn" @click="editSiembra = false">{{ tx('cancelar') }}</button>
             </form>
-            <CicloCosecha :etapas="h.etapas" :siembra="h.siembra" :cosecha="h.cosecha" :hoy="h.fecha" :etapa="h.etapa" :dias-cosecha="h.diasCosecha" />
+            <p v-if="noVa" class="sin-cosecha" data-test="crec-no-cosecha">{{ lang === 'en' ? 'No harvest: the crop dies before maturing.' : 'Sin cosecha: la plantación se muere antes de madurar.' }}</p>
+            <CicloCosecha :class="{ tachado: noVa }" :etapas="h.etapas" :siembra="h.siembra" :cosecha="h.cosecha" :hoy="h.fecha" :etapa="h.etapa" :dias-cosecha="h.diasCosecha" />
           </article>
 
           <!-- 4 · ALERTAS -->
@@ -405,4 +412,10 @@ h1 { font-size: clamp(1.9rem, 6vw, 2.8rem); }
 .invitar div { display: grid; gap: 0.2rem; }
 .invitar span { font-size: 0.88rem; opacity: 0.8; }
 .invitar .btn { background: var(--maiz, #e6b54a); color: #1d1a14; border-color: transparent; }
+.nocosecha { display: flex; gap: 0.9rem; align-items: flex-start; border-color: #c8553d; background: color-mix(in srgb, #c8553d 9%, var(--surface)); }
+.nocosecha svg { color: #c8553d; flex: none; }
+.nocosecha b { font-size: 1.1rem; }
+.nocosecha p { margin-top: 0.3rem; font-size: 0.92rem; line-height: 1.45; color: var(--ink-2); }
+.sin-cosecha { font-weight: 800; color: #c8553d; }
+.tachado { opacity: 0.45; filter: grayscale(0.7); }
 </style>

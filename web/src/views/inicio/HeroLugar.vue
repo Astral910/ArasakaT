@@ -105,7 +105,7 @@ const agua = ref<Agua>('desconocido')
 const llego = ref(false)
 let timerAgua = 0
 
-function elegir(l: Lugar) {
+function elegir(l: Lugar, zoom?: number) {
   lugar.value = l
   q.value = ''
   resultados.value = []
@@ -116,7 +116,7 @@ function elegir(l: Lugar) {
   forma.value = 'punto'
   agua.value = 'desconocido'
   llego.value = false
-  globo.value?.volarA({ lat: l.lat, lon: l.lon, extent: l.extent, zoom: l.aproximado ? 14.5 : undefined }, padding())
+  globo.value?.volarA({ lat: l.lat, lon: l.lon, extent: zoom ? undefined : l.extent, zoom: zoom ?? (l.aproximado ? 14.5 : undefined) }, padding())
   nextTick(() => boton.value?.focus({ preventScroll: true }))
 }
 function cambiar() {
@@ -142,8 +142,8 @@ async function nombrar(lat: number, lon: number) {
   const r = await nombrarPunto(lat, lon, lang.value)
   if (r === 'agua') { aviso.value = 'agua'; return }
   aviso.value = ''
-  elegir(r ?? lugarSinNombre(lat, lon, lang.value))
-  marcado.value = true
+  // ronda 8: el punto solo sirve para acercar (zoom ~15, aún se ve desde arriba); el terreno se dibuja como polígono
+  elegir(r ?? lugarSinNombre(lat, lon, lang.value), 15)
 }
 function ubicarme() {
   if (!('geolocation' in navigator)) { aviso.value = 'gps'; return }
@@ -187,12 +187,16 @@ async function mirarAgua() {
   if (r.estado === 'agua') aviso.value = 'aguaParcela'
   else if (blandos.includes(aviso.value)) aviso.value = r.estado === 'parcial' ? 'aguaParcial' : ''
 }
-function llegada() { llego.value = true; programarAgua() }
+function llegada() {
+  llego.value = true
+  programarAgua()
+  if (!conForma.value && !dibujando.value) abrirDibujo(false) // ronda 8: siempre se dibuja el terreno exacto
+}
 
-function abrirDibujo() {
+function abrirDibujo(acercar = true) {
   dibujando.value = true
-  if (forma.value === 'punto') ponerForma('circulo')
-  globo.value?.plano(padding())
+  if (forma.value !== 'poligono') ponerForma('poligono') // ronda 8: solo polígono
+  if (acercar && conForma.value) globo.value?.plano(padding())
 }
 function ponerForma(f: Forma) {
   forma.value = f
@@ -244,7 +248,14 @@ const riego = ref<Riego>(DEFAULTS.riego)
 const tamano = ref<'pequeno' | 'media' | 'una' | 'mas'>('una')
 const areaMas = ref<string>('2')
 const unidadMas = ref<Unidad>('manzana')
-const errArea = computed(() => (tamano.value === 'mas' && !conForma.value ? validarArea(areaMas.value, unidadMas.value) : null))
+const medidaPropia = ref(false) // ronda 8: «mide más / medida exacta» sobre el estimado del polígono
+const errArea = computed(() => ((tamano.value === 'mas' && !conForma.value) || medidaPropia.value ? validarArea(areaMas.value, unidadMas.value) : null))
+function editarMedida() {
+  const s0 = est.value
+  if (s0?.areaM2 && lugar.value) { const r = areaRuta(s0.areaM2, lugar.value.pais); areaMas.value = String(Math.round(r.area * 100) / 100); unidadMas.value = r.unidad }
+  medidaPropia.value = true
+  nextTick(() => { areaInput.value?.focus(); areaInput.value?.select() })
+}
 const tocado = ref(false)
 function elegirTamano(id: typeof tamano.value) {
   tamano.value = id
@@ -314,12 +325,14 @@ async function ver() {
   tocado.value = true
   if (errArea.value) { areaInput.value?.focus(); return }
   if (conForma.value && errDibujo.value) { dibujando.value = true; return }
+  if (!conForma.value) { abrirDibujo(false); return } // ronda 8: primero dibujar el terreno (polígono)
   if (agua.value === 'revisando') await mirarAgua()
   if (agua.value === 'agua') { aviso.value = 'aguaParcela'; return }
   const l = lugar.value
   let area: number, unidad: Unidad
   const s = est.value
-  if (conForma.value && s) ({ area, unidad } = areaRuta(s.areaM2, l.pais))
+  if (medidaPropia.value) { area = Number(areaMas.value.replace(',', '.')); unidad = unidadMas.value }
+  else if (conForma.value && s) ({ area, unidad } = areaRuta(s.areaM2, l.pais))
   else {
     const tam = TAMANOS.find((x) => x.id === tamano.value)
     area = tam ? tam.area : Number(areaMas.value.replace(',', '.'))
@@ -383,11 +396,6 @@ defineExpose({ elegir })
             <h2 class="d-tit">{{ t('ini.draw.title') }}</h2>
             <span class="d-lugar">{{ lugar.nombre }}</span>
           </div>
-          <div class="seg" role="radiogroup" :aria-label="t('ini.draw.forms')">
-            <button v-for="f in (['punto', 'circulo', 'poligono'] as const)" :key="f" type="button" role="radio" class="seg-b" :class="{ on: forma === f }" :aria-checked="forma === f" :data-testid="'forma-' + f" @click="ponerForma(f)">
-              <MapPin v-if="f === 'punto'" aria-hidden="true" /><Circle v-else-if="f === 'circulo'" aria-hidden="true" /><Hexagon v-else aria-hidden="true" />{{ t('ini.draw.' + f) }}
-            </button>
-          </div>
           <p class="d-hint" data-testid="dibujo-pista">{{ t('ini.draw.hint.' + (forma === 'poligono' && est?.cerrado ? 'poligonoOk' : forma)) }}</p>
 
           <div v-if="forma === 'circulo'" class="d-radio">
@@ -424,7 +432,7 @@ defineExpose({ elegir })
               <Check v-if="marcado" aria-hidden="true" /><Crosshair v-else aria-hidden="true" />
               {{ conForma ? resumenForma : marcado ? t('ini.mark.done') : lugar.aproximado ? t('ini.mark.hintAprox') : t('ini.mark.hint') }}
             </span>
-            <button type="button" class="dibujar" data-testid="dibujar-terreno" @click="abrirDibujo"><PenLine aria-hidden="true" />{{ conForma ? t('ini.draw.edit') : t('ini.draw.open') }}</button>
+            <button type="button" class="dibujar" data-testid="dibujar-terreno" @click="abrirDibujo()"><PenLine aria-hidden="true" />{{ conForma ? t('ini.draw.edit') : t('ini.draw.open') }}</button>
           </div>
 
           <div class="preg" role="group" aria-labelledby="pq-cultivo">
@@ -433,7 +441,17 @@ defineExpose({ elegir })
           </div>
           <div v-if="conForma && areaDibujo" class="preg" role="group" aria-labelledby="pq-tam">
             <span id="pq-tam" class="pq">{{ t('ini.q.sizeDrawn') }}</span>
-            <p class="area-dib" data-testid="area-dibujada">{{ areaDibujo.txt }}</p>
+            <p v-if="!medidaPropia" class="area-dib" data-testid="area-dibujada">≈ {{ areaDibujo.txt }}
+              <button type="button" class="editar-medida" data-testid="editar-medida" @click="editarMedida">{{ lang === 'en' ? 'Edit size' : 'Editar medida' }}</button></p>
+            <div v-else class="mas">
+              <label for="ini-area2" class="sr">{{ t('ini.area') }}</label>
+              <input id="ini-area2" ref="areaInput" v-model="areaMas" type="text" inputmode="decimal" class="num" data-testid="area-valor" :aria-invalid="!!errArea" @keydown.enter.prevent="ver" />
+              <select v-model="unidadMas" data-testid="area-unidad" :aria-label="t('ini.unit')">
+                <option v-for="u in (['cuerda', 'manzana', 'ha'] as const)" :key="u" :value="u">{{ t('ini.unit.' + u) }}</option>
+              </select>
+              <button type="button" class="editar-medida" @click="medidaPropia = false">{{ lang === 'en' ? 'Use the drawing' : 'Usar el dibujo' }}</button>
+              <p v-if="errArea && tocado" class="err" role="alert">{{ t('ini.err.' + errArea, { max: TOPE[unidadMas], u: t('ini.unit.' + unidadMas) }) }}</p>
+            </div>
           </div>
           <div v-else class="preg" role="group" aria-labelledby="pq-tam">
             <span id="pq-tam" class="pq">{{ t('ini.q.size') }}</span>
@@ -616,6 +634,7 @@ h1 { font-size: clamp(2.1rem, 4.6vw, 3.3rem); line-height: 1.06; letter-spacing:
 .a-ic { display: inline-block; width: 18px; height: 18px; flex: none; margin-top: 1px; margin-right: 0.35rem; vertical-align: -3px; }
 .seg-b:focus-visible, .d-b:focus-visible, .dibujar:focus-visible, .d-radio input:focus-visible { outline: 3px solid #f2c75c; outline-offset: 2px; }
 .dibujando .velo { opacity: 0.35; }
+.editar-medida { margin-left: 0.5rem; background: none; border: 0; color: var(--maiz, #e6b54a); font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; padding: 0; }
 @media (max-width: 760px) {
   .ini-card.dibujo { gap: 0.5rem; padding: 0.85rem 0.9rem 0.75rem; }
   .d-tit { font-size: 1.15rem; }

@@ -420,6 +420,17 @@ type SimSiembra struct {
 	UltimoSeguro    string            `json:"ultimo_seguro,omitempty"` // YYYY-MM-DD: última fecha con cosecha P50 ≥ 85 % de la recomendada
 	Tarde           *RiesgoFecha      `json:"tarde,omitempty"`         // primera fecha después del último día seguro (para "sembrar el X ≈ −N")
 	Canicula        *PeriodoSecoInfo  `json:"canicula,omitempty"`      // período seco climatológico dentro de la temporada (si existe)
+
+	// Ronda 8: ¿prospera aquí? (frío, calor, helada, sequía o no madura → no se va a poder cosechar)
+	Viable *Viabilidad `json:"viable,omitempty"`
+}
+
+// Viabilidad si el cultivo prospera en el lugar; si no, el porqué (código: frio | calor | helada | sequia | no_madura).
+type Viabilidad struct {
+	Ok      bool   `json:"ok"`
+	Codigo  string `json:"codigo,omitempty"`
+	Texto   string `json:"texto,omitempty"`
+	TextoEN string `json:"texto_en,omitempty"`
 }
 
 // PeriodoSecoInfo canícula (Centroamérica) o período seco / dry spell (otros lugares), cruzado con el cultivo.

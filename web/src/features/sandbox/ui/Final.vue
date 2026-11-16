@@ -9,7 +9,7 @@ import { numero } from '../../mapa/comun/idioma'
 import { rinde, unidadRinde } from '../../decision/decision'
 import { lang } from '@/i18n'
 
-const props = defineProps<{ res: Resultado; recomendada: string; movil?: boolean; ca?: boolean; guardando?: boolean }>()
+const props = defineProps<{ res: Resultado; recomendada: string; movil?: boolean; ca?: boolean; guardando?: boolean; inviable?: string }>()
 const emit = defineEmits<{ guardar: []; cerrar: [] }>()
 // granjero6: en la unidad del lugar (qq por cuerda en Centroamérica, t/ha en otros lados)
 const titulo = computed(() => {
@@ -23,7 +23,8 @@ const titulo = computed(() => {
   <section class="final" :class="{ movil }" role="dialog" aria-modal="false" aria-labelledby="final-t" data-testid="final">
     <button class="cerrar" type="button" :aria-label="t('cerrar')" @click="emit('cerrar')"><X :size="18" /></button>
     <p class="kicker">{{ t('finTitulo') }}</p>
-    <h2 id="final-t">{{ titulo }}</h2>
+    <h2 id="final-t">{{ inviable ? (lang === 'en' ? 'It will not be harvested here' : 'Aquí no se va a poder cosechar') : titulo }}</h2>
+    <p v-if="inviable" class="inviable" data-testid="final-inviable">{{ inviable }}</p>
     <button class="btn prim" type="button" data-testid="guardar-terreno" :disabled="guardando" @click="emit('guardar')"><BookmarkPlus :size="18" aria-hidden="true" />{{ t('guardarTerreno') }}</button>
   </section>
 </template>
@@ -37,6 +38,7 @@ const titulo = computed(() => {
 h2 { font-family: var(--font-display); font-size: clamp(1.35rem, 2.6vw, 1.8rem); font-weight: 600; line-height: 1.18; letter-spacing: -.01em; padding-right: 28px; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 13px 18px; font: inherit; font-weight: 800; font-size: .95rem; cursor: pointer; border: 1px solid #f4ebdb; background: #f4ebdb; color: #2a2118; }
 .btn:hover { background: #fff; }
+.inviable { font-size: .92rem; line-height: 1.45; color: #ffd2c4; border-left: 3px solid #e0644a; padding-left: 10px; }
 .btn:disabled { opacity: .6; cursor: progress; }
 .btn:focus-visible { outline: 3px solid #e0a526; outline-offset: 2px; }
 .movil { top: auto; bottom: 12px; transform: translateX(-50%); padding: 18px 16px 16px; gap: 12px; background: rgba(22,17,12,.96); }
