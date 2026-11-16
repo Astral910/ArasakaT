@@ -568,6 +568,7 @@ defineExpose({ elegir })
 .ini { position: relative; height: 100svh; min-height: 560px; margin-top: -68px; overflow: hidden; color: #fff; isolation: isolate; }
 .velo { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(7, 13, 23, 0.72) 0%, rgba(7, 13, 23, 0.35) 38%, transparent 60%); }
 .ini-wrap { position: relative; height: 100%; display: flex; align-items: center; padding-top: 68px; pointer-events: none; }
+@media (min-width: 761px) { .ini-wrap { max-width: none; margin: 0; padding-left: var(--ini-card-x, 5vw); padding-right: 0; } } /* ronda 8: grupo tarjeta + globo centrado */
 .ini-card { position: relative; pointer-events: auto; width: min(520px, 100%); display: flex; flex-direction: column; gap: 0.95rem; padding: 1.9rem 1.8rem 1.5rem; border-radius: 30px; isolation: isolate;
   /* ronda 8: liquid glass — vidrio grueso: refracción (blur + saturación + brillo), luz especular arriba, borde con reflejo en degradé y grano */
   background:
