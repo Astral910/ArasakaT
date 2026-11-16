@@ -21,7 +21,8 @@ import TarjetaSensor from '../sensores/TarjetaSensor.vue'
 import { diaSemana, fmt, tx } from './textos'
 import Avisos from './Avisos.vue'
 import ProximosDias from './ProximosDias.vue'
-import Temporada3D from './Temporada3D.vue'
+import PreguntasDec from './PreguntasDec.vue'
+import SensorSeed3D from '../sensores/SensorSeed3D.vue'
 import { cargarTemporada, inviable, type Temporada } from './temporada'
 import { cargarSensor } from '../sensores/api'
 import { enCentroamerica, riegoTexto, semaforo, tarjetaAbono, tarjetaCanicula, tarjetaCosecha, tarjetaSiembra, type ConfDec, type SiembraDec } from '../decision/decision'
@@ -194,7 +195,6 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
           <p class="muted">{{ p.lugar || `${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}` }} · {{ nombreCultivo(p.cultivo, lang === 'en') }} · {{ p.area }} {{ tx(`unidad_${p.unidad}`) }}</p>
         </div>
         <div class="acciones">
-          <RouterLink :to="q3d" class="btn oscuro" data-test="ver3d"><Box :size="17" aria-hidden="true" />{{ tx('verEn3D') }}</RouterLink>
           <RouterLink :to="qInforme" class="btn"><FileText :size="17" aria-hidden="true" />{{ tx('informe') }}</RouterLink>
           <button type="button" class="btn redondo" data-test="ayuda" :title="tx('ayuda')" :aria-label="tx('ayuda')" @click="tour = true"><CircleQuestionMark :size="19" aria-hidden="true" /></button>
         </div>
@@ -205,6 +205,31 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
       <div v-if="!h" class="muted">{{ tx('cargando') }}</div>
       <div v-else class="lienzo" :class="{ conChat: ancho }">
         <div class="principal">
+          <!-- ronda 8: funciones principales — tu terreno en 3D y el sensor SEED -->
+          <div class="principales">
+            <RouterLink :to="q3d" class="feat f3d" data-test="ver3d">
+              <div class="f3d-mapa"><GMapa :lat="p.lat" :lon="p.lon" :forma="p.forma" :radio="p.radio" :poligono="poli" :W="560" :H="300" /></div>
+              <div class="f3d-txt">
+                <span class="f-kick">{{ lang === 'en' ? 'Your field, scanned from satellite' : 'Tu terreno, escaneado desde satélite' }}</span>
+                <b class="f-tit">{{ lang === 'en' ? 'See your season in 3D' : 'Mirá tu temporada en 3D' }}</b>
+                <span class="f-btn"><Box :size="18" aria-hidden="true" />{{ tx('verEn3D') }}</span>
+              </div>
+            </RouterLink>
+            <article class="feat fseed" data-test="sensor">
+              <div class="fseed-cab">
+                <div class="fseed-3d"><SensorSeed3D /></div>
+                <div class="fseed-txt">
+                  <span class="f-kick">{{ lang === 'en' ? 'SEED sensor · by ArasakaT' : 'Sensor SEED · de ArasakaT' }}</span>
+                  <b class="f-tit">{{ lang === 'en' ? 'Link your SEED sensor' : 'Vinculá tu sensor SEED' }}</b>
+                  <p>{{ lang === 'en'
+                    ? 'It measures the real soil moisture in your field and compares it with what the model expects (FAO-56 water balance with NASA POWER weather). When they differ, SeedView corrects the watering for this field with the real data: more accuracy every day.'
+                    : 'Mide la humedad real del suelo de tu terreno y la compara con la que espera el modelo (balance de agua FAO-56 con el clima de NASA POWER). Si no coinciden, SeedView corrige el riego de este terreno con el dato real: más precisión cada día.' }}</p>
+                </div>
+              </div>
+              <TarjetaSensor :parcela-id="p.id" />
+            </article>
+          </div>
+
           <!-- 0 · AVISOS (dashboard7: arriba, compacto) -->
           <Avisos :parcela="p" :alertas="alertasNotif" />
 
@@ -239,7 +264,7 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
           </article>
 
           <!-- 2 · PRÓXIMOS DÍAS (flechas, mes, qué hacer) -->
-          <Temporada3D :parcela="p" :tp="tp" :cargando="cargandoTp" :tarjetas="tarjetas" :dia="diaSel" />
+          <PreguntasDec :tarjetas="tarjetas" :ca="ca" />
 
           <ProximosDias :h="h" :lat="p.lat" :lon="p.lon" :ca="ca" :tp="tp" :cultivo="p.cultivo" @elegir="diaSel = $event" />
 
@@ -293,11 +318,6 @@ watch(h, async (v) => { if (v && !tourVisto) { tourVisto = true; await nextTick(
             <EsperadoVivido :puntos="h.comparativa" />
           </article>
 
-          <!-- estación de campo (sensor; integrador5) y mapa -->
-          <div class="extras">
-            <article class="card" data-test="sensor"><TarjetaSensor :parcela-id="p.id" /></article>
-            <article class="card mapa"><GMapa :lat="p.lat" :lon="p.lon" :forma="p.forma" :radio="p.radio" :poligono="poli" :W="420" :H="240" /></article>
-          </div>
 
           <aside v-if="invitado" class="invitar" data-test="invitar-cuenta">
             <div><b>{{ lang === 'en' ? 'Want to keep this field?' : '¿Querés guardar este terreno?' }}</b>
@@ -418,4 +438,22 @@ h1 { font-size: clamp(1.9rem, 6vw, 2.8rem); }
 .nocosecha p { margin-top: 0.3rem; font-size: 0.92rem; line-height: 1.45; color: var(--ink-2); }
 .sin-cosecha { font-weight: 800; color: #c8553d; }
 .tachado { opacity: 0.45; filter: grayscale(0.7); }
+.principales { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 1rem; }
+.feat { border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-2, 0 12px 30px rgb(0 0 0 / 0.12)); min-width: 0; }
+.f3d { position: relative; display: flex; flex-direction: column; color: #fff; text-decoration: none; background: linear-gradient(160deg, #14261f, #1d3a2f); }
+.f3d-mapa { position: relative; height: 210px; overflow: hidden; display: grid; place-items: center; }
+.f3d-mapa > :deep(*) { width: 100% !important; max-width: none !important; height: 100% !important; }
+.f3d-mapa :deep(svg), .f3d-mapa :deep(img) { width: 100% !important; height: 100% !important; object-fit: cover; }
+.f3d-txt { padding: 1rem 1.3rem 1.2rem; display: grid; gap: 0.35rem; }
+.f-kick { font-size: 0.74rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; }
+.f-tit { font-family: 'Bricolage Grotesque Variable', var(--font-display); font-size: clamp(1.35rem, 2.6vw, 1.75rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.f-btn { justify-self: start; margin-top: 0.4rem; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.3rem; border-radius: 999px; background: #f5c84c; color: #1d1a14; font-weight: 800; font-size: 1rem; box-shadow: 0 8px 22px rgb(245 200 76 / 0.35); transition: transform 160ms; }
+.f3d:hover .f-btn { transform: translateY(-2px); }
+.fseed { background: linear-gradient(160deg, #10241d 0%, #173a2e 60%, #1f4a3a 100%); color: #eef6f1; padding: 1.1rem 1.2rem 1rem; display: grid; gap: 0.8rem; }
+.fseed-cab { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 1rem; align-items: center; }
+.fseed-3d { height: 210px; border-radius: 16px; background: radial-gradient(circle at 50% 40%, rgb(159 227 196 / 0.22), transparent 70%); }
+.fseed-txt { display: grid; gap: 0.35rem; }
+.fseed-txt p { font-size: 0.88rem; line-height: 1.45; color: rgb(238 246 241 / 0.85); }
+.fseed :deep(.card), .fseed > :last-child { background: rgb(255 255 255 / 0.96); color: var(--ink); border-radius: 14px; padding: 0.8rem; }
+@media (max-width: 980px) { .principales { grid-template-columns: 1fr; } .fseed-cab { grid-template-columns: 1fr; } .fseed-3d { height: 220px; } }
 </style>

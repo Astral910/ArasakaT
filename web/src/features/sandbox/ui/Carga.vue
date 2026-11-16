@@ -63,8 +63,9 @@ const pct = (u: number | null) => `${Math.round(Math.min(1, Math.max(0, u ?? 0))
 
 <style scoped>
 .carga {
-  position: absolute; inset: 0; z-index: 12; display: grid; place-items: center; padding: 24px; overflow: hidden;
-  background: radial-gradient(ellipse 80% 70% at 50% 42%, #17283d 0%, #0b1422 52%, #04070d 100%);
+  position: absolute; inset: 0; z-index: 12; display: grid; place-items: end center; padding: 24px 24px 7vh; overflow: hidden; pointer-events: none;
+  /* ronda 8: el globo girando detrás es la pantalla de carga; aquí solo una píldora con el avance */
+  background: linear-gradient(180deg, transparent 55%, rgba(4, 7, 13, 0.55) 100%);
   color: #f4ebdb; font-family: var(--font-ui);
 }
 /* aura: tres anillos que respiran detrás del texto, como el halo del punto en el globo */
@@ -115,4 +116,8 @@ const pct = (u: number | null) => `${Math.round(Math.min(1, Math.max(0, u ?? 0))
 .agua-enter-from { opacity: 0; transform: translate(-50%, calc(-50% + 16px)); }
 .movil .etapas li { font-size: .88rem; padding: 7px 8px; }
 @media (prefers-reduced-motion: reduce) { .aura i, .activa .marca i { animation: none; } }
+.carga .aura, .carga .frase, .carga .sub, .carga .terreno, .carga .etapas { display: none; }
+.carga .caja { width: min(380px, 100%); padding: 14px 18px 16px; border-radius: 20px; background: rgba(14, 20, 30, 0.55); border: 1px solid rgba(255, 255, 255, 0.18); backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35); display: grid; gap: 10px; }
+.carga .caja .kicker { justify-content: center; width: 100%; }
+.carga .agua { pointer-events: auto; }
 </style>
