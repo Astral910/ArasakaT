@@ -32,6 +32,10 @@ type Service struct {
 	Store      *store.Store
 	Archives   *forecast.Archives
 	AdminToken string
+	// Bienvenidor (ronda 8): la secuencia de bienvenida por WhatsApp al vincular (saludo, video 3D, itinerario)
+	Bienvenidor interface {
+		Bienvenida(tel string, s contract.Suscriptor, parcela, lugar, idioma string)
+	}
 
 	once sync.Once
 	tls  []Timeline
@@ -165,7 +169,9 @@ func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// ronda 8: al vincular desde la web, el bot escribe enseguida para confirmar que el número quedó enlazado
-	if s.Engine != nil && s.Engine.Mensajero != nil && in.Acepto != nil {
+	if s.Bienvenidor != nil && in.Acepto != nil {
+		s.Bienvenidor.Bienvenida(sus.Telefono, sus, in.Parcela, in.Lugar, in.Idioma)
+	} else if s.Engine != nil && s.Engine.Mensajero != nil && in.Acepto != nil {
 		tel, txt := sus.Telefono, Bienvenida(in.Idioma, in.Parcela, in.Lugar)
 		go func() {
 			if err := s.Engine.Mensajero.EnviarTexto(tel, txt); err != nil {

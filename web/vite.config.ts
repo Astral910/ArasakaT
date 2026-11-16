@@ -6,7 +6,7 @@ const target = process.env.VITE_API_TARGET || 'http://127.0.0.1:8200'
 
 export default defineConfig({
   base: process.env.VITE_BASE || '/',
-  plugins: [vue()],
+  plugins: [vue({ template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith('esp-') } } })], // ronda 8: <esp-web-install-button>
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     host: '127.0.0.1',
