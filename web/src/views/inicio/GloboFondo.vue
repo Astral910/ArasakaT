@@ -125,12 +125,17 @@ onMounted(() => {
     if (!el.value) return
     const movil = innerWidth < 760
     const zoomFinal = movil ? 1.35 : innerHeight > 820 ? 2.55 : 2.35
-    // centro del globo = (ancho + izq) / 2; su borde izquierdo queda 36 px a la derecha de la tarjeta (centrada en el contenedor)
+    // ronda 8: tarjeta + globo como un solo grupo centrado en la pantalla, con 48 px entre los dos.
+    // La tarjeta se corre con --ini-card-x (HeroLugar) y el globo con el padding izquierdo: centro = (ancho + izq) / 2.
     const padIzq = (z: number) => {
       const card = document.querySelector('.ini-card') as HTMLElement | null
-      const der = card ? card.getBoundingClientRect().right : innerWidth * 0.42
+      const ancho = card ? card.getBoundingClientRect().width : 520
       const radio = 0.78 * (512 * Math.pow(2, z)) / (2 * Math.PI)
-      return Math.round(Math.max(innerWidth * 0.3, Math.min(innerWidth * 0.62, 2 * (der + 36 + radio) - innerWidth)))
+      const gap = 48
+      const x0 = Math.max(24, (innerWidth - (ancho + gap + 2 * radio)) / 2)
+      document.documentElement.style.setProperty('--ini-card-x', `${Math.round(x0)}px`)
+      const centro = x0 + ancho + gap + radio
+      return Math.round(Math.max(0, 2 * centro - innerWidth))
     }
     const m = new ml.Map({
       container: el.value,
