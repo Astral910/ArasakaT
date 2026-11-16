@@ -250,8 +250,8 @@ defineExpose({
 
 <template>
   <div class="globo" :class="{ listo }" data-testid="globo" :data-listo="listo ? 1 : 0">
-    <div class="estrellas" aria-hidden="true"><i /><i /><i /></div>
-    <div class="cometas" aria-hidden="true"><i /><i /><i /></div>
+    <div class="estrellas" aria-hidden="true"><i /><i /><i /><i /></div>
+    <div class="cometas" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div>
     <div class="planeta" aria-hidden="true"><span /></div>
     <div ref="el" class="lienzo" role="application" :aria-label="t('ini.mapAria')" />
     <div v-if="calles" class="velo" aria-hidden="true" />
@@ -267,6 +267,7 @@ defineExpose({
 .estrellas i:nth-child(1) { background-image: radial-gradient(1px 1px at 12% 22%, #fff 60%, transparent), radial-gradient(1px 1px at 33% 78%, #fff 60%, transparent), radial-gradient(1.5px 1.5px at 58% 14%, #fff 60%, transparent), radial-gradient(1px 1px at 81% 64%, #fff 60%, transparent), radial-gradient(1px 1px at 92% 31%, #fff 60%, transparent); background-size: 420px 380px; opacity: 0.7; }
 .estrellas i:nth-child(2) { background-image: radial-gradient(1px 1px at 7% 61%, #dfe9ff 60%, transparent), radial-gradient(1.2px 1.2px at 46% 41%, #fff 60%, transparent), radial-gradient(1px 1px at 69% 88%, #fff 60%, transparent), radial-gradient(1px 1px at 24% 9%, #fff 60%, transparent); background-size: 310px 290px; opacity: 0.5; animation-delay: -2s; }
 .estrellas i:nth-child(3) { background-image: radial-gradient(2px 2px at 18% 47%, #fff7d6 55%, transparent), radial-gradient(1.6px 1.6px at 74% 19%, #e8f3ff 55%, transparent), radial-gradient(1.8px 1.8px at 52% 70%, #fff 55%, transparent); background-size: 650px 560px; opacity: 0.85; animation-delay: -4s; }
+.estrellas i:nth-child(4) { background-image: radial-gradient(1px 1px at 5% 15%, #fff 60%, transparent), radial-gradient(1px 1px at 27% 52%, #fff 60%, transparent), radial-gradient(1px 1px at 49% 88%, #e8f3ff 60%, transparent), radial-gradient(1.3px 1.3px at 63% 33%, #fff 60%, transparent), radial-gradient(1px 1px at 77% 7%, #fff 60%, transparent), radial-gradient(1px 1px at 95% 72%, #fff 60%, transparent); background-size: 230px 210px; opacity: 0.45; animation-delay: -3s; animation-duration: 8s; }
 @keyframes titila { 0%, 100% { opacity: 0.35 } 50% { opacity: 0.9 } }
 /* ronda 8: cometas que cruzan el cielo cada tanto (cada una con su ritmo) */
 .cometas { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
@@ -276,6 +277,13 @@ defineExpose({
 .cometas i:nth-child(1) { --x0: 8vw; --y0: 10vh; animation-delay: 1.5s; }
 .cometas i:nth-child(2) { --x0: 46vw; --y0: 4vh; animation-duration: 15s; animation-delay: 6s; width: 140px; }
 .cometas i:nth-child(3) { --x0: 70vw; --y0: 18vh; animation-duration: 19s; animation-delay: 11s; width: 220px; }
+.cometas i:nth-child(4) { --x0: 22vw; --y0: 2vh; animation-duration: 8s; animation-delay: 3s; width: 120px; }
+.cometas i:nth-child(5) { --x0: 58vw; --y0: 30vh; animation-duration: 10s; animation-delay: 4.5s; width: 160px; }
+.cometas i:nth-child(6) { --x0: 2vw; --y0: 40vh; animation-duration: 13s; animation-delay: 8s; width: 200px; }
+.cometas i:nth-child(7) { --x0: 84vw; --y0: 6vh; animation-duration: 9s; animation-delay: 2.2s; width: 110px; }
+.cometas i:nth-child(8) { --x0: 36vw; --y0: 22vh; animation-duration: 12s; animation-delay: 9.5s; width: 150px; }
+.cometas i:nth-child(9) { --x0: 64vw; --y0: 50vh; animation-duration: 14s; animation-delay: 5.5s; width: 130px; }
+.cometas i:nth-child(10) { --x0: 14vw; --y0: 60vh; animation-duration: 16s; animation-delay: 12.5s; width: 170px; }
 @keyframes cometa {
   0% { opacity: 0; transform: translate(var(--x0), var(--y0)) rotate(28deg) translateX(0); }
   2% { opacity: 1; }
