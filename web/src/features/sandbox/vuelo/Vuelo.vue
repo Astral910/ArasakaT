@@ -150,6 +150,8 @@ onMounted(async () => {
   let hechasPre = 0
   const precarga = precargar(urls, (hechas, total) => { hechasPre = hechas; emit('carga', { hechas, total }) }, props.manual ? 25000 : 14000, props.manual ? urls.length : esenciales)
     .then(() => { if (import.meta.env.DEV) console.info(`[vuelo] precarga ${hechasPre}/${esenciales} esenciales (de ${urls.length}) teselas en ${Math.round(performance.now() - tPre)} ms`) })
+  // ronda 8: mientras carga, el globo se ve y gira despacio hacia el lugar (esa es la pantalla de carga)
+  if (!props.manual) a.lon = props.lon - 40
   const colorPunto = '#e0a526'
   mapa = new ml.Map({
     container: el,
@@ -218,6 +220,20 @@ onMounted(async () => {
       mapa.on('render', revisar)
       mapa.once('idle', revisar)
       setTimeout(() => { mapa?.off('render', revisar); res() }, 2500)
+    })
+    pintoGlobo.then(() => {
+      if (empezo || props.manual) return
+      if (caja.value) caja.value.style.opacity = '1'
+      let prevT = performance.now()
+      const girar = (now: number) => {
+        if (empezo || !mapa) return
+        const dt = Math.min(0.1, (now - prevT) / 1000)
+        prevT = now
+        a.lon += (props.lon - a.lon) * Math.min(1, dt * 0.22)
+        poner(a)
+        requestAnimationFrame(girar)
+      }
+      requestAnimationFrame(girar)
     })
     await Promise.all([precarga, pintoGlobo])
     if (!props.espera || props.manual) empezar()

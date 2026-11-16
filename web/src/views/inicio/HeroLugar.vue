@@ -449,6 +449,17 @@ defineExpose({ elegir })
           </button>
         </template>
 
+        <!-- ronda 8: acercando al lugar (sin preguntas todavía); al llegar se abre el dibujo del terreno -->
+        <template v-else-if="!conForma">
+          <div class="lugar" data-testid="lugar-elegido">
+            <MapPin class="l-ic" aria-hidden="true" />
+            <div class="l-txt"><strong>{{ lugar.nombre }}</strong><span v-if="lugar.detalle">{{ lugar.detalle }}</span></div>
+            <button type="button" class="cambiar" :aria-label="t('ini.change')" @click="cambiar"><X aria-hidden="true" /><span>{{ t('ini.changeShort') }}</span></button>
+          </div>
+          <p class="acercando" data-testid="acercando"><Loader2 class="spin2" aria-hidden="true" />{{ lang === 'en' ? 'Zooming in… then draw your field.' : 'Acercando… después dibujás tu terreno.' }}</p>
+          <button type="button" class="ver" data-testid="dibujar-ahora" @click="abrirDibujo(llego)"><PenLine aria-hidden="true" /><span>{{ lang === 'en' ? 'Draw my field' : 'Dibujar mi terreno' }}</span></button>
+        </template>
+
         <!-- 2 · TRES PREGUNTAS -->
         <template v-else>
           <div class="lugar" data-testid="lugar-elegido">
@@ -679,6 +690,8 @@ h1 { font-family: 'Bricolage Grotesque Variable', var(--font-display), sans-seri
 .a-ic { display: inline-block; width: 18px; height: 18px; flex: none; margin-top: 1px; margin-right: 0.35rem; vertical-align: -3px; }
 .seg-b:focus-visible, .d-b:focus-visible, .dibujar:focus-visible, .d-radio input:focus-visible { outline: 3px solid #f2c75c; outline-offset: 2px; }
 .dibujando .velo { opacity: 0.35; }
+.acercando { display: flex; align-items: center; gap: 0.5rem; color: rgba(255, 255, 255, 0.85); font-size: 0.95rem; }
+.spin2 { width: 18px; height: 18px; animation: girar 900ms linear infinite; }
 .editar-medida { margin-left: 0.5rem; display: inline-flex; align-items: center; padding: 0.3rem 0.8rem; border-radius: 999px; border: 1.5px solid var(--maiz, #e6b54a); background: rgb(230 181 74 / 0.14); color: var(--maiz, #e6b54a); font: inherit; font-size: 0.85rem; font-weight: 750; cursor: pointer; }
 @media (max-width: 760px) {
   .ini-card.dibujo { gap: 0.5rem; padding: 0.85rem 0.9rem 0.75rem; }
