@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Moon, Sun, Menu, X, Languages, LogIn, LogOut, LayoutGrid, UserRound } from 'lucide-vue-next'
+import { Moon, Sun, Menu, X, Languages, LogIn, LogOut, LayoutGrid, UserRound, MapPinned } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
 import { useSesion } from '@/stores/sesion'
 import { useI18n } from '@/i18n'
@@ -50,6 +50,7 @@ async function salir() {
         <RouterLink v-for="l in links" :key="l.to" :to="l.to" class="lnk">{{ t(l.key) }}</RouterLink>
       </nav>
       <div class="tools">
+        <RouterLink :to="{ path: '/', query: { elegir: '1' } }" class="sel-terreno" data-testid="nav-seleccionar"><MapPinned aria-hidden="true" /><span>{{ lang === 'en' ? 'Select field' : 'Seleccionar terreno' }}</span></RouterLink>
         <RouterLink v-if="sesion.cargado && !sesion.conSesion" :to="aEntrar" class="tool entrar" data-testid="nav-entrar"><LogIn aria-hidden="true" /><span>{{ t('nav.login') }}</span></RouterLink>
         <div v-else-if="sesion.conSesion" class="cta-cuenta">
           <button class="tool avatar" type="button" :aria-label="t('nav.account')" :aria-expanded="menuCuenta" aria-haspopup="menu" data-testid="nav-cuenta" @click="menuCuenta = !menuCuenta">{{ inicial }}</button>
@@ -87,6 +88,9 @@ async function salir() {
 .hdr { position: sticky; top: 0; z-index: 50; transition: background-color 250ms var(--ease), box-shadow 250ms var(--ease), backdrop-filter 250ms; }
 .hdr.scrolled, .hdr.open { background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2); box-shadow: 0 1px 0 var(--line); }
 .bar { display: flex; align-items: center; gap: 1.5rem; height: 68px; }
+.sel-terreno { display: inline-flex; align-items: center; gap: 0.4rem; height: 38px; padding: 0 0.95rem; border-radius: 999px; background: #f5c84c; color: #1d1a14; font-weight: 800; font-size: 0.88rem; text-decoration: none; white-space: nowrap; box-shadow: 0 6px 18px rgb(245 200 76 / 0.3); }
+.sel-terreno svg { width: 16px; height: 16px; }
+@media (max-width: 720px) { .sel-terreno span { display: none; } .sel-terreno { padding: 0 0.6rem; } }
 .brand { display: flex; white-space: nowrap; flex: none; align-items: center; gap: 0.6rem; text-decoration: none; font-family: 'Bricolage Grotesque Variable', var(--font-display); font-weight: 800; font-size: 1.36rem; letter-spacing: -0.03em; }
 .links { display: flex; gap: 0.25rem; margin-left: auto; }
 .lnk { text-decoration: none; padding: 0.5rem 0.85rem; border-radius: 999px; font-weight: 600; font-size: 0.95rem; color: var(--ink-2); transition: background-color 200ms; }

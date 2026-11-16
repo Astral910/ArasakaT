@@ -1,0 +1,9 @@
+{
+  "name": "Sensor SEED · SeedView",
+  "version": "1.0.0",
+  "home_assistant_domain": "",
+  "new_install_prompt_erase": true,
+  "builds": [
+    { "chipFamily": "ESP32-S3", "parts": [{ "path": "seed-s3.bin", "offset": 0 }] }
+  ]
+}

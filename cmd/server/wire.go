@@ -169,6 +169,9 @@ func montar(mux *http.ServeMux, cfg Config) *app {
 	a.comp.Chat = chatEstado
 	a.mensajero = svc.Mensajero
 	diferido.set(svc.Mensajero)
+	if alSvc != nil && svc.Vinculado != nil { // ronda 8: bienvenida con video 3D e itinerario al vincular el WhatsApp
+		alSvc.Bienvenidor = bienvenidaWA{canal: svc.Vinculado, campo: a.campo, muni: muni, webURL: d.WebURL}
+	}
 	a.comp.Bot = "real"
 	a.comp.WhatsApp = activo(d.Cloud.Activo())
 	if wa != nil {

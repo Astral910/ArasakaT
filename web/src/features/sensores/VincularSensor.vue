@@ -5,6 +5,7 @@ import { useSesion } from '@/stores/sesion'
 import { t } from './textos'
 import { altaSensor, comandosSerie, type Alta } from './api'
 import LecturaLocal from './LecturaLocal.vue'
+import FlashearSeed from './FlashearSeed.vue'
 
 const props = defineProps<{ parcelaId?: string }>()
 const emit = defineEmits<{ vinculado: [Alta] }>()
@@ -39,6 +40,7 @@ async function copiar() {
 
 <template>
   <div class="vin" data-test="vincular">
+    <FlashearSeed :alta="alta" />
     <ol class="pasos chico">
       <li>{{ t('vin.p1') }}</li>
       <li>{{ t('vin.p2') }}</li>

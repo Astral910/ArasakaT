@@ -14,7 +14,8 @@ const leer = (k: string) => { try { return localStorage.getItem(k) } catch { ret
 const escribir = (k: string, v: string | null) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v) } catch { /* nada */ } }
 
 // ---------- WhatsApp ----------
-const PAISES = ['+502', '+503', '+504', '+505', '+506', '+507', '+52', '+57', '+51', '+1', '+34']
+// ronda 8: cualquier código de país del mundo (se escribe); la lista solo sugiere
+const PAISES = ['+502', '+503', '+504', '+505', '+506', '+507', '+52', '+57', '+51', '+56', '+54', '+55', '+593', '+591', '+595', '+598', '+58', '+1', '+34', '+44', '+33', '+49', '+39', '+91', '+254', '+234', '+27', '+63', '+62', '+81', '+86', '+61']
 const kW = computed(() => `fs-wa-${props.parcela.id}`)
 const pais = ref('+502')
 const numero = ref('')
@@ -23,7 +24,7 @@ const ocupadoW = ref(false)
 const bienvenida = ref(false)
 const errorW = ref('')
 const mask = (t: string) => `${t.slice(0, t.length > 8 ? t.length - 8 : 0)} •••• ${t.slice(-4)}`
-const telefono = computed(() => (pais.value + numero.value).replace(/[^\d+]/g, ''))
+const telefono = computed(() => ('+' + pais.value.replace(/\D/g, '') + numero.value).replace(/[^\d+]/g, ''))
 async function pedir(cuerpo: Record<string, unknown>) {
   const r = await fetch(`${BASE}/api/alerts/subscribe`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
   if (!r.ok) throw new Error(String(r.status))
@@ -67,15 +68,14 @@ void props.alertas
         <button v-if="vinculado" type="button" class="btn" :disabled="ocupadoW" data-test="wa-desvincular" @click="desvincular">{{ tx('desvincular') }}</button>
         <form v-else class="waform" @submit.prevent="vincular">
           <b class="walbl">WhatsApp</b>
-          <select v-model="pais" :aria-label="tx('waPais')">
-            <option v-for="c in PAISES" :key="c" :value="c">{{ c }}</option>
-          </select>
+          <input v-model="pais" class="pais" type="tel" inputmode="tel" maxlength="5" list="wa-paises" :aria-label="tx('waPais')" data-test="wa-pais" @blur="pais = '+' + pais.replace(/\D/g, '').slice(0, 4)" />
+          <datalist id="wa-paises"><option v-for="c in PAISES" :key="c" :value="c" /></datalist>
           <input v-model="numero" type="tel" inputmode="tel" autocomplete="tel-national" :placeholder="tx('waNumero')" :aria-label="tx('waNumero')" data-test="wa-numero" />
           <button type="submit" class="btn oscuro" :disabled="ocupadoW" data-test="wa-vincular">{{ tx('vincular') }}</button>
         </form>
       </div>
     </div>
-    <p v-if="bienvenida" class="ok" data-test="wa-bienvenida"><CircleCheck :size="15" aria-hidden="true" />{{ lang === 'en' ? 'Linked. We just sent you a welcome message on WhatsApp.' : 'Vinculado. Te acabamos de mandar un mensaje de bienvenida por WhatsApp.' }}</p>
+    <p v-if="bienvenida" class="ok" data-test="wa-bienvenida"><CircleCheck :size="15" aria-hidden="true" />{{ lang === 'en' ? 'Linked. Check WhatsApp: a greeting, the 3D video of your field and this week’s plan.' : 'Vinculado. Revisá tu WhatsApp: saludo, video 3D de tu terreno e itinerario de la semana.' }}</p>
     <p v-if="errorW" class="err" role="alert">{{ errorW }}</p>
     <p class="nota">{{ tx('avisosQue') }}</p>
   </article>
@@ -99,6 +99,7 @@ void props.alertas
 .walbl { margin-right: 0.2rem; }
 .waform select, .waform input { font: inherit; font-size: 0.9rem; border: 1.5px solid var(--line-2); border-radius: 10px; padding: 0.35rem 0.5rem; background: var(--surface); color: var(--ink); min-height: 40px; }
 .waform input { flex: 1; min-width: 7.5rem; }
+.waform input.pais { flex: 0 0 4.6rem; min-width: 4.6rem; text-align: center; font-weight: 700; }
 .btn { display: inline-flex; align-items: center; min-height: 40px; padding: 0.35rem 0.9rem; border-radius: 999px; font-weight: 650; font-size: 0.88rem; background: var(--surface); color: var(--ink); border: 1.5px solid var(--line-2); cursor: pointer; white-space: nowrap; }
 .btn.oscuro { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .btn:disabled { opacity: 0.6; cursor: wait; }
